@@ -29,24 +29,32 @@ To keep this platform immune to penetration tests, script kiddies, and advanced 
 
 ### A. Strict Input Sanitization & XSS Defense
 - **Zero Raw HTML Injection**: Never use `dangerouslySetInnerHTML` unless passed through DOMPurify with strict whitelist tags.
-- **Zod Schema Validation at Every Gate**: Every Server Action and API Route handler **must** validate inbound payload using Zod schemas (`safeParse`). Discard unknown payload fields.
+- **Zod Schema Validation at Every Gate**: Every Server Action, Route Handler, and Form **must** validate inbound payloads using Zod schemas (`safeParse`). Discard unknown payload fields.
 
 ### B. Anti-DDoS, Brute-Force & Rate Limiting
-- **Strict Rate Limiting**: All sensitive endpoints (Auth, Post Creation, Commenting, Follow actions) must enforce sliding-window or token-bucket rate limiting (e.g. Upstash Redis / IP + User Hash).
-- Fail-closed behavior on rate limits (`429 Too Many Requests`).
+- **Strict Rate Limiting**: All sensitive endpoints (Auth, Post Creation, Commenting, Direct Messages, Follow actions) must enforce sliding-window or token-bucket rate limiting (e.g. Upstash Redis / IP + User Hash).
+- **Fail-Closed Policy**: Automatically reject requests hitting limits with `429 Too Many Requests`.
 
-### C. Authentication & Authorization (IDOR Protection)
-- **Insecure Direct Object Reference (IDOR) Defense**: Never trust client-supplied user IDs. Always retrieve the authenticated user's ID securely from the verified server session/cookie (JWT/Supabase Auth).
-- **Row-Level Security (RLS)**: When using Supabase or SQL DB, every table (`posts`, `comments`, `likes`, `follows`, `messages`) **must have RLS enabled**. A user cannot mutate or read private rows belonging to others.
+### C. Authentication & Authorization (IDOR & Zero-Trust DB)
+- **IDOR Defense**: Never trust client-supplied user IDs or roles. Always extract the authenticated user ID securely from verified server sessions/cookies (`supabase.auth.getUser()`).
+- **Row-Level Security (RLS)**: Every database table (`posts`, `comments`, `likes`, `follows`, `messages`, `profiles`) **must have RLS enabled** directly in Postgres. The database itself must reject unauthorized access.
 
-### D. CSRF & Secure Cookie Policy
-- Enforce `SameSite=Lax` or `Strict`, `HttpOnly`, and `Secure` flags on all auth session cookies.
-- Utilize Next.js Server Actions which inherently bundle anti-CSRF token validation.
+### D. Cryptographic Session & Cookie Policy
+- Enforce `HttpOnly`, `Secure` (HTTPS only), and `SameSite=Lax` or `Strict` flags on all session cookies.
+- Leverage Next.js Server Actions with built-in Anti-CSRF token verification.
 
-### E. File Upload Hardening (Media/Images)
-- Never store raw user-uploaded file names (prevent Directory Traversal). Generate cryptographic UUIDs (`crypto.randomUUID()`).
-- Verify Magic Numbers / MIME types server-side, not just file extensions.
-- Enforce strict size limits (e.g., max 5MB for photos, 25MB for videos).
+### E. File Upload Hardening (Media & Stories)
+- **MIME & Magic Byte Verification**: Server-side inspection of binary headers (magic numbers), not just file extensions.
+- **Path Traversal Prevention**: Never store raw client filenames; generate cryptographic UUIDs (`crypto.randomUUID()`).
+- **Strict Limits**: Max 5MB for photos (JPEG, PNG, WebP), max 25MB for short video clips (MP4, WebM).
+
+### F. Security HTTP Response Headers (Anti-Clickjacking & CSP)
+- Middleware & Next.js config must enforce strict security headers:
+  - `Content-Security-Policy (CSP)` (Restricts unauthorized script & media domains)
+  - `X-Frame-Options: DENY` (Anti-Clickjacking)
+  - `X-Content-Type-Options: nosniff` (MIME sniffing defense)
+  - `Strict-Transport-Security (HSTS)` (Forces HTTPS)
+  - `Referrer-Policy: strict-origin-when-cross-origin`
 
 ---
 
