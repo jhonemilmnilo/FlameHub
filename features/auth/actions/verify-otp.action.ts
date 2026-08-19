@@ -92,14 +92,12 @@ export async function verifyOtpAction(rawInput: unknown): Promise<ActionResult<{
     const displayName = meta.display_name || `${firstName} ${lastName}`.trim() || "Student";
     const studentId = meta.student_id || null;
     const department = meta.department || null;
-    const username = meta.username || `user_${authData.user.id.slice(0, 8)}`;
     const bio = meta.bio || "";
 
     await prisma.user.upsert({
       where: { id: authData.user.id },
       update: {
         email,
-        username,
         displayName,
         firstName,
         lastName,
@@ -110,7 +108,7 @@ export async function verifyOtpAction(rawInput: unknown): Promise<ActionResult<{
       create: {
         id: authData.user.id,
         email,
-        username,
+        nickname: null, // Initial registration: nickname is null until configured in profile
         displayName,
         firstName,
         lastName,

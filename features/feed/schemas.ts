@@ -26,12 +26,13 @@ export type CreatePostInput = z.infer<typeof CreatePostSchema>;
  * 🔒 User Profile Update Schema
  */
 export const UpdateProfileSchema = z.object({
-  username: z
+  nickname: z
     .string()
     .trim()
-    .min(3, "Username must be at least 3 characters")
-    .max(30, "Username cannot exceed 30 characters")
-    .regex(/^[a-zA-Z0-9_.]+$/, "Username can only contain letters, numbers, underscores, and dots"),
+    .min(3, "Nickname must be at least 3 characters")
+    .max(25, "Nickname cannot exceed 25 characters")
+    .regex(/^[a-zA-Z0-9_]+$/, "Nickname can only contain letters, numbers, and underscores")
+    .toLowerCase(),
   displayName: z
     .string()
     .trim()
@@ -47,3 +48,4 @@ export const UpdateProfileSchema = z.object({
 });
 
 export type UpdateProfileInput = z.infer<typeof UpdateProfileSchema>;
+

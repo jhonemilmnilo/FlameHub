@@ -2,6 +2,7 @@
 
 import { SignUpSchema } from "../schemas";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { prisma } from "@/lib/prisma";
 import { authRateLimiter } from "@/lib/redis";
 import { headers } from "next/headers";
@@ -11,10 +12,12 @@ type ActionResult<T> =
   | { success: false; error: string; code?: string; fieldErrors?: Record<string, string[]>; data?: never };
 
 /**
- * 🔒 Server Action: Sign Up (Initiates Onboarding & Sends OTP)
- * - Honeypot & IP Rate Limiting
- * - Pre-flight student ID & email uniqueness checks
- * - Registers user in Supabase Auth (Triggers 6-digit confirmation OTP email)
+ * 🔒 Server Action: Sign Up with Smart Orphan Account Recycling (Solution 2)
+ *
+ * 1. Validates Zod & Upstash rate limits
+ * 2. Checks PostgreSQL `User` table for active verified profiles
+ * 3. Smart Orphan Recycling: If an account exists in `auth.users` but NEVER verified (unconfirmed ghost),
+ *    cleanly updates/re-sends OTP instead of blocking the student!
  */
 export async function signUpAction(rawInput: unknown): Promise<ActionResult<{ email: string }>> {
   const timestamp = new Date().toISOString();
@@ -52,8 +55,8 @@ export async function signUpAction(rawInput: unknown): Promise<ActionResult<{ em
       };
     }
 
-    // 3. Pre-flight Check in DB: Prevent duplicate Student IDs & Emails
-    const [existingStudent, existingEmail] = await Promise.all([
+    // 3. Check PostgreSQL for verified, active students
+    const [existingStudent, existingEmailUser] = await Promise.all([
       prisma.user.findUnique({ where: { studentId } }),
       prisma.user.findUnique({ where: { email } }),
     ]);
@@ -61,24 +64,43 @@ export async function signUpAction(rawInput: unknown): Promise<ActionResult<{ em
     if (existingStudent) {
       return {
         success: false,
-        error: "This Student ID is already registered.",
+        error: "This Student ID is already registered to an active account.",
         code: "STUDENT_ID_EXISTS",
       };
     }
 
-    if (existingEmail) {
+    if (existingEmailUser) {
       return {
         success: false,
-        error: "An account with this email address already exists.",
+        error: "An account with this email address already exists. Please log in.",
         code: "EMAIL_EXISTS",
       };
     }
 
-    // 4. Supabase Auth Registration
-    const supabase = await createClient();
+    // 4. Smart Orphan Account Check in Supabase Auth (Solution 2)
+    const adminSupabase = createAdminClient();
+    const { data: userList } = await adminSupabase.auth.admin.listUsers();
+    const existingAuthUser = userList?.users?.find((u) => u.email?.toLowerCase() === email.toLowerCase());
+
     const displayName = `${firstName} ${lastName}`.trim();
     const username = `${firstName.toLowerCase().replace(/[^a-z0-9]/g, "")}_${studentId.replace(/[^a-z0-9]/g, "")}`;
 
+    if (existingAuthUser && !existingAuthUser.email_confirmed_at) {
+      // 👻 Ghost Account Found: Delete the abandoned unconfirmed auth record so user can restart cleanly
+      console.info(
+        JSON.stringify({
+          timestamp,
+          level: "info",
+          event: "RECYCLING_ABANDONED_AUTH_USER",
+          email,
+          userId: existingAuthUser.id,
+        })
+      );
+      await adminSupabase.auth.admin.deleteUser(existingAuthUser.id);
+    }
+
+    // 5. Supabase Auth Registration
+    const supabase = await createClient();
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email,
       password,

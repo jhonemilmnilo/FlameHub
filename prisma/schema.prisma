@@ -10,10 +10,15 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
+enum Role {
+  STUDENT
+  ADMIN
+}
+
 model User {
   id          String   @id // Corresponds to Supabase Auth UUID
   email       String?  @unique
-  username    String   @unique
+  nickname    String?  @unique
   displayName String
   firstName   String?
   lastName    String?
@@ -21,7 +26,7 @@ model User {
   department  String?
   bio         String?
   avatarUrl   String?
-  bannerUrl   String?
+  role        Role     @default(STUDENT)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
@@ -34,7 +39,7 @@ model SystemSetting {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  @@map("system_settings")
+  @@map("SystemSettings")
 }
 
 model RateLimit {
@@ -46,7 +51,8 @@ model RateLimit {
   updatedAt  DateTime @updatedAt
 
   @@index([expiresAt])
-  @@map("rate_limits")
+  @@map("RateLimits")
 }
+
 
 
