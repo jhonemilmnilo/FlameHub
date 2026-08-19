@@ -38,8 +38,9 @@ export async function checkActiveOtpSendStatus(email: string): Promise<OtpSendSt
       totalSentCount,
     };
   } catch (error) {
-    console.error("CHECK_ACTIVE_OTP_STATUS_ERROR:", error);
-    return { canSend: true, remainingSeconds: 0, totalSentCount: 0 };
+    console.error("CHECK_ACTIVE_OTP_STATUS_CRITICAL_ERROR:", error);
+    // 🛡️ Fail-Closed: Never assume sending is allowed during security service degradation
+    return { canSend: false, remainingSeconds: 60, totalSentCount: 0 };
   }
 }
 
@@ -87,8 +88,9 @@ export async function registerOtpSend(
       remainingSeconds: leaseSeconds,
     };
   } catch (error) {
-    console.error("REGISTER_OTP_SEND_ERROR:", error);
-    return { success: true, isAlreadyActive: false, totalSentCount: 1, remainingSeconds: leaseSeconds };
+    console.error("REGISTER_OTP_SEND_CRITICAL_ERROR:", error);
+    // 🛡️ Fail-Closed: Reject automated send if Redis cluster is unreachable
+    return { success: false, isAlreadyActive: false, totalSentCount: 0, remainingSeconds: 60 };
   }
 }
 

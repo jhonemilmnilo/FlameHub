@@ -1,31 +1,47 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { prisma } from "@/lib/prisma";
+import crypto from "crypto";
+
+/**
+ * 🔒 Cryptographically Secure Constant-Time Authorization Verifier
+ * Defends against microsecond side-channel timing attacks
+ */
+function isAuthorized(header: string | null, secret: string | undefined): boolean {
+  if (!header || !secret) return false;
+  const expected = `Bearer ${secret}`;
+  const headerBuffer = Buffer.from(header);
+  const expectedBuffer = Buffer.from(expected);
+
+  if (headerBuffer.length !== expectedBuffer.length) {
+    return false;
+  }
+
+  return crypto.timingSafeEqual(headerBuffer, expectedBuffer);
+}
 
 /**
  * 🧹 Automated Ghost User Cleanup Route (Solution 1)
  *
  * Scans Supabase Auth & PostgreSQL DB for abandoned unverified accounts older than 24 hours.
- * Can be triggered via Cron Job (e.g. Vercel Cron, GitHub Actions, or Supabase pg_cron).
- *
- * Security: Protected via Bearer CRON_SECRET authorization header.
+ * Must be triggered via secure HTTP POST with constant-time Bearer token authorization.
  */
-export async function GET(request: Request) {
+export async function POST(request: Request) {
   const timestamp = new Date().toISOString();
 
   try {
-    // 1. Security Authorization Gate
+    // 1. Strict Cryptographic Constant-Time Authorization Gate
     const authHeader = request.headers.get("authorization");
     const cronSecret = process.env.CRON_SECRET || process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-    if (authHeader !== `Bearer ${cronSecret}` && process.env.NODE_ENV === "production") {
+    if (!isAuthorized(authHeader, cronSecret)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const adminSupabase = createAdminClient();
     const cutoffTime = new Date(Date.now() - 24 * 60 * 60 * 1000); // 24 hours ago
 
-    // 2. Fetch all registered users in Supabase Auth
+    // 2. Fetch registered users in Supabase Auth
     const { data: userList, error: listError } = await adminSupabase.auth.admin.listUsers({
       perPage: 1000,
     });

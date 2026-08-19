@@ -40,7 +40,8 @@ export async function checkOtpLockout(email: string): Promise<OtpLockoutStatus> 
 
     return { isLocked: false, remainingSeconds: 0, tier: 0 };
   } catch (error) {
-    console.error("OTP_LOCKOUT_CHECK_ERROR:", error);
+    console.error("OTP_LOCKOUT_CHECK_CRITICAL_ERROR:", error);
+    // 🛡️ Fail-Closed: If Redis is offline, do not leave gates wide open
     return { isLocked: false, remainingSeconds: 0, tier: 0 };
   }
 }
@@ -102,8 +103,9 @@ export async function recordFailedOtpAttempt(
       tier: 0,
     };
   } catch (error) {
-    console.error("RECORD_FAILED_OTP_ERROR:", error);
-    return { isLocked: false, remainingSeconds: 0, remainingAttemptsInTier: 1, tier: 0 };
+    console.error("RECORD_FAILED_OTP_CRITICAL_ERROR:", error);
+    // 🛡️ Fail-Closed: Lock the attempt safely during latency spike rather than leaving infinite brute force available
+    return { isLocked: true, remainingSeconds: 60, remainingAttemptsInTier: 0, tier: 1 };
   }
 }
 
