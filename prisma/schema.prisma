@@ -37,3 +37,16 @@ model SystemSetting {
   @@map("system_settings")
 }
 
+model RateLimit {
+  id         String   @id @default(cuid())
+  identifier String   @unique // e.g. "otp:resend:email@school.edu" or "otp:verify:127.0.0.1"
+  count      Int      @default(1)
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([expiresAt])
+  @@map("rate_limits")
+}
+
+

@@ -2,7 +2,7 @@
 
 import { ResendOtpSchema } from "../schemas";
 import { createClient } from "@/lib/supabase/server";
-import { authRateLimiter } from "@/lib/redis";
+import { checkPersistentRateLimit } from "@/lib/redis";
 import { headers } from "next/headers";
 
 type ActionResult<T> =
@@ -11,7 +11,8 @@ type ActionResult<T> =
 
 /**
  * 🔒 Server Action: Resend OTP
- * - Enforces rate limiting against email flooding
+ * - Dual-Layer Rate Limiting (Redis + PostgreSQL `rate_limits` table)
+ * - Max 3 resend attempts per 5 minutes per Email
  * - Triggers Supabase resend verification email
  */
 export async function resendOtpAction(rawInput: unknown): Promise<ActionResult<{ success: boolean }>> {
@@ -33,12 +34,12 @@ export async function resendOtpAction(rawInput: unknown): Promise<ActionResult<{
 
     const { email } = parsed.data;
 
-    // Rate Limiter: Max 3 resend attempts per 10 minutes per email
-    const rateLimit = await authRateLimiter.limit(`resend:${clientIp}:${email}`);
+    // 🛡️ Dual-Layer Rate Limiter: Max 3 resends per 5 minutes (300,000 ms)
+    const rateLimit = await checkPersistentRateLimit(`otp:resend:${email}`, 3, 300000);
     if (!rateLimit.success) {
       return {
         success: false,
-        error: "Too many resend requests. Please wait a few minutes before trying again.",
+        error: "Too many resend requests for this email. Please wait a few minutes before trying again.",
         code: "RATE_LIMITED",
       };
     }
