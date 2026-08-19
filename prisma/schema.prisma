@@ -16,6 +16,10 @@ model User {
   email       String?  @unique
   username    String   @unique
   displayName String
+  firstName   String?
+  lastName    String?
+  studentId   String?  @unique
+  department  String?
   bio         String?
   avatarUrl   String?
   bannerUrl   String?
