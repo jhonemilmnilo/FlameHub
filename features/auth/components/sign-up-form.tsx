@@ -139,7 +139,15 @@ export function SignUpForm({ initialDepartments = [] }: SignUpFormProps) {
           return;
         }
 
-        toast.success("Verification code sent to your email!");
+        if (result.data.isAlreadyActive) {
+          toast.info(
+            "An active verification code was recently sent. Please check your inbox or spam folder.",
+            { duration: 6000 }
+          );
+        } else {
+          toast.success("Verification code sent to your email!");
+        }
+
         router.push(`/auth/verify?email=${encodeURIComponent(formData.email)}`);
       } catch {
         toast.error("An unexpected error occurred. Please try again.");
@@ -148,28 +156,28 @@ export function SignUpForm({ initialDepartments = [] }: SignUpFormProps) {
   };
 
   return (
-    <div className="min-h-screen w-full flex flex-col items-center justify-center bg-[#006241] p-4 sm:p-6 lg:p-8 font-sans antialiased text-white">
+    <div className="min-h-screen w-full flex flex-col items-center justify-center bg-[#004e34] sm:bg-[#006241] px-5 py-8 sm:px-6 sm:py-12 lg:px-8 font-sans antialiased text-white">
       {/* Brand Header */}
-      <div className="flex flex-col items-center mb-6 select-none">
+      <div className="flex flex-col items-center mb-6 sm:mb-8 select-none">
         <div className="relative group transition-transform duration-300 hover:scale-105">
-          <FlameHubLogo className="w-16 h-20 sm:w-20 sm:h-24" />
+          <FlameHubLogo className="w-14 h-18 sm:w-16 sm:h-20 lg:w-20 lg:h-24" />
         </div>
         <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight font-heading mt-2 text-white">
           FlameHub
         </h1>
       </div>
 
-      {/* Main Registration Card - Exact Match to Screenshot */}
-      <div className="w-full max-w-2xl bg-[#004e34] rounded-2xl p-6 sm:p-10 border border-[#003d29] shadow-[0_20px_50px_rgba(0,0,0,0.3)] transition-all">
-        <h2 className="text-xl sm:text-2xl font-bold font-heading text-center text-white mb-8 tracking-tight">
+      {/* Form Container - Professional Responsive Elevation */}
+      <div className="w-full max-w-2xl bg-transparent sm:bg-[#004e34] rounded-none sm:rounded-2xl p-0 sm:p-8 md:p-10 border-0 sm:border sm:border-[#003d29] shadow-none sm:shadow-[0_20px_50px_rgba(0,0,0,0.3)] transition-all">
+        <h2 className="text-xl sm:text-2xl font-bold font-heading text-center text-white mb-6 sm:mb-8 tracking-tight">
           Create an account
         </h2>
 
-        <form onSubmit={handleSubmit} noValidate className="space-y-4">
+        <form onSubmit={handleSubmit} noValidate className="space-y-4 sm:space-y-5">
           {/* Row 1: Last name, First name (Col 1) & Student ID (Col 2) */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5">
             {/* Last name & First name */}
-            <div className="grid grid-cols-2 gap-2.5">
+            <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs font-semibold text-white/95 mb-1.5">
                   Last name <span className="text-rose-400">*</span>
@@ -183,10 +191,10 @@ export function SignUpForm({ initialDepartments = [] }: SignUpFormProps) {
                     fieldErrors.lastName
                       ? "border-rose-400 ring-1 ring-rose-400/80 bg-[#401212]/30"
                       : "border-[#22c55e]/50 focus:ring-1 focus:ring-[#22c55e] focus:border-[#22c55e]"
-                  } rounded-lg px-3 py-2 text-sm text-white placeholder-white/20 focus:outline-none transition-all`}
+                  } rounded-lg px-3.5 py-2.5 text-sm text-white placeholder-white/20 focus:outline-none transition-all`}
                 />
                 {fieldErrors.lastName && (
-                  <p className="text-[11px] text-rose-300 font-medium mt-1 animate-fadeIn flex items-center gap-1">
+                  <p className="text-[11px] text-rose-300 font-medium mt-1.5 animate-fadeIn flex items-center gap-1">
                     <span>⚠</span> {fieldErrors.lastName[0]}
                   </p>
                 )}
@@ -205,10 +213,10 @@ export function SignUpForm({ initialDepartments = [] }: SignUpFormProps) {
                     fieldErrors.firstName
                       ? "border-rose-400 ring-1 ring-rose-400/80 bg-[#401212]/30"
                       : "border-[#22c55e]/50 focus:ring-1 focus:ring-[#22c55e] focus:border-[#22c55e]"
-                  } rounded-lg px-3 py-2 text-sm text-white placeholder-white/20 focus:outline-none transition-all`}
+                  } rounded-lg px-3.5 py-2.5 text-sm text-white placeholder-white/20 focus:outline-none transition-all`}
                 />
                 {fieldErrors.firstName && (
-                  <p className="text-[11px] text-rose-300 font-medium mt-1 animate-fadeIn flex items-center gap-1">
+                  <p className="text-[11px] text-rose-300 font-medium mt-1.5 animate-fadeIn flex items-center gap-1">
                     <span>⚠</span> {fieldErrors.firstName[0]}
                   </p>
                 )}
@@ -230,18 +238,18 @@ export function SignUpForm({ initialDepartments = [] }: SignUpFormProps) {
                   fieldErrors.studentId
                     ? "border-rose-400 ring-1 ring-rose-400/80 bg-[#401212]/30"
                     : "border-[#22c55e]/50 focus:ring-1 focus:ring-[#22c55e] focus:border-[#22c55e]"
-                } rounded-lg px-3 py-2 text-sm text-white placeholder-white/30 focus:outline-none transition-all`}
+                } rounded-lg px-3.5 py-2.5 text-sm text-white placeholder-white/30 focus:outline-none transition-all`}
               />
               {fieldErrors.studentId && (
-                <p className="text-[11px] text-rose-300 font-medium mt-1 animate-fadeIn flex items-center gap-1">
+                <p className="text-[11px] text-rose-300 font-medium mt-1.5 animate-fadeIn flex items-center gap-1">
                   <span>⚠</span> {fieldErrors.studentId[0]}
                 </p>
               )}
             </div>
           </div>
 
-          {/* Row 2: Email (Col 1) & Password (Col 2) */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Row 2: Email (Col 1) & Department (Col 2 on desktop, before password on mobile) */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5">
             <div>
               <label className="block text-xs font-semibold text-white/95 mb-1.5">
                 Email <span className="text-rose-400">*</span>
@@ -256,50 +264,15 @@ export function SignUpForm({ initialDepartments = [] }: SignUpFormProps) {
                   fieldErrors.email
                     ? "border-rose-400 ring-1 ring-rose-400/80 bg-[#401212]/30"
                     : "border-[#22c55e]/50 focus:ring-1 focus:ring-[#22c55e] focus:border-[#22c55e]"
-                } rounded-lg px-3 py-2 text-sm text-white placeholder-white/30 focus:outline-none transition-all`}
+                } rounded-lg px-3.5 py-2.5 text-sm text-white placeholder-white/30 focus:outline-none transition-all`}
               />
               {fieldErrors.email && (
-                <p className="text-[11px] text-rose-300 font-medium mt-1 animate-fadeIn flex items-center gap-1">
+                <p className="text-[11px] text-rose-300 font-medium mt-1.5 animate-fadeIn flex items-center gap-1">
                   <span>⚠</span> {fieldErrors.email[0]}
                 </p>
               )}
             </div>
 
-            <div>
-              <label className="block text-xs font-semibold text-white/95 mb-1.5">
-                Password <span className="text-rose-400">*</span>
-              </label>
-              <div className="relative">
-                <input
-                  type={showPassword ? "text" : "password"}
-                  name="password"
-                  value={formData.password}
-                  onChange={handleChange}
-                  className={`w-full bg-[#00462e] border ${
-                    fieldErrors.password
-                      ? "border-rose-400 ring-1 ring-rose-400/80 bg-[#401212]/30"
-                      : "border-[#22c55e]/50 focus:ring-1 focus:ring-[#22c55e] focus:border-[#22c55e]"
-                  } rounded-lg px-3 py-2 pr-10 text-sm text-white placeholder-white/20 focus:outline-none transition-all`}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword((prev) => !prev)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-emerald-300/70 hover:text-white transition-colors cursor-pointer p-1"
-                  aria-label={showPassword ? "Hide password" : "Show password"}
-                >
-                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </button>
-              </div>
-              {fieldErrors.password && (
-                <p className="text-[11px] text-rose-300 font-medium mt-1 animate-fadeIn flex items-center gap-1">
-                  <span>⚠</span> {fieldErrors.password[0]}
-                </p>
-              )}
-            </div>
-          </div>
-
-          {/* Row 3: Department (Col 1) & Confirm Password (Col 2) */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-semibold text-white/95 mb-1.5">
                 Department <span className="text-rose-400">*</span>
@@ -323,6 +296,41 @@ export function SignUpForm({ initialDepartments = [] }: SignUpFormProps) {
                 error={fieldErrors.department?.[0]}
               />
             </div>
+          </div>
+
+          {/* Row 3: Password (Col 1) & Confirm Password (Col 2) */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5">
+            <div>
+              <label className="block text-xs font-semibold text-white/95 mb-1.5">
+                Password <span className="text-rose-400">*</span>
+              </label>
+              <div className="relative">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  name="password"
+                  value={formData.password}
+                  onChange={handleChange}
+                  className={`w-full bg-[#00462e] border ${
+                    fieldErrors.password
+                      ? "border-rose-400 ring-1 ring-rose-400/80 bg-[#401212]/30"
+                      : "border-[#22c55e]/50 focus:ring-1 focus:ring-[#22c55e] focus:border-[#22c55e]"
+                  } rounded-lg px-3.5 py-2.5 pr-10 text-sm text-white placeholder-white/20 focus:outline-none transition-all`}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((prev) => !prev)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-emerald-300/70 hover:text-white transition-colors cursor-pointer p-1.5"
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+              {fieldErrors.password && (
+                <p className="text-[11px] text-rose-300 font-medium mt-1.5 animate-fadeIn flex items-center gap-1">
+                  <span>⚠</span> {fieldErrors.password[0]}
+                </p>
+              )}
+            </div>
 
             <div>
               <label className="block text-xs font-semibold text-white/95 mb-1.5">
@@ -338,19 +346,19 @@ export function SignUpForm({ initialDepartments = [] }: SignUpFormProps) {
                     fieldErrors.confirmPassword
                       ? "border-rose-400 ring-1 ring-rose-400/80 bg-[#401212]/30"
                       : "border-[#22c55e]/50 focus:ring-1 focus:ring-[#22c55e] focus:border-[#22c55e]"
-                  } rounded-lg px-3 py-2 pr-10 text-sm text-white placeholder-white/20 focus:outline-none transition-all`}
+                  } rounded-lg px-3.5 py-2.5 pr-10 text-sm text-white placeholder-white/20 focus:outline-none transition-all`}
                 />
                 <button
                   type="button"
                   onClick={() => setShowConfirmPassword((prev) => !prev)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-emerald-300/70 hover:text-white transition-colors cursor-pointer p-1"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-emerald-300/70 hover:text-white transition-colors cursor-pointer p-1.5"
                   aria-label={showConfirmPassword ? "Hide password" : "Show password"}
                 >
                   {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
               {fieldErrors.confirmPassword && (
-                <p className="text-[11px] text-rose-300 font-medium mt-1 animate-fadeIn flex items-center gap-1">
+                <p className="text-[11px] text-rose-300 font-medium mt-1.5 animate-fadeIn flex items-center gap-1">
                   <span>⚠</span> {fieldErrors.confirmPassword[0]}
                 </p>
               )}
@@ -359,13 +367,13 @@ export function SignUpForm({ initialDepartments = [] }: SignUpFormProps) {
 
           {/* 🔒 Dynamic Password Requirements */}
           {formData.password.length > 0 && unmetRequirements.length > 0 && (
-            <div className="bg-[#003825] border border-emerald-500/30 rounded-lg p-3 transition-all animate-fadeIn">
-              <p className="text-xs font-semibold text-emerald-200 mb-1.5">
+            <div className="bg-[#003825] border border-emerald-500/30 rounded-lg p-3.5 transition-all animate-fadeIn">
+              <p className="text-xs font-semibold text-emerald-200 mb-2">
                 Remaining password requirements ({unmetRequirements.length}):
               </p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {unmetRequirements.map((req, idx) => (
-                  <div key={idx} className="flex items-center gap-1.5 text-xs text-white/75 transition-all">
+                  <div key={idx} className="flex items-center gap-2 text-xs text-white/80 transition-all">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
                     <span>{req.label}</span>
                   </div>
@@ -374,7 +382,7 @@ export function SignUpForm({ initialDepartments = [] }: SignUpFormProps) {
             </div>
           )}
 
-          {/* Row 4: Add Bio (Full Width as shown in reference) */}
+          {/* Row 4: Add Bio (Full Width) */}
           <div>
             <div className="flex items-center justify-between mb-1.5">
               <label className="block text-xs font-semibold text-white/95">
@@ -390,10 +398,10 @@ export function SignUpForm({ initialDepartments = [] }: SignUpFormProps) {
               placeholder="Tell other students about yourself..."
               value={formData.bio}
               onChange={handleChange}
-              className="w-full bg-[#00462e] border border-[#22c55e]/50 rounded-lg px-3 py-2 text-sm text-white placeholder-white/30 focus:outline-none focus:ring-1 focus:ring-[#22c55e] focus:border-[#22c55e] transition-all resize-none"
+              className="w-full bg-[#00462e] border border-[#22c55e]/50 rounded-lg px-3.5 py-2.5 text-sm text-white placeholder-white/30 focus:outline-none focus:ring-1 focus:ring-[#22c55e] focus:border-[#22c55e] transition-all resize-none"
             />
             {fieldErrors.bio && (
-              <p className="text-xs text-rose-300 mt-1">{fieldErrors.bio[0]}</p>
+              <p className="text-xs text-rose-300 mt-1.5">{fieldErrors.bio[0]}</p>
             )}
           </div>
 
@@ -410,11 +418,11 @@ export function SignUpForm({ initialDepartments = [] }: SignUpFormProps) {
           </div>
 
           {/* Submit Button & Login Link */}
-          <div className="pt-4 flex flex-col items-center">
+          <div className="pt-5 sm:pt-6 flex flex-col items-center">
             <button
               type="submit"
               disabled={isPending}
-              className="w-44 sm:w-48 py-2.5 px-6 rounded-full bg-white hover:bg-emerald-50 text-[#006241] font-black text-sm sm:text-base tracking-wider uppercase transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98] shadow-md shadow-black/20 flex items-center justify-center cursor-pointer disabled:opacity-70 disabled:cursor-not-allowed"
+              className="w-48 sm:w-52 py-2.5 sm:py-3 px-6 rounded-full bg-white hover:bg-emerald-50 text-[#006241] font-black text-sm sm:text-base tracking-wider uppercase transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98] shadow-md shadow-black/20 flex items-center justify-center cursor-pointer disabled:opacity-70 disabled:cursor-not-allowed"
             >
               {isPending ? (
                 <>
@@ -426,7 +434,7 @@ export function SignUpForm({ initialDepartments = [] }: SignUpFormProps) {
               )}
             </button>
 
-            <p className="mt-3.5 text-xs text-emerald-200/80">
+            <p className="mt-4 text-xs text-emerald-200/80">
               Already have an account?{" "}
               <Link href="/auth/login" className="text-emerald-300 hover:text-white font-semibold underline underline-offset-2">
                 Log in

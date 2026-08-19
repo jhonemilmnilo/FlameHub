@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { prisma } from "@/lib/prisma";
 import { registerOtpSend } from "@/lib/redis/otp-send-limiter";
+import { checkOtpLockout } from "@/lib/redis/otp-verify-limiter";
 import { headers } from "next/headers";
 
 type ActionResult<T> =
@@ -12,14 +13,9 @@ type ActionResult<T> =
   | { success: false; error: string; code?: string; fieldErrors?: Record<string, string[]>; data?: never };
 
 /**
- * 🔒 Server Action: Sign Up with Smart Orphan Account Recycling (Solution 2)
- *
- * 1. Validates Zod & Upstash rate limits
- * 2. Checks PostgreSQL `User` table for active verified profiles
- * 3. Smart Orphan Recycling: If an account exists in `auth.users` but NEVER verified (unconfirmed ghost),
- *    cleanly updates/re-sends OTP instead of blocking the student!
+ * 🔒 Server Action: Sign Up with Smart Orphan Account Recycling & Active OTP Guard
  */
-export async function signUpAction(rawInput: unknown): Promise<ActionResult<{ email: string }>> {
+export async function signUpAction(rawInput: unknown): Promise<ActionResult<{ email: string; isAlreadyActive?: boolean; remainingSeconds?: number }>> {
   const timestamp = new Date().toISOString();
   let clientIp = "127.0.0.1";
 
@@ -45,14 +41,14 @@ export async function signUpAction(rawInput: unknown): Promise<ActionResult<{ em
       return { success: false, error: "Invalid submission.", code: "BOT_DETECTED" };
     }
 
-    // 2. Anti-Brute-Force Active OTP Gate (Single active OTP per 120s per Email)
-    const otpSendStatus = await registerOtpSend(email, 120);
-
-    if (!otpSendStatus.success) {
+    // 2. Pre-check Lockout Gate: Is email currently locked down?
+    const lockout = await checkOtpLockout(email);
+    if (lockout.isLocked) {
+      const mins = Math.ceil(lockout.remainingSeconds / 60);
       return {
         success: false,
-        error: `An active OTP has already been sent to this email. Please wait ${otpSendStatus.remainingSeconds}s before requesting a new code.`,
-        code: "RATE_LIMITED",
+        error: `Verification is temporarily locked (Tier ${lockout.tier}). Please wait ${mins} minute(s) before trying again.`,
+        code: "SECURITY_LOCKOUT",
       };
     }
 
@@ -78,7 +74,22 @@ export async function signUpAction(rawInput: unknown): Promise<ActionResult<{ em
       };
     }
 
-    // 4. Smart Orphan Account Check in Supabase Auth (Solution 2)
+    // 4. Active OTP Send Gate: Check 120s lease (5-second threshold)
+    const otpSendStatus = await registerOtpSend(email, 120);
+
+    // If an OTP is still active (> 5s remaining), do not dispatch new email; guide user to verify
+    if (otpSendStatus.isAlreadyActive) {
+      return {
+        success: true,
+        data: {
+          email,
+          isAlreadyActive: true,
+          remainingSeconds: otpSendStatus.remainingSeconds,
+        },
+      };
+    }
+
+    // 5. Smart Orphan Account Check in Supabase Auth (Solution 2)
     const adminSupabase = createAdminClient();
     const { data: userList } = await adminSupabase.auth.admin.listUsers();
     const existingAuthUser = userList?.users?.find((u) => u.email?.toLowerCase() === email.toLowerCase());
@@ -100,7 +111,7 @@ export async function signUpAction(rawInput: unknown): Promise<ActionResult<{ em
       await adminSupabase.auth.admin.deleteUser(existingAuthUser.id);
     }
 
-    // 5. Supabase Auth Registration
+    // 6. Supabase Auth Registration & OTP Dispatch
     const supabase = await createClient();
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email,

@@ -51,7 +51,7 @@ export async function checkActiveOtpSendStatus(email: string): Promise<OtpSendSt
 export async function registerOtpSend(
   email: string,
   leaseSeconds: number = 120
-): Promise<{ success: boolean; totalSentCount: number; remainingSeconds: number }> {
+): Promise<{ success: boolean; isAlreadyActive: boolean; totalSentCount: number; remainingSeconds: number }> {
   const normalizedEmail = email.toLowerCase().trim();
   const activeKey = `otp:active:${normalizedEmail}`;
   const countKey = `otp:sent_count:${normalizedEmail}`;
@@ -59,16 +59,19 @@ export async function registerOtpSend(
   try {
     // 1. Check if an active OTP is already running
     const existingTtl = await redis.ttl(activeKey);
-    if (existingTtl > 0) {
+    
+    // ⚡ 5-second threshold: If TTL is > 5s, DO NOT send another OTP, reuse active session
+    if (existingTtl > 5) {
       const currentCount = (await redis.get<number>(countKey)) || 1;
       return {
-        success: false,
+        success: true, // Allow redirecting user to /auth/verify with existing active timer
+        isAlreadyActive: true,
         totalSentCount: currentCount,
         remainingSeconds: existingTtl,
       };
     }
 
-    // 2. Set the 120s active lease
+    // 2. Set/Renew the 120s active lease (if <= 5s or no active OTP)
     await redis.set(activeKey, "active", { ex: leaseSeconds });
 
     // 3. Increment total OTPs sent count (keeps for 24 hours)
@@ -79,12 +82,13 @@ export async function registerOtpSend(
 
     return {
       success: true,
+      isAlreadyActive: false,
       totalSentCount: newCount,
       remainingSeconds: leaseSeconds,
     };
   } catch (error) {
     console.error("REGISTER_OTP_SEND_ERROR:", error);
-    return { success: true, totalSentCount: 1, remainingSeconds: leaseSeconds };
+    return { success: true, isAlreadyActive: false, totalSentCount: 1, remainingSeconds: leaseSeconds };
   }
 }
 

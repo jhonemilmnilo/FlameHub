@@ -8,6 +8,7 @@ import { resendOtpAction } from "@/features/auth/actions/resend-otp.action";
 import { getEmailLockoutStatusAction } from "@/features/auth/actions/check-lockout.action";
 import { toast } from "sonner";
 import { Loader2, Mail, RefreshCw } from "lucide-react";
+import Link from "next/link";
 
 export function OtpVerificationForm() {
   const router = useRouter();
@@ -208,37 +209,37 @@ export function OtpVerificationForm() {
   };
 
   return (
-    <div className="min-h-screen w-full flex flex-col items-center justify-center bg-[#006241] p-4 sm:p-6 lg:p-8 font-sans antialiased text-white">
+    <div className="min-h-screen w-full flex flex-col items-center justify-center bg-[#004e34] sm:bg-[#006241] px-5 py-8 sm:px-6 sm:py-12 lg:px-8 font-sans antialiased text-white">
       {/* Brand Header */}
-      <div className="flex flex-col items-center mb-6 select-none">
+      <div className="flex flex-col items-center mb-6 sm:mb-8 select-none">
         <div className="relative group transition-transform duration-300 hover:scale-105">
-          <FlameHubLogo className="w-16 h-20 sm:w-20 sm:h-24" />
+          <FlameHubLogo className="w-14 h-18 sm:w-16 sm:h-20 lg:w-20 lg:h-24" />
         </div>
-        <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight font-heading mt-1 text-white">
+        <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight font-heading mt-2 text-white">
           FlameHub
         </h1>
       </div>
 
-      {/* Main OTP Verification Card */}
-      <div className="w-full max-w-lg bg-[#004e34] rounded-lg p-6 sm:p-8 shadow-[0_20px_50px_rgba(0,0,0,0.45),0_4px_12px_rgba(0,0,0,0.3)] transition-all">
-        <div className="text-center mb-6">
-          <div className="mx-auto w-12 h-12 rounded-full bg-[#003825] border border-emerald-500/40 flex items-center justify-center mb-3">
+      {/* Main OTP Verification Card - Flat on mobile, Elevated card on tablet/desktop */}
+      <div className="w-full max-w-lg bg-transparent sm:bg-[#004e34] rounded-none sm:rounded-2xl p-0 sm:p-8 md:p-10 shadow-none sm:shadow-[0_20px_50px_rgba(0,0,0,0.45),0_4px_12px_rgba(0,0,0,0.3)] border-0 sm:border sm:border-[#003d29] transition-all">
+        <div className="text-center mb-6 sm:mb-8">
+          <div className="mx-auto w-12 h-12 rounded-full bg-[#003825] border border-emerald-500/40 flex items-center justify-center mb-3.5">
             <Mail className="w-6 h-6 text-emerald-300" />
           </div>
-          <h2 className="text-xl sm:text-2xl font-bold font-heading text-white tracking-tight mb-1.5">
+          <h2 className="text-xl sm:text-2xl font-bold font-heading text-white tracking-tight mb-2">
             Verify your email
           </h2>
           <p className="text-xs sm:text-sm text-emerald-100/80 max-w-sm mx-auto">
             We sent a 6-digit verification code to
           </p>
-          <p className="text-xs sm:text-sm font-semibold text-white mt-0.5 break-all">
+          <p className="text-xs sm:text-sm font-semibold text-white mt-1 break-all">
             {email}
           </p>
         </div>
 
-        <form onSubmit={handleVerify} className="space-y-6">
+        <form onSubmit={handleVerify} className="space-y-6 sm:space-y-8">
           {/* 6 Segmented Digit Input Boxes */}
-          <div className="flex justify-center items-center gap-2 sm:gap-3" onPaste={handlePaste}>
+          <div className="flex justify-center items-center gap-2.5 sm:gap-3.5" onPaste={handlePaste}>
             {otp.map((digit, idx) => (
               <input
                 key={idx}
@@ -253,7 +254,7 @@ export function OtpVerificationForm() {
                 value={digit}
                 onChange={(e) => handleChange(idx, e.target.value)}
                 onKeyDown={(e) => handleKeyDown(idx, e)}
-                className={`w-11 h-13 sm:w-12 sm:h-14 text-center text-xl sm:text-2xl font-bold rounded-sm text-white transition-all selection:bg-transparent ${
+                className={`w-11 h-14 sm:w-13 sm:h-16 text-center text-xl sm:text-2xl font-bold rounded-lg text-white transition-all selection:bg-transparent ${
                   lockout.isLocked
                     ? "bg-[#002f1f] border-emerald-900/40 text-white/20 cursor-not-allowed"
                     : "bg-[#00462e] border border-[#22c55e]/50 focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-transparent"
@@ -268,7 +269,7 @@ export function OtpVerificationForm() {
             <button
               type="submit"
               disabled={isPending || otp.join("").length < 6 || lockout.isLocked}
-              className="w-48 sm:w-56 py-2.5 px-6 rounded-full bg-white hover:bg-emerald-50 text-[#006241] font-black text-sm sm:text-base tracking-wider uppercase transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98] shadow-lg shadow-black/30 flex items-center justify-center cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+              className="w-52 sm:w-60 py-3 px-6 rounded-full bg-white hover:bg-emerald-50 text-[#006241] font-black text-sm sm:text-base tracking-wider uppercase transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98] shadow-lg shadow-black/30 flex items-center justify-center cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
             >
               {isPending ? (
                 <>
@@ -283,7 +284,7 @@ export function OtpVerificationForm() {
             </button>
 
             {/* Resend Cooldown Section */}
-            <div className="mt-5 text-center">
+            <div className="mt-6 text-center">
               <p className="text-xs text-emerald-200/80">
                 Didn&apos;t receive the code?{" "}
                 {cooldown > 0 ? (
@@ -308,6 +309,23 @@ export function OtpVerificationForm() {
                   </button>
                 )}
               </p>
+            </div>
+
+            {/* Navigation Links: Back to Login / Back to Sign Up */}
+            <div className="mt-4 w-full flex items-center justify-center gap-3 text-xs text-emerald-200/80">
+              <Link
+                href="/auth/login"
+                className="text-emerald-300 hover:text-white font-semibold underline underline-offset-2 transition-colors"
+              >
+                Log in
+              </Link>
+              <span className="text-emerald-400/40">•</span>
+              <Link
+                href="/auth/signup"
+                className="text-emerald-300 hover:text-white font-semibold underline underline-offset-2 transition-colors"
+              >
+                Sign up
+              </Link>
             </div>
           </div>
         </form>
