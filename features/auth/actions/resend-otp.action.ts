@@ -2,7 +2,7 @@
 
 import { ResendOtpSchema } from "../schemas";
 import { createClient } from "@/lib/supabase/server";
-import { trackOtpRateLimit } from "@/lib/redis/rate-limiter";
+import { registerOtpSend } from "@/lib/redis/otp-send-limiter";
 import { headers } from "next/headers";
 
 type ActionResult<T> =
@@ -11,11 +11,11 @@ type ActionResult<T> =
 
 /**
  * 🔒 Server Action: Resend OTP
- * - Dual-Layer Rate Limiting (Redis + PostgreSQL `RateLimits` table)
- * - Max 3 resend attempts per 120 seconds per Email
+ * - Strict Active OTP Gate: Max 1 OTP send per 120 seconds per Email
+ * - Tracks total cumulative OTPs sent in Redis (24h)
  * - Triggers Supabase resend verification email
  */
-export async function resendOtpAction(rawInput: unknown): Promise<ActionResult<{ success: boolean }>> {
+export async function resendOtpAction(rawInput: unknown): Promise<ActionResult<{ success: true; remainingSeconds: number }>> {
   const timestamp = new Date().toISOString();
   let clientIp = "127.0.0.1";
 
@@ -23,23 +23,24 @@ export async function resendOtpAction(rawInput: unknown): Promise<ActionResult<{
     const headerList = await headers();
     clientIp = headerList.get("x-forwarded-for")?.split(",")[0]?.trim() || "127.0.0.1";
 
+    // 1. Zod Validation
     const parsed = ResendOtpSchema.safeParse(rawInput);
     if (!parsed.success) {
       return {
         success: false,
-        error: "Invalid email address.",
+        error: "A valid email address is required.",
         code: "VALIDATION_ERROR",
       };
     }
 
     const { email } = parsed.data;
 
-    // 🛡️ Dual-Layer Rate Limiter: Max 3 resends per 120 seconds (Key: "otp:email@domain.com")
-    const rateLimit = await trackOtpRateLimit(email, 3, 120);
-    if (!rateLimit.success) {
+    // 2. Active OTP Send Gate (Cannot resend if an active OTP is already running)
+    const sendStatus = await registerOtpSend(email, 120);
+    if (!sendStatus.success) {
       return {
         success: false,
-        error: "Too many resend requests for this email. Please wait 2 minutes before trying again.",
+        error: `Please wait ${sendStatus.remainingSeconds}s before requesting a new code.`,
         code: "RATE_LIMITED",
       };
     }
@@ -70,7 +71,7 @@ export async function resendOtpAction(rawInput: unknown): Promise<ActionResult<{
 
     return {
       success: true,
-      data: { success: true },
+      data: { success: true, remainingSeconds: sendStatus.remainingSeconds },
     };
   } catch (err: unknown) {
     const errorMsg = err instanceof Error ? err.message : "Internal Server Error";

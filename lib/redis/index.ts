@@ -4,16 +4,19 @@ export {
   authRateLimiter,
   commentRateLimiter,
   messageRateLimiter,
-  trackOtpRateLimit,
-  getOtpCooldownRemaining,
+} from "./rate-limiter";
+export {
+  checkActiveOtpSendStatus,
+  registerOtpSend,
+  clearActiveOtpSend,
+} from "./otp-send-limiter";
+export {
   checkOtpLockout,
   recordFailedOtpAttempt,
   clearOtpLockout,
-} from "./rate-limiter";
+} from "./otp-verify-limiter";
 export {
   getSystemSetting,
   setSystemSetting,
   invalidateSystemSettingCache,
 } from "./system-settings";
-
-

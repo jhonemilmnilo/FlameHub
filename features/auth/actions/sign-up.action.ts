@@ -4,7 +4,7 @@ import { SignUpSchema } from "../schemas";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { prisma } from "@/lib/prisma";
-import { trackOtpRateLimit } from "@/lib/redis/rate-limiter";
+import { registerOtpSend } from "@/lib/redis/otp-send-limiter";
 import { headers } from "next/headers";
 
 type ActionResult<T> =
@@ -45,13 +45,13 @@ export async function signUpAction(rawInput: unknown): Promise<ActionResult<{ em
       return { success: false, error: "Invalid submission.", code: "BOT_DETECTED" };
     }
 
-    // 2. Anti-Brute-Force Rate Limiter (Max 3 OTP sends per 120 seconds per Email)
-    const emailLimit = await trackOtpRateLimit(email, 3, 120); // ⚡ Key: "otp:user@email.com", Count, 120s TTL
+    // 2. Anti-Brute-Force Active OTP Gate (Single active OTP per 120s per Email)
+    const otpSendStatus = await registerOtpSend(email, 120);
 
-    if (!emailLimit.success) {
+    if (!otpSendStatus.success) {
       return {
         success: false,
-        error: "Too many registration attempts for this email. Please wait 2 minutes before trying again.",
+        error: `An active OTP has already been sent to this email. Please wait ${otpSendStatus.remainingSeconds}s before requesting a new code.`,
         code: "RATE_LIMITED",
       };
     }

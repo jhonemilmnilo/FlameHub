@@ -3,7 +3,8 @@
 import { VerifyOtpSchema } from "../schemas";
 import { createClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
-import { checkOtpLockout, recordFailedOtpAttempt, clearOtpLockout } from "@/lib/redis/rate-limiter";
+import { checkOtpLockout, recordFailedOtpAttempt, clearOtpLockout } from "@/lib/redis/otp-verify-limiter";
+import { clearActiveOtpSend } from "@/lib/redis/otp-send-limiter";
 import { headers } from "next/headers";
 
 type ActionResult<T> =
@@ -18,11 +19,7 @@ type ActionResult<T> =
     };
 
 /**
- * 🔒 Server Action: Verify OTP with 3-Tier Progressive Lockdown (By Email)
- *
- * Tier 1: 3 Fails -> 5 mins lockdown
- * Tier 2: 6 Fails -> 15 mins lockdown
- * Tier 3: 9+ Fails -> 1 hour lockdown
+ * 🔒 Server Action: Verify OTP with 4-Tier Perpetual Progressive Lockdown (By Email)
  */
 export async function verifyOtpAction(rawInput: unknown): Promise<ActionResult<{ userId: string }>> {
   const timestamp = new Date().toISOString();
@@ -66,7 +63,7 @@ export async function verifyOtpAction(rawInput: unknown): Promise<ActionResult<{
     });
 
     if (authError || !authData.user) {
-      // 🚨 Record failed attempt & evaluate 3-tier lockout penalty
+      // 🚨 Record failed attempt & evaluate 4-tier lockout penalty
       const penalty = await recordFailedOtpAttempt(email);
 
       console.warn(
@@ -103,8 +100,8 @@ export async function verifyOtpAction(rawInput: unknown): Promise<ActionResult<{
       };
     }
 
-    // 4. Verification Successful: Wipe lockout counters & provision DB user
-    await clearOtpLockout(email);
+    // 4. Verification Successful: Wipe lockout and active OTP lease
+    await Promise.all([clearOtpLockout(email), clearActiveOtpSend(email)]);
 
     const meta = authData.user.user_metadata || {};
     const firstName = meta.first_name || "";
