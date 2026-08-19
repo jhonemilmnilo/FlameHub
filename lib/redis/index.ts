@@ -5,6 +5,7 @@ export {
   commentRateLimiter,
   messageRateLimiter,
   trackOtpRateLimit,
+  getOtpCooldownRemaining,
   checkOtpLockout,
   recordFailedOtpAttempt,
   clearOtpLockout,

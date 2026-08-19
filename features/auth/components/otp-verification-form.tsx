@@ -16,7 +16,7 @@ export function OtpVerificationForm() {
 
   const [isPending, startTransition] = useTransition();
   const [isResending, setIsResending] = useState(false);
-  const [cooldown, setCooldown] = useState(120);
+  const [cooldown, setCooldown] = useState(0);
 
   // 🛡️ Progressive Lockout State
   const [lockout, setLockout] = useState<{ isLocked: boolean; remainingSeconds: number; tier: number }>({
@@ -29,13 +29,16 @@ export function OtpVerificationForm() {
   const [otp, setOtp] = useState<string[]>(["", "", "", "", "", ""]);
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
-  // 🔍 Check lockout status on initial page mount
+  // 🔍 Check lockout status and live Redis resend cooldown on page mount
   useEffect(() => {
     if (email) {
       getEmailLockoutStatusAction(email).then((status) => {
         if (status.isLocked) {
           setOtp(["", "", "", "", "", ""]);
           setLockout(status);
+        }
+        if (status.cooldownRemaining > 0) {
+          setCooldown(status.cooldownRemaining);
         }
       });
     }
@@ -65,10 +68,15 @@ export function OtpVerificationForm() {
     }
   }, [lockout.isLocked, lockout.remainingSeconds]);
 
-  // Format seconds into MM:SS
+  // Format seconds into HH:MM:SS or MM:SS
   const formatTime = (totalSec: number) => {
-    const mins = Math.floor(totalSec / 60);
+    const hours = Math.floor(totalSec / 3600);
+    const mins = Math.floor((totalSec % 3600) / 60);
     const secs = totalSec % 60;
+
+    if (hours > 0) {
+      return `${hours.toString().padStart(2, "0")}:${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
+    }
     return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
   };
 

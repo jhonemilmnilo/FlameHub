@@ -116,9 +116,6 @@ export function SignUpForm() {
 
   const unmetRequirements = allPasswordRequirements.filter((req) => !req.met);
 
-  const isPasswordMatching =
-    formData.confirmPassword.length > 0 && formData.password === formData.confirmPassword;
-
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => {
