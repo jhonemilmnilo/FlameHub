@@ -1,0 +1,21 @@
+// Prisma schema for Flame-Hub (PostgreSQL on Supabase)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id          String   @id // Corresponds to Supabase Auth UUID
+  email       String?  @unique
+  username    String   @unique
+  displayName String
+  bio         String?
+  avatarUrl   String?
+  bannerUrl   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
