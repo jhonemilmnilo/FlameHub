@@ -110,36 +110,67 @@ export async function verifyOtpAction(rawInput: unknown): Promise<ActionResult<{
     const studentId = meta.student_id || null;
     const department = meta.department || null;
     const bio = meta.bio || "";
-
     const now = new Date();
 
-    await prisma.user.upsert({
-      where: { id: authData.user.id },
-      update: {
-        email,
-        displayName,
-        firstName,
-        lastName,
-        studentId,
-        department,
-        bio,
-        isEmailVerified: true,
-        emailVerifiedAt: now,
-      },
-      create: {
-        id: authData.user.id,
-        email,
-        nickname: null,
-        displayName,
-        firstName,
-        lastName,
-        studentId,
-        department,
-        bio,
-        isEmailVerified: true,
-        emailVerifiedAt: now,
-      },
-    });
+    // 5. Resilient Database Upsert with Exponential Backoff Retries
+    let upsertSuccess = false;
+    let lastUpsertError: unknown = null;
+
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        await prisma.user.upsert({
+          where: { id: authData.user.id },
+          update: {
+            email,
+            displayName,
+            firstName,
+            lastName,
+            studentId,
+            department,
+            bio,
+            isEmailVerified: true,
+            emailVerifiedAt: now,
+          },
+          create: {
+            id: authData.user.id,
+            email,
+            nickname: null,
+            displayName,
+            firstName,
+            lastName,
+            studentId,
+            department,
+            bio,
+            isEmailVerified: true,
+            emailVerifiedAt: now,
+          },
+        });
+        upsertSuccess = true;
+        break;
+      } catch (upsertErr) {
+        lastUpsertError = upsertErr;
+        console.warn(
+          `PRISMA_UPSERT_ATTEMPT_${attempt}_FAILED: Retrying in ${attempt * 200}ms...`,
+          upsertErr
+        );
+        if (attempt < 3) {
+          await new Promise((resolve) => setTimeout(resolve, attempt * 200));
+        }
+      }
+    }
+
+    if (!upsertSuccess) {
+      console.error(
+        JSON.stringify({
+          timestamp,
+          level: "error",
+          event: "CRITICAL_PRISMA_UPSERT_DESYNC_FAILURE",
+          userId: authData.user.id,
+          email,
+          error: lastUpsertError instanceof Error ? lastUpsertError.message : String(lastUpsertError),
+        })
+      );
+    }
 
     console.info(
       JSON.stringify({

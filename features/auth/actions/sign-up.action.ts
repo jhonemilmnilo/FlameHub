@@ -2,7 +2,6 @@
 
 import { SignUpSchema } from "../schemas";
 import { createClient } from "@/lib/supabase/server";
-import { createAdminClient } from "@/lib/supabase/admin";
 import { prisma } from "@/lib/prisma";
 import { registerOtpSend } from "@/lib/redis/otp-send-limiter";
 import { checkOtpLockout } from "@/lib/redis/otp-verify-limiter";
@@ -89,47 +88,55 @@ export async function signUpAction(rawInput: unknown): Promise<ActionResult<{ em
       };
     }
 
-    // 5. Smart Orphan Account Check in Supabase Auth (Solution 2)
-    const adminSupabase = createAdminClient();
-    const { data: userList } = await adminSupabase.auth.admin.listUsers();
-    const existingAuthUser = userList?.users?.find((u) => u.email?.toLowerCase() === email.toLowerCase());
-
+    // 5. Supabase Auth Registration & OTP Dispatch
     const displayName = `${firstName} ${lastName}`.trim();
     const username = `${firstName.toLowerCase().replace(/[^a-z0-9]/g, "")}_${studentId.replace(/[^a-z0-9]/g, "")}`;
+    const userMetadata = {
+      first_name: firstName,
+      last_name: lastName,
+      display_name: displayName,
+      student_id: studentId,
+      department,
+      username,
+      bio,
+    };
 
-    if (existingAuthUser && !existingAuthUser.email_confirmed_at) {
-      // 👻 Ghost Account Found: Delete the abandoned unconfirmed auth record so user can restart cleanly
-      console.info(
-        JSON.stringify({
-          timestamp,
-          level: "info",
-          event: "RECYCLING_ABANDONED_AUTH_USER",
-          email,
-          userId: existingAuthUser.id,
-        })
-      );
-      await adminSupabase.auth.admin.deleteUser(existingAuthUser.id);
-    }
-
-    // 6. Supabase Auth Registration & OTP Dispatch
     const supabase = await createClient();
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email,
       password,
       options: {
-        data: {
-          first_name: firstName,
-          last_name: lastName,
-          display_name: displayName,
-          student_id: studentId,
-          department,
-          username,
-          bio,
-        },
+        data: userMetadata,
       },
     });
 
-    if (authError || !authData.user) {
+    // 👻 O(1) Smart Orphan Recovery: If Supabase returns conflict but User is NOT in verified DB
+    if (authError && (authError.message.toLowerCase().includes("already registered") || authError.status === 422)) {
+      // Resend OTP directly to existing unconfirmed auth user
+      const { error: resendError } = await supabase.auth.resend({
+        type: "signup",
+        email,
+      });
+
+      if (!resendError) {
+        console.info(
+          JSON.stringify({
+            timestamp,
+            level: "info",
+            event: "RECYCLED_UNCONFIRMED_GHOST_USER_DIRECT",
+            email,
+            ip: clientIp,
+          })
+        );
+
+        return {
+          success: true,
+          data: { email },
+        };
+      }
+    }
+
+    if (authError || !authData?.user) {
       console.error(
         JSON.stringify({
           timestamp,
