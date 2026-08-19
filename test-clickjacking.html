@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Clickjacking Test Bed</title>
+  <style>
+    body { font-family: sans-serif; padding: 20px; }
+    iframe { width: 600px; height: 700px; border: 2px solid red; }
+  </style>
+</head>
+<body>
+  <h2>Defensive Test: Checking if FlameHub can be framed</h2>
+  <!-- Attempting to embed your local page -->
+  <iframe src="http://localhost:3000/auth/signup"></iframe>
+</body>
+</html>
