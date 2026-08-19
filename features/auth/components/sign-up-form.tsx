@@ -9,59 +9,11 @@ import { toast } from "sonner";
 import { Loader2, Eye, EyeOff } from "lucide-react";
 import Link from "next/link";
 
-const departmentOptions: SearchableOption[] = [
-  {
-    value: "CAHS",
-    label: "College of Allied Health Sciences",
-    badge: "CAHS",
-    subLabel: "Nursing, Pharmacy, Medical Technology",
-  },
-  {
-    value: "CEA",
-    label: "College of Engineering and Architecture",
-    badge: "CEA",
-    subLabel: "Civil, Mechanical, Electrical, Architecture",
-  },
-  {
-    value: "CMA",
-    label: "College of Management and Accountancy",
-    badge: "CMA",
-    subLabel: "Accountancy, Business Administration, Hospitality",
-  },
-  {
-    value: "CITE",
-    label: "College of Information Technology Education",
-    badge: "CITE",
-    subLabel: "Information Technology & Computer Science",
-  },
-  {
-    value: "CELA",
-    label: "College of Education and Liberal Arts",
-    badge: "CELA",
-    subLabel: "Teacher Education, Communication, Psychology",
-  },
-  {
-    value: "CCJE",
-    label: "College of Criminal Justice Education",
-    badge: "CCJE",
-    subLabel: "Criminology & Criminal Justice",
-  },
-  {
-    value: "BED",
-    label: "Basic Education",
-    badge: "BED",
-    subLabel: "Elementary & Junior High School",
-  },
-  {
-    value: "SHS",
-    label: "Senior High School / Basic Education Unit",
-    badge: "SHS",
-    subLabel: "STEM, ABM, HUMSS, TVL Tracks",
-  },
-];
+interface SignUpFormProps {
+  initialDepartments?: SearchableOption[];
+}
 
-
-export function SignUpForm() {
+export function SignUpForm({ initialDepartments = [] }: SignUpFormProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
 
@@ -69,27 +21,7 @@ export function SignUpForm() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const [formData, setFormData] = useState(() => {
-    if (typeof window !== "undefined") {
-      try {
-        const savedDraft = sessionStorage.getItem("flamehub_signup_draft");
-        if (savedDraft) {
-          const parsed = JSON.parse(savedDraft);
-          return {
-            lastName: parsed.lastName || "",
-            firstName: parsed.firstName || "",
-            studentId: parsed.studentId || "",
-            email: parsed.email || "",
-            password: "",
-            confirmPassword: "",
-            department: parsed.department || "",
-            bio: parsed.bio || "",
-            honeypot: "",
-          };
-        }
-      } catch {
-        // Fallback
-      }
-    }
+    // Synchronous client fallback without SSR mismatch
     return {
       lastName: "",
       firstName: "",
@@ -385,7 +317,7 @@ export function SignUpForm() {
                     });
                   }
                 }}
-                options={departmentOptions}
+                options={initialDepartments}
                 placeholder="Select your department..."
                 searchPlaceholder="Search by code or college name..."
                 error={fieldErrors.department?.[0]}
