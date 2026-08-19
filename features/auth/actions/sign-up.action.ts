@@ -4,7 +4,7 @@ import { SignUpSchema } from "../schemas";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { prisma } from "@/lib/prisma";
-import { authRateLimiter } from "@/lib/redis";
+import { trackOtpRateLimit } from "@/lib/redis/rate-limiter";
 import { headers } from "next/headers";
 
 type ActionResult<T> =
@@ -45,12 +45,13 @@ export async function signUpAction(rawInput: unknown): Promise<ActionResult<{ em
       return { success: false, error: "Invalid submission.", code: "BOT_DETECTED" };
     }
 
-    // 2. Anti-Brute-Force Rate Limiter (Max 5 attempts / 10 mins per IP)
-    const rateLimit = await authRateLimiter.limit(`signup:${clientIp}`);
-    if (!rateLimit.success) {
+    // 2. Anti-Brute-Force Rate Limiter (Max 3 OTP sends per 120 seconds per Email)
+    const emailLimit = await trackOtpRateLimit(email, 3, 120); // ⚡ Key: "otp:user@email.com", Count, 120s TTL
+
+    if (!emailLimit.success) {
       return {
         success: false,
-        error: "Too many sign-up attempts from this network. Please try again in 10 minutes.",
+        error: "Too many registration attempts for this email. Please wait 2 minutes before trying again.",
         code: "RATE_LIMITED",
       };
     }

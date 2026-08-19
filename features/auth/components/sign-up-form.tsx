@@ -3,10 +3,63 @@
 import React, { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { FlameHubLogo } from "@/components/ui/flamehub-logo";
+import { SearchableDropdown, SearchableOption } from "@/components/ui/searchable-dropdown";
 import { signUpAction } from "@/features/auth/actions/sign-up.action";
 import { toast } from "sonner";
 import { Loader2, Eye, EyeOff } from "lucide-react";
 import Link from "next/link";
+
+const departmentOptions: SearchableOption[] = [
+  {
+    value: "CAHS",
+    label: "College of Allied Health Sciences",
+    badge: "CAHS",
+    subLabel: "Nursing, Pharmacy, Medical Technology",
+  },
+  {
+    value: "CEA",
+    label: "College of Engineering and Architecture",
+    badge: "CEA",
+    subLabel: "Civil, Mechanical, Electrical, Architecture",
+  },
+  {
+    value: "CMA",
+    label: "College of Management and Accountancy",
+    badge: "CMA",
+    subLabel: "Accountancy, Business Administration, Hospitality",
+  },
+  {
+    value: "CITE",
+    label: "College of Information Technology Education",
+    badge: "CITE",
+    subLabel: "Information Technology & Computer Science",
+  },
+  {
+    value: "CELA",
+    label: "College of Education and Liberal Arts",
+    badge: "CELA",
+    subLabel: "Teacher Education, Communication, Psychology",
+  },
+  {
+    value: "CCJE",
+    label: "College of Criminal Justice Education",
+    badge: "CCJE",
+    subLabel: "Criminology & Criminal Justice",
+  },
+  {
+    value: "BED",
+    label: "Basic Education",
+    badge: "BED",
+    subLabel: "Elementary & Junior High School",
+  },
+  {
+    value: "SHS",
+    label: "Senior High School / Basic Education Unit",
+    badge: "SHS",
+    subLabel: "STEM, ABM, HUMSS, TVL Tracks",
+  },
+];
+
 
 export function SignUpForm() {
   const router = useRouter();
@@ -15,16 +68,39 @@ export function SignUpForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  const [formData, setFormData] = useState({
-    lastName: "",
-    firstName: "",
-    studentId: "",
-    email: "",
-    password: "",
-    confirmPassword: "",
-    department: "",
-    bio: "",
-    honeypot: "",
+  const [formData, setFormData] = useState(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const savedDraft = sessionStorage.getItem("flamehub_signup_draft");
+        if (savedDraft) {
+          const parsed = JSON.parse(savedDraft);
+          return {
+            lastName: parsed.lastName || "",
+            firstName: parsed.firstName || "",
+            studentId: parsed.studentId || "",
+            email: parsed.email || "",
+            password: "",
+            confirmPassword: "",
+            department: parsed.department || "",
+            bio: parsed.bio || "",
+            honeypot: "",
+          };
+        }
+      } catch {
+        // Fallback
+      }
+    }
+    return {
+      lastName: "",
+      firstName: "",
+      studentId: "",
+      email: "",
+      password: "",
+      confirmPassword: "",
+      department: "",
+      bio: "",
+      honeypot: "",
+    };
   });
 
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
@@ -45,7 +121,31 @@ export function SignUpForm() {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    setFormData((prev) => {
+      const updated = { ...prev, [name]: value };
+
+      // Save non-sensitive draft fields to sessionStorage
+      if (typeof window !== "undefined" && name !== "password" && name !== "confirmPassword") {
+        try {
+          sessionStorage.setItem(
+            "flamehub_signup_draft",
+            JSON.stringify({
+              lastName: updated.lastName,
+              firstName: updated.firstName,
+              studentId: updated.studentId,
+              email: updated.email,
+              department: updated.department,
+              bio: updated.bio,
+            })
+          );
+        } catch {
+          // Ignore storage quota
+        }
+      }
+
+      return updated;
+    });
+
     if (fieldErrors[name]) {
       setFieldErrors((prev) => {
         const next = { ...prev };
@@ -55,8 +155,47 @@ export function SignUpForm() {
     }
   };
 
+  const validateClientSide = () => {
+    const errors: Record<string, string[]> = {};
+
+    if (!formData.lastName.trim()) errors.lastName = ["Last name is required"];
+    if (!formData.firstName.trim()) errors.firstName = ["First name is required"];
+    if (!formData.studentId.trim()) errors.studentId = ["Student ID is required"];
+    if (!formData.email.trim()) {
+      errors.email = ["Email address is required"];
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      errors.email = ["Please enter a valid email address"];
+    }
+
+    if (!formData.password) {
+      errors.password = ["Password is required"];
+    } else if (unmetRequirements.length > 0) {
+      errors.password = ["Password does not meet all security criteria"];
+    }
+
+    if (!formData.confirmPassword) {
+      errors.confirmPassword = ["Please confirm your password"];
+    } else if (formData.password !== formData.confirmPassword) {
+      errors.confirmPassword = ["Passwords do not match"];
+    }
+
+    if (!formData.department) {
+      errors.department = ["Please select your college/department"];
+    }
+
+    return errors;
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+
+    const clientErrors = validateClientSide();
+    if (Object.keys(clientErrors).length > 0) {
+      setFieldErrors(clientErrors);
+      toast.error("Please fill in all required fields.");
+      return;
+    }
+
     setFieldErrors({});
 
     startTransition(async () => {
@@ -82,180 +221,216 @@ export function SignUpForm() {
   return (
     <div className="min-h-screen w-full flex flex-col items-center justify-center bg-[#006241] p-4 sm:p-6 lg:p-8 font-sans antialiased text-white">
       {/* Brand Header */}
-      <div className="flex flex-col items-center mb-5 select-none">
+      <div className="flex flex-col items-center mb-6 select-none">
         <div className="relative group transition-transform duration-300 hover:scale-105">
           <FlameHubLogo className="w-16 h-20 sm:w-20 sm:h-24" />
         </div>
-        <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight font-heading mt-1 text-white">
+        <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight font-heading mt-2 text-white">
           FlameHub
         </h1>
       </div>
 
-      {/* Main Registration Card */}
-      <div className="w-full max-w-2xl bg-[#004e34] rounded-lg p-6 sm:p-8 shadow-[0_20px_50px_rgba(0,0,0,0.45),0_4px_12px_rgba(0,0,0,0.3)] transition-all">
-        <h2 className="text-xl sm:text-2xl font-bold font-heading text-center text-white mb-6 tracking-tight">
+      {/* Main Registration Card - Exact Match to Screenshot */}
+      <div className="w-full max-w-2xl bg-[#004e34] rounded-2xl p-6 sm:p-10 border border-[#003d29] shadow-[0_20px_50px_rgba(0,0,0,0.3)] transition-all">
+        <h2 className="text-xl sm:text-2xl font-bold font-heading text-center text-white mb-8 tracking-tight">
           Create an account
         </h2>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Top Row: Last name, First name & Student ID */}
+        <form onSubmit={handleSubmit} noValidate className="space-y-4">
+          {/* Row 1: Last name, First name (Col 1) & Student ID (Col 2) */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Last name & First name side by side */}
-            <div className="grid grid-cols-2 gap-3">
+            {/* Last name & First name */}
+            <div className="grid grid-cols-2 gap-2.5">
               <div>
-                <label className="block text-xs font-semibold text-white/90 mb-1.5">
-                  Last name
+                <label className="block text-xs font-semibold text-white/95 mb-1.5">
+                  Last name <span className="text-rose-400">*</span>
                 </label>
                 <input
                   type="text"
                   name="lastName"
-                  required
                   value={formData.lastName}
                   onChange={handleChange}
-                  className="w-full bg-[#00462e] border border-[#22c55e]/50 rounded-sm px-3 py-2 text-sm text-white placeholder-white/20 focus:outline-none focus:ring-1 focus:ring-[#22c55e] focus:border-[#22c55e] transition-all"
+                  className={`w-full bg-[#00462e] border ${
+                    fieldErrors.lastName
+                      ? "border-rose-400 ring-1 ring-rose-400/80 bg-[#401212]/30"
+                      : "border-[#22c55e]/50 focus:ring-1 focus:ring-[#22c55e] focus:border-[#22c55e]"
+                  } rounded-lg px-3 py-2 text-sm text-white placeholder-white/20 focus:outline-none transition-all`}
                 />
                 {fieldErrors.lastName && (
-                  <p className="text-xs text-rose-300 mt-1">{fieldErrors.lastName[0]}</p>
+                  <p className="text-[11px] text-rose-300 font-medium mt-1 animate-fadeIn flex items-center gap-1">
+                    <span>⚠</span> {fieldErrors.lastName[0]}
+                  </p>
                 )}
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-white/90 mb-1.5">
-                  First name
+                <label className="block text-xs font-semibold text-white/95 mb-1.5">
+                  First name <span className="text-rose-400">*</span>
                 </label>
                 <input
                   type="text"
                   name="firstName"
-                  required
                   value={formData.firstName}
                   onChange={handleChange}
-                  className="w-full bg-[#00462e] border border-[#22c55e]/50 rounded-sm px-3 py-2 text-sm text-white placeholder-white/20 focus:outline-none focus:ring-1 focus:ring-[#22c55e] focus:border-[#22c55e] transition-all"
+                  className={`w-full bg-[#00462e] border ${
+                    fieldErrors.firstName
+                      ? "border-rose-400 ring-1 ring-rose-400/80 bg-[#401212]/30"
+                      : "border-[#22c55e]/50 focus:ring-1 focus:ring-[#22c55e] focus:border-[#22c55e]"
+                  } rounded-lg px-3 py-2 text-sm text-white placeholder-white/20 focus:outline-none transition-all`}
                 />
                 {fieldErrors.firstName && (
-                  <p className="text-xs text-rose-300 mt-1">{fieldErrors.firstName[0]}</p>
+                  <p className="text-[11px] text-rose-300 font-medium mt-1 animate-fadeIn flex items-center gap-1">
+                    <span>⚠</span> {fieldErrors.firstName[0]}
+                  </p>
                 )}
               </div>
             </div>
 
             {/* Student ID */}
             <div>
-              <label className="block text-xs font-semibold text-white/90 mb-1.5">
-                Student ID
+              <label className="block text-xs font-semibold text-white/95 mb-1.5">
+                Student ID <span className="text-rose-400">*</span>
               </label>
               <input
                 type="text"
                 name="studentId"
-                required
+                placeholder="e.g. 02-2024-12345"
                 value={formData.studentId}
                 onChange={handleChange}
-                className="w-full bg-[#00462e] border border-[#22c55e]/50 rounded-sm px-3 py-2 text-sm text-white placeholder-white/20 focus:outline-none focus:ring-1 focus:ring-[#22c55e] focus:border-[#22c55e] transition-all"
+                className={`w-full bg-[#00462e] border ${
+                  fieldErrors.studentId
+                    ? "border-rose-400 ring-1 ring-rose-400/80 bg-[#401212]/30"
+                    : "border-[#22c55e]/50 focus:ring-1 focus:ring-[#22c55e] focus:border-[#22c55e]"
+                } rounded-lg px-3 py-2 text-sm text-white placeholder-white/30 focus:outline-none transition-all`}
               />
               {fieldErrors.studentId && (
-                <p className="text-xs text-rose-300 mt-1">{fieldErrors.studentId[0]}</p>
+                <p className="text-[11px] text-rose-300 font-medium mt-1 animate-fadeIn flex items-center gap-1">
+                  <span>⚠</span> {fieldErrors.studentId[0]}
+                </p>
               )}
             </div>
           </div>
 
-          {/* Middle Row: Email & Password */}
+          {/* Row 2: Email (Col 1) & Password (Col 2) */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-semibold text-white/90 mb-1.5">
-                Email
+              <label className="block text-xs font-semibold text-white/95 mb-1.5">
+                Email <span className="text-rose-400">*</span>
               </label>
               <input
                 type="email"
                 name="email"
-                required
+                placeholder="student@phinmaed.com"
                 value={formData.email}
                 onChange={handleChange}
-                className="w-full bg-[#00462e] border border-[#22c55e]/50 rounded-sm px-3 py-2 text-sm text-white placeholder-white/20 focus:outline-none focus:ring-1 focus:ring-[#22c55e] focus:border-[#22c55e] transition-all"
+                className={`w-full bg-[#00462e] border ${
+                  fieldErrors.email
+                    ? "border-rose-400 ring-1 ring-rose-400/80 bg-[#401212]/30"
+                    : "border-[#22c55e]/50 focus:ring-1 focus:ring-[#22c55e] focus:border-[#22c55e]"
+                } rounded-lg px-3 py-2 text-sm text-white placeholder-white/30 focus:outline-none transition-all`}
               />
               {fieldErrors.email && (
-                <p className="text-xs text-rose-300 mt-1">{fieldErrors.email[0]}</p>
+                <p className="text-[11px] text-rose-300 font-medium mt-1 animate-fadeIn flex items-center gap-1">
+                  <span>⚠</span> {fieldErrors.email[0]}
+                </p>
               )}
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-white/90 mb-1.5">
-                Password
+              <label className="block text-xs font-semibold text-white/95 mb-1.5">
+                Password <span className="text-rose-400">*</span>
               </label>
               <div className="relative">
                 <input
                   type={showPassword ? "text" : "password"}
                   name="password"
-                  required
                   value={formData.password}
                   onChange={handleChange}
-                  className="w-full bg-[#00462e] border border-[#22c55e]/50 rounded-sm px-3 py-2 pr-10 text-sm text-white placeholder-white/20 focus:outline-none focus:ring-1 focus:ring-[#22c55e] focus:border-[#22c55e] transition-all"
+                  className={`w-full bg-[#00462e] border ${
+                    fieldErrors.password
+                      ? "border-rose-400 ring-1 ring-rose-400/80 bg-[#401212]/30"
+                      : "border-[#22c55e]/50 focus:ring-1 focus:ring-[#22c55e] focus:border-[#22c55e]"
+                  } rounded-lg px-3 py-2 pr-10 text-sm text-white placeholder-white/20 focus:outline-none transition-all`}
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword((prev) => !prev)}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-emerald-300/70 hover:text-white transition-colors cursor-pointer p-1"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-emerald-300/70 hover:text-white transition-colors cursor-pointer p-1"
                   aria-label={showPassword ? "Hide password" : "Show password"}
                 >
                   {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
               {fieldErrors.password && (
-                <p className="text-xs text-rose-300 mt-1">{fieldErrors.password[0]}</p>
+                <p className="text-[11px] text-rose-300 font-medium mt-1 animate-fadeIn flex items-center gap-1">
+                  <span>⚠</span> {fieldErrors.password[0]}
+                </p>
               )}
             </div>
           </div>
 
-          {/* Department & Confirm Password */}
+          {/* Row 3: Department (Col 1) & Confirm Password (Col 2) */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-semibold text-white/90 mb-1.5">
-                Department
+              <label className="block text-xs font-semibold text-white/95 mb-1.5">
+                Department <span className="text-rose-400">*</span>
               </label>
-              <input
-                type="text"
+              <SearchableDropdown
                 name="department"
-                required
                 value={formData.department}
-                onChange={handleChange}
-                className="w-full bg-[#00462e] border border-[#22c55e]/50 rounded-sm px-3 py-2 text-sm text-white placeholder-white/20 focus:outline-none focus:ring-1 focus:ring-[#22c55e] focus:border-[#22c55e] transition-all"
+                onChange={(val) => {
+                  setFormData((prev) => ({ ...prev, department: val }));
+                  if (fieldErrors.department) {
+                    setFieldErrors((prev) => {
+                      const next = { ...prev };
+                      delete next.department;
+                      return next;
+                    });
+                  }
+                }}
+                options={departmentOptions}
+                placeholder="Select your department..."
+                searchPlaceholder="Search by code or college name..."
+                error={fieldErrors.department?.[0]}
               />
-              {fieldErrors.department && (
-                <p className="text-xs text-rose-300 mt-1">{fieldErrors.department[0]}</p>
-              )}
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-white/90 mb-1.5">
-                Confirm Password
+              <label className="block text-xs font-semibold text-white/95 mb-1.5">
+                Confirm Password <span className="text-rose-400">*</span>
               </label>
               <div className="relative">
                 <input
                   type={showConfirmPassword ? "text" : "password"}
                   name="confirmPassword"
-                  required
                   value={formData.confirmPassword}
                   onChange={handleChange}
-                  className="w-full bg-[#00462e] border border-[#22c55e]/50 rounded-sm px-3 py-2 pr-10 text-sm text-white placeholder-white/20 focus:outline-none focus:ring-1 focus:ring-[#22c55e] focus:border-[#22c55e] transition-all"
+                  className={`w-full bg-[#00462e] border ${
+                    fieldErrors.confirmPassword
+                      ? "border-rose-400 ring-1 ring-rose-400/80 bg-[#401212]/30"
+                      : "border-[#22c55e]/50 focus:ring-1 focus:ring-[#22c55e] focus:border-[#22c55e]"
+                  } rounded-lg px-3 py-2 pr-10 text-sm text-white placeholder-white/20 focus:outline-none transition-all`}
                 />
                 <button
                   type="button"
                   onClick={() => setShowConfirmPassword((prev) => !prev)}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-emerald-300/70 hover:text-white transition-colors cursor-pointer p-1"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-emerald-300/70 hover:text-white transition-colors cursor-pointer p-1"
                   aria-label={showConfirmPassword ? "Hide password" : "Show password"}
                 >
                   {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
               {fieldErrors.confirmPassword && (
-                <p className="text-xs text-rose-300 mt-1">{fieldErrors.confirmPassword[0]}</p>
-              )}
-              {formData.confirmPassword && !isPasswordMatching && (
-                <p className="text-xs text-rose-300 mt-1">Passwords do not match</p>
+                <p className="text-[11px] text-rose-300 font-medium mt-1 animate-fadeIn flex items-center gap-1">
+                  <span>⚠</span> {fieldErrors.confirmPassword[0]}
+                </p>
               )}
             </div>
           </div>
 
-          {/* 🔒 Dynamic Password Requirements (Only shows remaining unmet rules; hides automatically when all are satisfied) */}
+          {/* 🔒 Dynamic Password Requirements */}
           {formData.password.length > 0 && unmetRequirements.length > 0 && (
-            <div className="bg-[#003825] border border-emerald-500/30 rounded-md p-3 transition-all animate-fadeIn">
+            <div className="bg-[#003825] border border-emerald-500/30 rounded-lg p-3 transition-all animate-fadeIn">
               <p className="text-xs font-semibold text-emerald-200 mb-1.5">
                 Remaining password requirements ({unmetRequirements.length}):
               </p>
@@ -270,24 +445,30 @@ export function SignUpForm() {
             </div>
           )}
 
-          {/* Add Bio */}
+          {/* Row 4: Add Bio (Full Width as shown in reference) */}
           <div>
-            <label className="block text-xs font-semibold text-white/90 mb-1.5">
-              Add bio
-            </label>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="block text-xs font-semibold text-white/95">
+                Add bio
+              </label>
+              <span className="text-[11px] text-emerald-300/60 font-medium italic">
+                Optional
+              </span>
+            </div>
             <textarea
               name="bio"
               rows={4}
+              placeholder="Tell other students about yourself..."
               value={formData.bio}
               onChange={handleChange}
-              className="w-full bg-[#00462e] border border-[#22c55e]/50 rounded-sm px-3 py-2 text-sm text-white placeholder-white/20 focus:outline-none focus:ring-1 focus:ring-[#22c55e] focus:border-[#22c55e] transition-all resize-none"
+              className="w-full bg-[#00462e] border border-[#22c55e]/50 rounded-lg px-3 py-2 text-sm text-white placeholder-white/30 focus:outline-none focus:ring-1 focus:ring-[#22c55e] focus:border-[#22c55e] transition-all resize-none"
             />
             {fieldErrors.bio && (
               <p className="text-xs text-rose-300 mt-1">{fieldErrors.bio[0]}</p>
             )}
           </div>
 
-          {/* 🪤 Invisible Anti-Bot Honeypot (Zero-opacity, out of sight) */}
+          {/* 🪤 Invisible Anti-Bot Honeypot */}
           <div aria-hidden="true" className="opacity-0 absolute -left-[9999px] -top-[9999px] h-0 w-0 pointer-events-none select-none">
             <input
               type="text"
@@ -299,12 +480,12 @@ export function SignUpForm() {
             />
           </div>
 
-          {/* Submit Button */}
-          <div className="pt-3 flex flex-col items-center">
+          {/* Submit Button & Login Link */}
+          <div className="pt-4 flex flex-col items-center">
             <button
               type="submit"
               disabled={isPending}
-              className="w-48 sm:w-56 py-2.5 px-6 rounded-full bg-white hover:bg-emerald-50 text-[#006241] font-black text-sm sm:text-base tracking-wider uppercase transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98] shadow-lg shadow-black/30 flex items-center justify-center cursor-pointer disabled:opacity-70 disabled:cursor-not-allowed"
+              className="w-44 sm:w-48 py-2.5 px-6 rounded-full bg-white hover:bg-emerald-50 text-[#006241] font-black text-sm sm:text-base tracking-wider uppercase transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98] shadow-md shadow-black/20 flex items-center justify-center cursor-pointer disabled:opacity-70 disabled:cursor-not-allowed"
             >
               {isPending ? (
                 <>
@@ -316,7 +497,7 @@ export function SignUpForm() {
               )}
             </button>
 
-            <p className="mt-4 text-xs text-emerald-200/80">
+            <p className="mt-3.5 text-xs text-emerald-200/80">
               Already have an account?{" "}
               <Link href="/auth/login" className="text-emerald-300 hover:text-white font-semibold underline underline-offset-2">
                 Log in

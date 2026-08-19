@@ -16,19 +16,21 @@ enum Role {
 }
 
 model User {
-  id          String   @id // Corresponds to Supabase Auth UUID
-  email       String?  @unique
-  nickname    String?  @unique
-  displayName String
-  firstName   String?
-  lastName    String?
-  studentId   String?  @unique
-  department  String?
-  bio         String?
-  avatarUrl   String?
-  role        Role     @default(STUDENT)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id              String    @id // Corresponds to Supabase Auth UUID
+  email           String?   @unique
+  nickname        String?   @unique
+  displayName     String
+  firstName       String?
+  lastName        String?
+  studentId       String?   @unique
+  department      String?
+  bio             String?
+  avatarUrl       String?
+  role            Role      @default(STUDENT)
+  isEmailVerified Boolean   @default(false)
+  emailVerifiedAt DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 }
 
 model SystemSetting {
@@ -43,16 +45,28 @@ model SystemSetting {
 }
 
 model RateLimit {
-  id         String   @id @default(cuid())
-  identifier String   @unique // e.g. "otp:resend:email@school.edu" or "otp:verify:127.0.0.1"
-  count      Int      @default(1)
-  expiresAt  DateTime
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id        String   @id @default(cuid())
+  key       String   @unique // e.g. "otp:resend:email@school.edu"
+  count     Int      @default(1)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([expiresAt])
   @@map("RateLimits")
 }
+
+model DepartmentType {
+  id          String   @id @default(cuid())
+  code        String   @unique // e.g. "CITE", "CEA", "CMA", "CAHS", "CELA", "CCJE"
+  name        String   // e.g. "College of Information Technology Education"
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("DepartmentTypes")
+}
+
 
 
 

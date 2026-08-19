@@ -3,19 +3,26 @@
 import { VerifyOtpSchema } from "../schemas";
 import { createClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
-import { authRateLimiter } from "@/lib/redis";
+import { checkOtpLockout, recordFailedOtpAttempt, clearOtpLockout } from "@/lib/redis/rate-limiter";
 import { headers } from "next/headers";
 
 type ActionResult<T> =
   | { success: true; data: T; error?: never; fieldErrors?: never }
-  | { success: false; error: string; code?: string; fieldErrors?: Record<string, string[]>; data?: never };
+  | {
+      success: false;
+      error: string;
+      code?: string;
+      fieldErrors?: Record<string, string[]>;
+      lockout?: { isLocked: boolean; remainingSeconds: number; tier: number };
+      data?: never;
+    };
 
 /**
- * 🔒 Server Action: Verify OTP
- * - Protects against OTP brute-force guessing with Upstash Rate Limiter
- * - Verifies 6-digit token with Supabase Auth
- * - Provisions official User record in PostgreSQL Prisma DB
- * - Returns verified authenticated session
+ * 🔒 Server Action: Verify OTP with 3-Tier Progressive Lockdown (By Email)
+ *
+ * Tier 1: 3 Fails -> 5 mins lockdown
+ * Tier 2: 6 Fails -> 15 mins lockdown
+ * Tier 3: 9+ Fails -> 1 hour lockdown
  */
 export async function verifyOtpAction(rawInput: unknown): Promise<ActionResult<{ userId: string }>> {
   const timestamp = new Date().toISOString();
@@ -38,23 +45,15 @@ export async function verifyOtpAction(rawInput: unknown): Promise<ActionResult<{
 
     const { email, token } = parsed.data;
 
-    // 2. Anti-Brute-Force Rate Limiting on OTP (Max 5 attempts / 10 mins per IP+Email)
-    const rateLimit = await authRateLimiter.limit(`otp:${clientIp}:${email}`);
-    if (!rateLimit.success) {
-      console.warn(
-        JSON.stringify({
-          timestamp,
-          level: "security",
-          event: "OTP_RATE_LIMIT_TRIGGERED",
-          ip: clientIp,
-          email,
-        })
-      );
-
+    // 2. Pre-check: Is this email currently locked down?
+    const lockoutStatus = await checkOtpLockout(email);
+    if (lockoutStatus.isLocked) {
+      const minutes = Math.ceil(lockoutStatus.remainingSeconds / 60);
       return {
         success: false,
-        error: "Too many incorrect attempts. Please request a new code or try again in 10 minutes.",
-        code: "RATE_LIMITED",
+        error: `Security Lockout (Tier ${lockoutStatus.tier}): Too many incorrect attempts. Please wait ${minutes} minute(s) before trying again.`,
+        code: "SECURITY_LOCKOUT",
+        lockout: lockoutStatus,
       };
     }
 
@@ -67,6 +66,9 @@ export async function verifyOtpAction(rawInput: unknown): Promise<ActionResult<{
     });
 
     if (authError || !authData.user) {
+      // 🚨 Record failed attempt & evaluate 3-tier lockout penalty
+      const penalty = await recordFailedOtpAttempt(email);
+
       console.warn(
         JSON.stringify({
           timestamp,
@@ -74,18 +76,36 @@ export async function verifyOtpAction(rawInput: unknown): Promise<ActionResult<{
           event: "OTP_VERIFICATION_FAILED",
           email,
           ip: clientIp,
+          isLocked: penalty.isLocked,
+          tier: penalty.tier,
           error: authError?.message,
         })
       );
 
+      if (penalty.isLocked) {
+        const lockMins = Math.ceil(penalty.remainingSeconds / 60);
+        return {
+          success: false,
+          error: `Account Locked (Tier ${penalty.tier}): 3 incorrect attempts. Verification is disabled for ${lockMins} minutes.`,
+          code: "SECURITY_LOCKOUT",
+          lockout: {
+            isLocked: true,
+            remainingSeconds: penalty.remainingSeconds,
+            tier: penalty.tier,
+          },
+        };
+      }
+
       return {
         success: false,
-        error: authError?.message || "Invalid or expired verification code.",
+        error: `Invalid verification code. (${penalty.remainingAttemptsInTier} attempt(s) remaining before lockout).`,
         code: "INVALID_OTP",
       };
     }
 
-    // 4. Extract User Metadata & Provision User Profile in PostgreSQL DB
+    // 4. Verification Successful: Wipe lockout counters & provision DB user
+    await clearOtpLockout(email);
+
     const meta = authData.user.user_metadata || {};
     const firstName = meta.first_name || "";
     const lastName = meta.last_name || "";
@@ -93,6 +113,8 @@ export async function verifyOtpAction(rawInput: unknown): Promise<ActionResult<{
     const studentId = meta.student_id || null;
     const department = meta.department || null;
     const bio = meta.bio || "";
+
+    const now = new Date();
 
     await prisma.user.upsert({
       where: { id: authData.user.id },
@@ -104,17 +126,21 @@ export async function verifyOtpAction(rawInput: unknown): Promise<ActionResult<{
         studentId,
         department,
         bio,
+        isEmailVerified: true,
+        emailVerifiedAt: now,
       },
       create: {
         id: authData.user.id,
         email,
-        nickname: null, // Initial registration: nickname is null until configured in profile
+        nickname: null,
         displayName,
         firstName,
         lastName,
         studentId,
         department,
         bio,
+        isEmailVerified: true,
+        emailVerifiedAt: now,
       },
     });
 
