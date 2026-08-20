@@ -31,6 +31,11 @@ model User {
   emailVerifiedAt DateTime?
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
+
+  // 🔗 User Relations
+  posts           Post[]
+
+  @@map("User")
 }
 
 model SystemSetting {
@@ -64,9 +69,36 @@ model DepartmentType {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
+  // 🔗 Department Relations
+  posts       Post[]
+
   @@map("DepartmentTypes")
 }
 
+// ==========================================
+// 📰 POST / CONFESSION FEED MODEL
+// ==========================================
+model Post {
+  id            String          @id @default(cuid())
+  userId        String          // Foreign key to User (Author)
+  departmentId  String?         // Foreign key to DepartmentType (e.g. CITE, CEA)
+  content       String          @db.Text
+  isAnonymous   Boolean         @default(false)
+  likesCount    Int             @default(0)
+  commentsCount Int             @default(0)
+  isDeleted     Boolean         @default(false)
+  deletedAt     DateTime?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
 
+  // 🔗 Relationships
+  user          User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  department    DepartmentType? @relation(fields: [departmentId], references: [id], onDelete: SetNull)
 
-
+  // ⚡ Performance Query Indexes
+  @@index([userId])
+  @@index([departmentId])
+  @@index([createdAt(sort: Desc)])
+  @@index([isDeleted, createdAt(sort: Desc)])
+  @@map("Posts")
+}
