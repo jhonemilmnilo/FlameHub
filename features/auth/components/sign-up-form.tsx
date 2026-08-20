@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useTransition } from "react";
+import React, { useState, useTransition, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { FlameHubLogo } from "@/components/ui/flamehub-logo";
 import { SearchableDropdown, SearchableOption } from "@/components/ui/searchable-dropdown";
@@ -36,6 +36,15 @@ export function SignUpForm({ initialDepartments = [] }: SignUpFormProps) {
   });
 
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
+  const bioTextareaRef = useRef<HTMLTextAreaElement | null>(null);
+
+  // Auto-resize bio textarea dynamically based on content
+  useEffect(() => {
+    if (bioTextareaRef.current) {
+      bioTextareaRef.current.style.height = "auto";
+      bioTextareaRef.current.style.height = `${bioTextareaRef.current.scrollHeight}px`;
+    }
+  }, [formData.bio]);
 
   // Real-time password requirement checklist
   const allPasswordRequirements = [
@@ -168,14 +177,14 @@ export function SignUpForm({ initialDepartments = [] }: SignUpFormProps) {
       </div>
 
       {/* Form Container - Professional Responsive Elevation */}
-      <div className="w-full max-w-2xl bg-transparent sm:bg-[#004e34] rounded-none sm:rounded-2xl p-0 sm:p-8 md:p-10 border-0 sm:border sm:border-[#003d29] shadow-none sm:shadow-[0_20px_50px_rgba(0,0,0,0.3)] transition-all">
-        <h2 className="text-xl sm:text-2xl font-bold font-heading text-center text-white mb-6 sm:mb-8 tracking-tight">
+      <div className="w-full max-w-2xl bg-transparent sm:bg-[#004e34] rounded-none sm:rounded-2xl p-0 sm:p-6 md:p-8 border-0 sm:border sm:border-[#003d29] shadow-none sm:shadow-[0_20px_50px_rgba(0,0,0,0.3)] transition-all">
+        <h2 className="text-xl sm:text-2xl font-bold font-heading text-center text-white mb-4 sm:mb-6 tracking-tight">
           Create an account
         </h2>
 
-        <form onSubmit={handleSubmit} noValidate className="space-y-4 sm:space-y-5">
+        <form onSubmit={handleSubmit} noValidate autoComplete="off" className="space-y-3.5 sm:space-y-4">
           {/* Row 1: Last name, First name (Col 1) & Student ID (Col 2) */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 sm:gap-4">
             {/* Last name & First name */}
             <div className="grid grid-cols-2 gap-3">
               <div>
@@ -185,12 +194,14 @@ export function SignUpForm({ initialDepartments = [] }: SignUpFormProps) {
                 <input
                   type="text"
                   name="lastName"
+                  autoComplete="off"
+                  spellCheck="false"
                   value={formData.lastName}
                   onChange={handleChange}
                   className={`w-full bg-[#00462e] border ${fieldErrors.lastName
                       ? "border-rose-400 ring-1 ring-rose-400/80 bg-[#401212]/30"
                       : "border-[#22c55e]/50 focus:ring-1 focus:ring-[#22c55e] focus:border-[#22c55e]"
-                    } rounded-lg px-3.5 py-2.5 text-sm text-white placeholder-white/20 focus:outline-none transition-all`}
+                    } rounded-md px-3.5 py-2.5 text-sm text-white placeholder-white/20 focus:outline-none transition-all`}
                 />
                 {fieldErrors.lastName && (
                   <p className="text-[11px] text-rose-300 font-medium mt-1.5 animate-fadeIn flex items-center gap-1">
@@ -206,12 +217,14 @@ export function SignUpForm({ initialDepartments = [] }: SignUpFormProps) {
                 <input
                   type="text"
                   name="firstName"
+                  autoComplete="off"
+                  spellCheck="false"
                   value={formData.firstName}
                   onChange={handleChange}
                   className={`w-full bg-[#00462e] border ${fieldErrors.firstName
                       ? "border-rose-400 ring-1 ring-rose-400/80 bg-[#401212]/30"
                       : "border-[#22c55e]/50 focus:ring-1 focus:ring-[#22c55e] focus:border-[#22c55e]"
-                    } rounded-lg px-3.5 py-2.5 text-sm text-white placeholder-white/20 focus:outline-none transition-all`}
+                    } rounded-md px-3.5 py-2.5 text-sm text-white placeholder-white/20 focus:outline-none transition-all`}
                 />
                 {fieldErrors.firstName && (
                   <p className="text-[11px] text-rose-300 font-medium mt-1.5 animate-fadeIn flex items-center gap-1">
@@ -229,13 +242,15 @@ export function SignUpForm({ initialDepartments = [] }: SignUpFormProps) {
               <input
                 type="text"
                 name="studentId"
+                autoComplete="off"
+                spellCheck="false"
                 placeholder="e.g. 02-2024-12345"
                 value={formData.studentId}
                 onChange={handleChange}
                 className={`w-full bg-[#00462e] border ${fieldErrors.studentId
                     ? "border-rose-400 ring-1 ring-rose-400/80 bg-[#401212]/30"
                     : "border-[#22c55e]/50 focus:ring-1 focus:ring-[#22c55e] focus:border-[#22c55e]"
-                  } rounded-lg px-3.5 py-2.5 text-sm text-white placeholder-white/30 focus:outline-none transition-all`}
+                  } rounded-md px-3.5 py-2.5 text-sm text-white placeholder-white/30 focus:outline-none transition-all`}
               />
               {fieldErrors.studentId && (
                 <p className="text-[11px] text-rose-300 font-medium mt-1.5 animate-fadeIn flex items-center gap-1">
@@ -246,7 +261,7 @@ export function SignUpForm({ initialDepartments = [] }: SignUpFormProps) {
           </div>
 
           {/* Row 2: Email (Col 1) & Department (Col 2 on desktop, before password on mobile) */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 sm:gap-4">
             <div>
               <label className="block text-xs font-semibold text-white/95 mb-1.5">
                 Email <span className="text-rose-400">*</span>
@@ -254,13 +269,15 @@ export function SignUpForm({ initialDepartments = [] }: SignUpFormProps) {
               <input
                 type="email"
                 name="email"
+                autoComplete="off"
+                spellCheck="false"
                 placeholder="student@phinmaed.com"
                 value={formData.email}
                 onChange={handleChange}
                 className={`w-full bg-[#00462e] border ${fieldErrors.email
                     ? "border-rose-400 ring-1 ring-rose-400/80 bg-[#401212]/30"
                     : "border-[#22c55e]/50 focus:ring-1 focus:ring-[#22c55e] focus:border-[#22c55e]"
-                  } rounded-lg px-3.5 py-2.5 text-sm text-white placeholder-white/30 focus:outline-none transition-all`}
+                  } rounded-md px-3.5 py-2.5 text-sm text-white placeholder-white/30 focus:outline-none transition-all`}
               />
               {fieldErrors.email && (
                 <p className="text-[11px] text-rose-300 font-medium mt-1.5 animate-fadeIn flex items-center gap-1">
@@ -295,7 +312,7 @@ export function SignUpForm({ initialDepartments = [] }: SignUpFormProps) {
           </div>
 
           {/* Row 3: Password (Col 1) & Confirm Password (Col 2) */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 sm:gap-4">
             <div>
               <label className="block text-xs font-semibold text-white/95 mb-1.5">
                 Password <span className="text-rose-400">*</span>
@@ -304,12 +321,13 @@ export function SignUpForm({ initialDepartments = [] }: SignUpFormProps) {
                 <input
                   type={showPassword ? "text" : "password"}
                   name="password"
+                  autoComplete="new-password"
                   value={formData.password}
                   onChange={handleChange}
                   className={`w-full bg-[#00462e] border ${fieldErrors.password
                       ? "border-rose-400 ring-1 ring-rose-400/80 bg-[#401212]/30"
                       : "border-[#22c55e]/50 focus:ring-1 focus:ring-[#22c55e] focus:border-[#22c55e]"
-                    } rounded-lg px-3.5 py-2.5 pr-10 text-sm text-white placeholder-white/20 focus:outline-none transition-all`}
+                    } rounded-md px-3.5 py-2.5 pr-10 text-sm text-white placeholder-white/20 focus:outline-none transition-all`}
                 />
                 <button
                   type="button"
@@ -335,12 +353,13 @@ export function SignUpForm({ initialDepartments = [] }: SignUpFormProps) {
                 <input
                   type={showConfirmPassword ? "text" : "password"}
                   name="confirmPassword"
+                  autoComplete="new-password"
                   value={formData.confirmPassword}
                   onChange={handleChange}
                   className={`w-full bg-[#00462e] border ${fieldErrors.confirmPassword
                       ? "border-rose-400 ring-1 ring-rose-400/80 bg-[#401212]/30"
                       : "border-[#22c55e]/50 focus:ring-1 focus:ring-[#22c55e] focus:border-[#22c55e]"
-                    } rounded-lg px-3.5 py-2.5 pr-10 text-sm text-white placeholder-white/20 focus:outline-none transition-all`}
+                    } rounded-md px-3.5 py-2.5 pr-10 text-sm text-white placeholder-white/20 focus:outline-none transition-all`}
                 />
                 <button
                   type="button"
@@ -361,11 +380,11 @@ export function SignUpForm({ initialDepartments = [] }: SignUpFormProps) {
 
           {/* 🔒 Dynamic Password Requirements */}
           {formData.password.length > 0 && unmetRequirements.length > 0 && (
-            <div className="bg-[#003825] border border-emerald-500/30 rounded-lg p-3.5 transition-all animate-fadeIn">
-              <p className="text-xs font-semibold text-emerald-200 mb-2">
+            <div className="bg-[#003825] border border-emerald-500/30 rounded-md p-3 transition-all animate-fadeIn">
+              <p className="text-xs font-semibold text-emerald-200 mb-1.5">
                 Remaining password requirements ({unmetRequirements.length}):
               </p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
                 {unmetRequirements.map((req, idx) => (
                   <div key={idx} className="flex items-center gap-2 text-xs text-white/80 transition-all">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
@@ -378,7 +397,7 @@ export function SignUpForm({ initialDepartments = [] }: SignUpFormProps) {
 
           {/* Row 4: Add Bio (Full Width) */}
           <div>
-            <div className="flex items-center justify-between mb-1.5">
+            <div className="flex items-center justify-between mb-1">
               <label className="block text-xs font-semibold text-white/95">
                 Add bio
               </label>
@@ -387,15 +406,18 @@ export function SignUpForm({ initialDepartments = [] }: SignUpFormProps) {
               </span>
             </div>
             <textarea
+              ref={bioTextareaRef}
               name="bio"
-              rows={4}
+              rows={1}
+              autoComplete="off"
+              spellCheck="false"
               placeholder="Tell other students about yourself..."
               value={formData.bio}
               onChange={handleChange}
-              className="w-full bg-[#00462e] border border-[#22c55e]/50 rounded-lg px-3.5 py-2.5 text-sm text-white placeholder-white/30 focus:outline-none focus:ring-1 focus:ring-[#22c55e] focus:border-[#22c55e] transition-all resize-none"
+              className="w-full bg-[#00462e] border border-[#22c55e]/50 rounded-md px-3.5 py-2 text-sm text-white placeholder-white/30 focus:outline-none focus:ring-1 focus:ring-[#22c55e] focus:border-[#22c55e] transition-all resize-none min-h-[38px] overflow-hidden"
             />
             {fieldErrors.bio && (
-              <p className="text-xs text-rose-300 mt-1.5">{fieldErrors.bio[0]}</p>
+              <p className="text-xs text-rose-300 mt-1">{fieldErrors.bio[0]}</p>
             )}
           </div>
 
@@ -412,7 +434,7 @@ export function SignUpForm({ initialDepartments = [] }: SignUpFormProps) {
           </div>
 
           {/* Submit Button & Login Link */}
-          <div className="pt-5 sm:pt-6 flex flex-col items-center">
+          <div className="pt-2 sm:pt-3 flex flex-col items-center">
             <button
               type="submit"
               disabled={isPending}
@@ -428,7 +450,7 @@ export function SignUpForm({ initialDepartments = [] }: SignUpFormProps) {
               )}
             </button>
 
-            <p className="mt-4 text-xs text-emerald-200/80">
+            <p className="mt-3 text-xs text-emerald-200/80">
               Already have an account?{" "}
               <Link href="/auth/login" className="text-emerald-300 hover:text-white font-semibold underline underline-offset-2">
                 Log in

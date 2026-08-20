@@ -108,7 +108,7 @@ export function SearchableDropdown({
           error
             ? "border-rose-400 ring-1 ring-rose-400/80 bg-[#401212]/30"
             : "border-[#22c55e]/40 focus:ring-1 focus:ring-[#22c55e] focus:border-[#22c55e]"
-        } rounded-lg px-3.5 py-2.5 text-sm text-white flex items-center justify-between transition-all cursor-pointer select-none disabled:opacity-50 disabled:cursor-not-allowed`}
+        } rounded-md px-3.5 py-2.5 text-sm text-white flex items-center justify-between transition-all cursor-pointer select-none disabled:opacity-50 disabled:cursor-not-allowed`}
       >
         <div className="flex items-center gap-2 truncate pr-2">
           {selectedOption ? (

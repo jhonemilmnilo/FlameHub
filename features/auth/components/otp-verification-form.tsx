@@ -177,7 +177,8 @@ export function OtpVerificationForm() {
         }
 
         toast.success("Email verified successfully! Welcome to FlameHub.");
-        router.push("/feed");
+        router.push("/");
+        router.refresh();
       } catch {
         toast.error("Failed to verify code. Please try again.");
       }
