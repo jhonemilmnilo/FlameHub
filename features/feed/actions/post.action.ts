@@ -31,15 +31,40 @@ type ActionResult<T> =
   | { success: true; data: T; error?: never }
   | { success: false; error: string; code?: string; data?: never };
 
+export type PaginatedFeedResult = {
+  posts: PostFeedItem[];
+  nextCursor: string | null;
+  hasMore: boolean;
+};
+
 /**
- * 🔒 Fetch all real posts from PostgreSQL via Prisma
+ * 🔒 Fetch paginated real posts from PostgreSQL via Prisma (Facebook-Style Cursor Stream)
  */
-export async function getFeedPostsAction(): Promise<PostFeedItem[]> {
+export async function getFeedPostsAction(options?: {
+  cursor?: string;
+  limit?: number;
+}): Promise<PaginatedFeedResult> {
+  const limit = options?.limit ?? 30;
+  const cursor = options?.cursor;
+
   try {
-    const posts = await prisma.post.findMany({
-      where: {
-        isDeleted: false,
-      },
+    const supabase = await createClient();
+    const {
+      data: { user: authUser },
+    } = await supabase.auth.getUser();
+
+    const currentUserId = authUser?.id || null;
+
+    // Build cursor condition
+    const whereClause: Record<string, unknown> = {
+      isDeleted: false,
+    };
+
+    const rawPosts = await prisma.post.findMany({
+      where: whereClause,
+      take: limit + 1,
+      skip: cursor ? 1 : 0,
+      cursor: cursor ? { id: cursor } : undefined,
       include: {
         user: {
           select: {
@@ -53,15 +78,30 @@ export async function getFeedPostsAction(): Promise<PostFeedItem[]> {
             code: true,
           },
         },
+        likedPosts: currentUserId
+          ? {
+              where: {
+                userId: currentUserId,
+              },
+              select: {
+                id: true,
+              },
+            }
+          : undefined,
       },
       orderBy: {
         createdAt: "desc",
       },
-      take: 50,
     });
 
-    return posts.map((p) => {
+    const hasMore = rawPosts.length > limit;
+    const postsToReturn = hasMore ? rawPosts.slice(0, limit) : rawPosts;
+    const nextCursor = hasMore && postsToReturn.length > 0 ? postsToReturn[postsToReturn.length - 1].id : null;
+
+    const formattedPosts: PostFeedItem[] = postsToReturn.map((p) => {
       const isAnon = p.isAnonymous;
+      const isLiked = currentUserId ? Array.isArray(p.likedPosts) && p.likedPosts.length > 0 : false;
+
       return {
         id: p.id,
         authorName: isAnon ? "Anonymous Flame" : p.user?.displayName || "Campus Student",
@@ -70,14 +110,23 @@ export async function getFeedPostsAction(): Promise<PostFeedItem[]> {
         content: p.content,
         isAnonymous: isAnon,
         likesCount: p.likesCount,
-        isLiked: false,
+        isLiked: isLiked,
         commentsCount: p.commentsCount,
         createdAt: p.createdAt.toISOString(),
       };
     });
-  } catch (err) {
-    console.error("GET_POSTS_FAILED", err);
-    return [];
+
+    return {
+      posts: formattedPosts,
+      nextCursor,
+      hasMore,
+    };
+  } catch {
+    return {
+      posts: [],
+      nextCursor: null,
+      hasMore: false,
+    };
   }
 }
 
@@ -194,8 +243,7 @@ export async function createPostAction(rawInput: unknown): Promise<ActionResult<
         createdAt: newPost.createdAt.toISOString(),
       },
     };
-  } catch (err) {
-    console.error("CREATE_POST_FAILED", err);
+  } catch {
     return {
       success: false,
       error: "Failed to publish post. Please try again.",

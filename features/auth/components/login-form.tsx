@@ -6,7 +6,7 @@ import { FlameHubLogo } from "@/components/ui/flamehub-logo";
 import { loginAction } from "@/features/auth/actions/login.action";
 import { getLoginLockoutStatusAction } from "@/features/auth/actions/check-lockout.action";
 import { toast } from "sonner";
-import { Loader2, Eye, EyeOff, ShieldAlert } from "lucide-react";
+import { Loader2, Eye, EyeOff } from "lucide-react";
 import Link from "next/link";
 
 export function LoginForm() {
