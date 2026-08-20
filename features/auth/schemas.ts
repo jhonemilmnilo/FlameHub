@@ -81,3 +81,23 @@ export const ResendOtpSchema = z.object({
 });
 
 export type ResendOtpInput = z.infer<typeof ResendOtpSchema>;
+
+/**
+ * 🔒 Login Schema (Email + Password)
+ */
+export const LoginSchema = z.object({
+  email: z
+    .string()
+    .trim()
+    .min(1, "Email is required")
+    .email("Please provide a valid email address")
+    .toLowerCase(),
+  password: z
+    .string()
+    .min(1, "Password is required"),
+  // 🪤 Honeypot field for anti-bot scraping
+  honeypot: z.string().max(0, "Bot detected").optional().default(""),
+});
+
+export type LoginInput = z.infer<typeof LoginSchema>;
+

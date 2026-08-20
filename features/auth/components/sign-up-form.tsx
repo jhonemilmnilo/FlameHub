@@ -187,11 +187,10 @@ export function SignUpForm({ initialDepartments = [] }: SignUpFormProps) {
                   name="lastName"
                   value={formData.lastName}
                   onChange={handleChange}
-                  className={`w-full bg-[#00462e] border ${
-                    fieldErrors.lastName
+                  className={`w-full bg-[#00462e] border ${fieldErrors.lastName
                       ? "border-rose-400 ring-1 ring-rose-400/80 bg-[#401212]/30"
                       : "border-[#22c55e]/50 focus:ring-1 focus:ring-[#22c55e] focus:border-[#22c55e]"
-                  } rounded-lg px-3.5 py-2.5 text-sm text-white placeholder-white/20 focus:outline-none transition-all`}
+                    } rounded-lg px-3.5 py-2.5 text-sm text-white placeholder-white/20 focus:outline-none transition-all`}
                 />
                 {fieldErrors.lastName && (
                   <p className="text-[11px] text-rose-300 font-medium mt-1.5 animate-fadeIn flex items-center gap-1">
@@ -209,11 +208,10 @@ export function SignUpForm({ initialDepartments = [] }: SignUpFormProps) {
                   name="firstName"
                   value={formData.firstName}
                   onChange={handleChange}
-                  className={`w-full bg-[#00462e] border ${
-                    fieldErrors.firstName
+                  className={`w-full bg-[#00462e] border ${fieldErrors.firstName
                       ? "border-rose-400 ring-1 ring-rose-400/80 bg-[#401212]/30"
                       : "border-[#22c55e]/50 focus:ring-1 focus:ring-[#22c55e] focus:border-[#22c55e]"
-                  } rounded-lg px-3.5 py-2.5 text-sm text-white placeholder-white/20 focus:outline-none transition-all`}
+                    } rounded-lg px-3.5 py-2.5 text-sm text-white placeholder-white/20 focus:outline-none transition-all`}
                 />
                 {fieldErrors.firstName && (
                   <p className="text-[11px] text-rose-300 font-medium mt-1.5 animate-fadeIn flex items-center gap-1">
@@ -234,11 +232,10 @@ export function SignUpForm({ initialDepartments = [] }: SignUpFormProps) {
                 placeholder="e.g. 02-2024-12345"
                 value={formData.studentId}
                 onChange={handleChange}
-                className={`w-full bg-[#00462e] border ${
-                  fieldErrors.studentId
+                className={`w-full bg-[#00462e] border ${fieldErrors.studentId
                     ? "border-rose-400 ring-1 ring-rose-400/80 bg-[#401212]/30"
                     : "border-[#22c55e]/50 focus:ring-1 focus:ring-[#22c55e] focus:border-[#22c55e]"
-                } rounded-lg px-3.5 py-2.5 text-sm text-white placeholder-white/30 focus:outline-none transition-all`}
+                  } rounded-lg px-3.5 py-2.5 text-sm text-white placeholder-white/30 focus:outline-none transition-all`}
               />
               {fieldErrors.studentId && (
                 <p className="text-[11px] text-rose-300 font-medium mt-1.5 animate-fadeIn flex items-center gap-1">
@@ -260,11 +257,10 @@ export function SignUpForm({ initialDepartments = [] }: SignUpFormProps) {
                 placeholder="student@phinmaed.com"
                 value={formData.email}
                 onChange={handleChange}
-                className={`w-full bg-[#00462e] border ${
-                  fieldErrors.email
+                className={`w-full bg-[#00462e] border ${fieldErrors.email
                     ? "border-rose-400 ring-1 ring-rose-400/80 bg-[#401212]/30"
                     : "border-[#22c55e]/50 focus:ring-1 focus:ring-[#22c55e] focus:border-[#22c55e]"
-                } rounded-lg px-3.5 py-2.5 text-sm text-white placeholder-white/30 focus:outline-none transition-all`}
+                  } rounded-lg px-3.5 py-2.5 text-sm text-white placeholder-white/30 focus:outline-none transition-all`}
               />
               {fieldErrors.email && (
                 <p className="text-[11px] text-rose-300 font-medium mt-1.5 animate-fadeIn flex items-center gap-1">
@@ -310,11 +306,10 @@ export function SignUpForm({ initialDepartments = [] }: SignUpFormProps) {
                   name="password"
                   value={formData.password}
                   onChange={handleChange}
-                  className={`w-full bg-[#00462e] border ${
-                    fieldErrors.password
+                  className={`w-full bg-[#00462e] border ${fieldErrors.password
                       ? "border-rose-400 ring-1 ring-rose-400/80 bg-[#401212]/30"
                       : "border-[#22c55e]/50 focus:ring-1 focus:ring-[#22c55e] focus:border-[#22c55e]"
-                  } rounded-lg px-3.5 py-2.5 pr-10 text-sm text-white placeholder-white/20 focus:outline-none transition-all`}
+                    } rounded-lg px-3.5 py-2.5 pr-10 text-sm text-white placeholder-white/20 focus:outline-none transition-all`}
                 />
                 <button
                   type="button"
@@ -342,11 +337,10 @@ export function SignUpForm({ initialDepartments = [] }: SignUpFormProps) {
                   name="confirmPassword"
                   value={formData.confirmPassword}
                   onChange={handleChange}
-                  className={`w-full bg-[#00462e] border ${
-                    fieldErrors.confirmPassword
+                  className={`w-full bg-[#00462e] border ${fieldErrors.confirmPassword
                       ? "border-rose-400 ring-1 ring-rose-400/80 bg-[#401212]/30"
                       : "border-[#22c55e]/50 focus:ring-1 focus:ring-[#22c55e] focus:border-[#22c55e]"
-                  } rounded-lg px-3.5 py-2.5 pr-10 text-sm text-white placeholder-white/20 focus:outline-none transition-all`}
+                    } rounded-lg px-3.5 py-2.5 pr-10 text-sm text-white placeholder-white/20 focus:outline-none transition-all`}
                 />
                 <button
                   type="button"
