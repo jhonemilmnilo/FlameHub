@@ -1,13 +1,13 @@
 "use server";
 
 import { LoginSchema } from "../schemas";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
 import { checkLoginLockout, recordFailedLoginAttempt, clearLoginLockout } from "@/lib/redis/login-limiter";
 import { headers } from "next/headers";
 
 type ActionResult<T> =
-  | { success: true; data: T; error?: never; fieldErrors?: never }
+  | { success: true; data: T; error?: never; fieldErrors?: never; lockout?: never }
   | {
       success: false;
       error: string;
@@ -15,11 +15,14 @@ type ActionResult<T> =
       fieldErrors?: Record<string, string[]>;
       requiresVerification?: boolean;
       email?: string;
+      lockout?: { isLocked: boolean; remainingSeconds: number; tier: number };
       data?: never;
     };
 
 /**
- * 🔒 Server Action: Enterprise Login with Zero-Trust Security & Rate Limiting
+ * 🔒 Server Action: Direct Login with 5-Tier Rate Limiting Security
+ * - Direct authentication without login OTP verification page.
+ * - Enforces progressive lockouts: 3m (T1), 5m (T2), 10m (T3), 1hr (T4), 24hrs (T5).
  */
 export async function loginAction(rawInput: unknown): Promise<ActionResult<{ redirectTo: string }>> {
   const timestamp = new Date().toISOString();
@@ -47,22 +50,43 @@ export async function loginAction(rawInput: unknown): Promise<ActionResult<{ red
       return { success: false, error: "Invalid submission.", code: "BOT_DETECTED" };
     }
 
-    // 2. Pre-check: Brute-Force lockout status
+    // 2. Pre-check: 5-Tier Brute-Force lockout status
     const lockout = await checkLoginLockout(email);
     if (lockout.isLocked) {
       const minutes = Math.ceil(lockout.remainingSeconds / 60);
+      const timeStr = minutes >= 60 ? `${Math.ceil(minutes / 60)} hour(s)` : `${minutes} minute(s)`;
       return {
         success: false,
-        error: `Too many failed login attempts. Account access is temporarily locked. Please wait ${minutes} minute(s) before trying again.`,
+        error: `Account Locked (Tier ${lockout.tier}): Access temporarily disabled. Please wait ${timeStr} before trying again.`,
         code: "SECURITY_LOCKOUT",
+        lockout: {
+          isLocked: true,
+          remainingSeconds: lockout.remainingSeconds,
+          tier: lockout.tier,
+        },
       };
     }
 
-    // 3. Supabase Auth Verification (Headless / Zero-Session)
-    // We use the admin client with no session persistence to test credentials,
-    // ensuring NO session cookie is set in the user's browser until they verify OTP.
-    const adminSupabase = createAdminClient();
-    const { data: authData, error: authError } = await adminSupabase.auth.signInWithPassword({
+    // 3. Database User Verification: Check if email is registered in our database
+    const dbUser = await prisma.user.findUnique({
+      where: { email: email.toLowerCase().trim() },
+      select: { id: true, email: true, isEmailVerified: true },
+    });
+
+    if (!dbUser) {
+      return {
+        success: false,
+        error: "No account found with this email address. Please sign up to create an account.",
+        code: "USER_NOT_FOUND",
+        fieldErrors: {
+          email: ["This email is not registered yet."],
+        },
+      };
+    }
+
+    // 4. Authenticate with Supabase Server Client (Sets secure HttpOnly session cookie on success)
+    const supabase = await createClient();
+    const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
@@ -78,15 +102,16 @@ export async function loginAction(rawInput: unknown): Promise<ActionResult<{ red
           email,
           ip: clientIp,
           isLocked: penalty.isLocked,
+          tier: penalty.tier,
           error: authError?.message,
         })
       );
 
-      // Handle unconfirmed email error specifically
+      // Handle unconfirmed email error specifically (directs them to verify from sign-up)
       if (authError?.message?.toLowerCase().includes("email not confirmed")) {
         return {
           success: false,
-          error: "Your email address is not verified yet. Please complete verification.",
+          error: "Your email address is not verified yet. Please complete verification with your signup code.",
           requiresVerification: true,
           email,
           code: "EMAIL_NOT_VERIFIED",
@@ -95,34 +120,34 @@ export async function loginAction(rawInput: unknown): Promise<ActionResult<{ red
 
       if (penalty.isLocked) {
         const mins = Math.ceil(penalty.remainingSeconds / 60);
+        const timeStr = mins >= 60 ? `${Math.ceil(mins / 60)} hour(s)` : `${mins} minute(s)`;
         return {
           success: false,
-          error: `Too many failed attempts. Login is locked for ${mins} minutes.`,
+          error: `Account Locked (Tier ${penalty.tier}): 5 incorrect password attempts. Login is disabled for ${timeStr}.`,
           code: "SECURITY_LOCKOUT",
+          lockout: {
+            isLocked: true,
+            remainingSeconds: penalty.remainingSeconds,
+            tier: penalty.tier,
+          },
         };
       }
 
       return {
         success: false,
-        error: "Invalid email or password.",
+        error: `Invalid email or password. (${penalty.remainingAttemptsInTier} attempt(s) remaining before lockdown).`,
         code: "INVALID_CREDENTIALS",
       };
     }
 
-    // 4. Successful Password Check: Clear failed attempt history
+    // 4. Successful Login: Clear failed attempt history
     await clearLoginLockout(email);
-
-    // 5. Dispatch 6-digit OTP code to the user's email
-    await adminSupabase.auth.resend({
-      type: "signup",
-      email,
-    });
 
     console.info(
       JSON.stringify({
         timestamp,
         level: "info",
-        event: "LOGIN_CREDENTIALS_VERIFIED_OTP_SENT",
+        event: "USER_LOGIN_SUCCESS",
         userId: authData.user.id,
         email,
         ip: clientIp,
@@ -132,7 +157,7 @@ export async function loginAction(rawInput: unknown): Promise<ActionResult<{ red
     return {
       success: true,
       data: { 
-        redirectTo: `/auth/verify?email=${encodeURIComponent(email)}` 
+        redirectTo: "/" 
       },
     };
   } catch (err: unknown) {
