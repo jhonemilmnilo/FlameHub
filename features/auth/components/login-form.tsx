@@ -20,11 +20,6 @@ export function LoginForm() {
     honeypot: "",
   });
 
-  // Ensure inputs start 100% blank on fresh page load/refresh (prevent automatic pre-fill)
-  useEffect(() => {
-    setFormData({ email: "", password: "", honeypot: "" });
-  }, []);
-
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
   const [lockout, setLockout] = useState<{
     isLocked: boolean;

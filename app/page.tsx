@@ -8,6 +8,8 @@ export const metadata: Metadata = {
   description: "FlameHub is the social platform for students to share moments, spark discussions, and connect across departments.",
 };
 
+import { getFeedPostsAction } from "@/features/feed/actions/post.action";
+
 export default async function Home() {
   const supabase = await createClient();
   const {
@@ -25,6 +27,9 @@ export default async function Home() {
   const displayName = meta.display_name || `${firstName} ${lastName}`.trim() || "Marcel Magbual";
   const studentId = meta.student_id || "03-2122-034361";
 
+  // Fetch real posts directly from database
+  const initialPosts = await getFeedPostsAction();
+
   // If logged in, render the UI Dashboard matching the mockup!
   return (
     <HomeFeedDashboard
@@ -32,6 +37,7 @@ export default async function Home() {
         name: displayName,
         studentId: studentId,
       }}
+      initialPosts={initialPosts}
     />
   );
 }

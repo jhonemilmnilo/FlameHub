@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Home,
   Bell,
@@ -14,89 +14,21 @@ import {
   Filter,
   Search,
   ChevronDown,
+  UserCheck,
+  Ghost,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
-interface PostItem {
-  id: string;
-  authorName: string;
-  department: string;
-  studentId: string;
-  content: string;
-  likesCount: number;
-  isLiked: boolean;
-  commentsCount: number;
-}
-
-const INITIAL_POSTS: PostItem[] = [
-  {
-    id: "1",
-    authorName: "Juan Dela Cruz",
-    department: "CITE",
-    studentId: "03-1819-034333",
-    content: "Sana naman pansinin mo na ako. Matagal na akong nag-papapansin sa'yo.",
-    likesCount: 45,
-    isLiked: false,
-    commentsCount: 12,
-  },
-  {
-    id: "2",
-    authorName: "Juan Dela Cruz",
-    department: "CITE",
-    studentId: "03-1819-034333",
-    content: "Sana naman pansinin mo na ako. Matagal na akong nag-papapansin sa'yo.",
-    likesCount: 45,
-    isLiked: false,
-    commentsCount: 12,
-  },
-  {
-    id: "3",
-    authorName: "Juan Dela Cruz",
-    department: "CITE",
-    studentId: "03-1819-034333",
-    content: "Sana naman pansinin mo na ako. Matagal na akong nag-papapansin sa'yo.",
-    likesCount: 45,
-    isLiked: true,
-    commentsCount: 12,
-  },
-  {
-    id: "4",
-    authorName: "Juan Dela Cruz",
-    department: "CITE",
-    studentId: "03-1819-034333",
-    content: "Sana naman pansinin mo na ako. Matagal na akong nag-papapansin sa'yo.",
-    likesCount: 45,
-    isLiked: false,
-    commentsCount: 12,
-  },
-  {
-    id: "5",
-    authorName: "Juan Dela Cruz",
-    department: "CITE",
-    studentId: "03-1819-034333",
-    content: "Sana naman pansinin mo na ako. Matagal na akong nag-papapansin sa'yo.",
-    likesCount: 45,
-    isLiked: false,
-    commentsCount: 12,
-  },
-  {
-    id: "6",
-    authorName: "Juan Dela Cruz",
-    department: "CITE",
-    studentId: "03-1819-034333",
-    content: "Sana naman pansinin mo na ako. Matagal na akong nag-papapansin sa'yo.",
-    likesCount: 45,
-    isLiked: true,
-    commentsCount: 12,
-  },
-];
+import { createPostAction, type PostFeedItem } from "@/features/feed/actions/post.action";
+import { toast } from "sonner";
 
 interface HomeFeedDashboardProps {
   currentUser?: {
     name: string;
     studentId: string;
   };
+  initialPosts?: PostFeedItem[];
 }
 
 export function HomeFeedDashboard({
@@ -104,15 +36,30 @@ export function HomeFeedDashboard({
     name: "Marcel Magbual",
     studentId: "03-2122-034361",
   },
+  initialPosts = [],
 }: HomeFeedDashboardProps) {
   const router = useRouter();
-  const [posts, setPosts] = useState<PostItem[]>(INITIAL_POSTS);
+  const [posts, setPosts] = useState<PostFeedItem[]>(initialPosts);
   const [commentInputs, setCommentInputs] = useState<Record<string, string>>({});
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState("Controversial");
   const [selectedDept, setSelectedDept] = useState("CITE");
   const [newPostContent, setNewPostContent] = useState("");
+  const [isAnonymous, setIsAnonymous] = useState(false);
   const [isComposerOpen, setIsComposerOpen] = useState(false);
+  const [isSubmittingPost, setIsSubmittingPost] = useState(false);
+
+  // 🔒 Lock background scrolling when Create Post modal is open
+  useEffect(() => {
+    if (isComposerOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "unset";
+    }
+    return () => {
+      document.body.style.overflow = "unset";
+    };
+  }, [isComposerOpen]);
 
   const handleToggleLike = (postId: string) => {
     setPosts((prev) =>
@@ -144,24 +91,35 @@ export function HomeFeedDashboard({
     setCommentInputs((prev) => ({ ...prev, [postId]: "" }));
   };
 
-  const handleCreatePost = (e: React.FormEvent) => {
+  const handleCreatePost = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newPostContent.trim()) return;
+    if (!newPostContent.trim() || isSubmittingPost) return;
 
-    const newPost: PostItem = {
-      id: Date.now().toString(),
-      authorName: currentUser.name,
-      department: selectedDept || "CITE",
-      studentId: currentUser.studentId,
-      content: newPostContent.trim(),
-      likesCount: 0,
-      isLiked: false,
-      commentsCount: 0,
-    };
+    setIsSubmittingPost(true);
+    try {
+      const res = await createPostAction({
+        content: newPostContent.trim(),
+        isAnonymous: isAnonymous,
+      });
 
-    setPosts((prev) => [newPost, ...prev]);
-    setNewPostContent("");
-    setIsComposerOpen(false);
+      if (res.success && res.data) {
+        setPosts((prev) => [res.data, ...prev]);
+        setNewPostContent("");
+        setIsAnonymous(false);
+        setIsComposerOpen(false);
+        toast.success(
+          isAnonymous
+            ? "Anonymous post published secretly! 👻"
+            : "Post published successfully! 🎉"
+        );
+      } else {
+        toast.error(res.error || "Failed to create post.");
+      }
+    } catch {
+      toast.error("Something went wrong while publishing your post.");
+    } finally {
+      setIsSubmittingPost(false);
+    }
   };
 
   const handleLogout = async () => {
@@ -338,102 +296,123 @@ export function HomeFeedDashboard({
         </div>
 
         {/* 📰 3-Column Post Cards Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-          {posts.map((post) => (
-            <article
-              key={post.id}
-              className="bg-[#00472f] border border-[#005a3c] rounded-2xl p-5 flex flex-col justify-between space-y-4 shadow-sm hover:border-[#94d3a2]/40 transition-all"
-            >
-              {/* Card Header: Avatar + Author info */}
-              <div className="flex items-center gap-3">
-                <div className="w-11 h-11 rounded-full bg-[#94d3a2] shrink-0" />
-                <div className="overflow-hidden">
-                  <h3 className="font-bold text-xs sm:text-sm text-white truncate">
-                    {post.authorName} <span className="font-medium text-emerald-200/80">| {post.department}</span>
-                  </h3>
-                  <p className="text-[11px] text-emerald-200/60 font-medium">
-                    {post.studentId}
-                  </p>
-                </div>
-              </div>
-
-              {/* Card Content Text */}
-              <p className="text-xs sm:text-sm text-white/90 leading-relaxed min-h-[48px]">
-                {post.content}
+        {posts.length === 0 ? (
+          <div className="bg-[#00472f]/60 border border-[#005a3c] rounded-2xl p-12 text-center space-y-4">
+            <div className="w-16 h-16 rounded-full bg-white/10 flex items-center justify-center mx-auto text-2xl">
+              ✍️
+            </div>
+            <div className="space-y-1">
+              <h3 className="text-lg font-bold text-white font-heading">No posts yet!</h3>
+              <p className="text-sm text-emerald-200/70">
+                Be the very first one to spark a conversation in your campus.
               </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsComposerOpen(true)}
+              className="inline-flex items-center gap-2 px-6 py-2.5 rounded-full bg-white hover:bg-emerald-50 text-[#006241] font-bold text-xs uppercase tracking-wider shadow-md transition-all hover:scale-105 active:scale-95 cursor-pointer"
+            >
+              Create First Post
+            </button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+            {posts.map((post) => (
+              <article
+                key={post.id}
+                className="bg-[#00472f] border border-[#005a3c] rounded-2xl p-5 flex flex-col justify-between space-y-4 shadow-sm hover:border-[#94d3a2]/40 transition-all"
+              >
+                {/* Card Header: Avatar + Author info */}
+                <div className="flex items-center gap-3">
+                  <div className="w-11 h-11 rounded-full bg-[#94d3a2] shrink-0" />
+                  <div className="overflow-hidden">
+                    <h3 className="font-bold text-xs sm:text-sm text-white truncate">
+                      {post.authorName} <span className="font-medium text-emerald-200/80">| {post.department}</span>
+                    </h3>
+                    <p className="text-[11px] text-emerald-200/60 font-medium">
+                      {post.studentId}
+                    </p>
+                  </div>
+                </div>
 
-              {/* Action Bar (Heart, Comment Icon, 3-dots) */}
-              <div className="space-y-3 pt-2">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    {/* Like Button */}
+                {/* Card Content Text */}
+                <p className="text-xs sm:text-sm text-white/90 leading-relaxed min-h-[48px]">
+                  {post.content}
+                </p>
+
+                {/* Action Bar (Heart, Comment Icon, 3-dots) */}
+                <div className="space-y-3 pt-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      {/* Like Button */}
+                      <button
+                        type="button"
+                        onClick={() => handleToggleLike(post.id)}
+                        className="p-1 -ml-1 text-white hover:scale-110 active:scale-95 transition-transform cursor-pointer"
+                      >
+                        <Heart
+                          className={`w-5 h-5 transition-colors ${
+                            post.isLiked
+                              ? "fill-rose-500 text-rose-500"
+                              : "text-white/80 hover:text-white"
+                          }`}
+                        />
+                      </button>
+
+                      {/* Comment Icon */}
+                      <button
+                        type="button"
+                        className="p-1 text-white/80 hover:text-white hover:scale-110 active:scale-95 transition-transform cursor-pointer"
+                      >
+                        <MessageCircle className="w-5 h-5" />
+                      </button>
+                    </div>
+
+                    {/* 3 Dots Menu */}
                     <button
                       type="button"
-                      onClick={() => handleToggleLike(post.id)}
-                      className="p-1 -ml-1 text-white hover:scale-110 active:scale-95 transition-transform cursor-pointer"
+                      className="p-1 text-white/60 hover:text-white transition-colors cursor-pointer"
                     >
-                      <Heart
-                        className={`w-5 h-5 transition-colors ${
-                          post.isLiked
-                            ? "fill-rose-500 text-rose-500"
-                            : "text-white/80 hover:text-white"
-                        }`}
-                      />
-                    </button>
-
-                    {/* Comment Icon */}
-                    <button
-                      type="button"
-                      className="p-1 text-white/80 hover:text-white hover:scale-110 active:scale-95 transition-transform cursor-pointer"
-                    >
-                      <MessageCircle className="w-5 h-5" />
+                      <MoreHorizontal className="w-5 h-5" />
                     </button>
                   </div>
 
-                  {/* 3 Dots Menu */}
-                  <button
-                    type="button"
-                    className="p-1 text-white/60 hover:text-white transition-colors cursor-pointer"
-                  >
-                    <MoreHorizontal className="w-5 h-5" />
-                  </button>
-                </div>
+                  {/* Likes count & View all comments */}
+                  <div className="flex items-center justify-between text-[11px] text-white/80 font-medium">
+                    <span>{post.likesCount} likes</span>
+                    <button
+                      type="button"
+                      className="text-emerald-200/60 hover:text-white transition-colors cursor-pointer text-[11px]"
+                    >
+                      View all comments
+                    </button>
+                  </div>
 
-                {/* Likes count & View all comments */}
-                <div className="flex items-center justify-between text-[11px] text-white/80 font-medium">
-                  <span>{post.likesCount} likes</span>
-                  <button
-                    type="button"
-                    className="text-emerald-200/60 hover:text-white transition-colors cursor-pointer text-[11px]"
-                  >
-                    View all comments
-                  </button>
+                  {/* Inline Comment Input Box with Send Button */}
+                  <div className="relative flex items-center">
+                    <input
+                      type="text"
+                      placeholder="Add a comment..."
+                      value={commentInputs[post.id] || ""}
+                      onChange={(e) => handleCommentChange(post.id, e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") handleSendComment(post.id);
+                      }}
+                      className="w-full bg-[#003825] border border-[#005a3c] rounded-full pl-3.5 pr-10 py-1.5 text-xs text-white placeholder-emerald-200/40 focus:outline-none focus:border-[#94d3a2]/70 transition-all"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => handleSendComment(post.id)}
+                      className="absolute right-2 text-emerald-300 hover:text-white p-1 transition-colors cursor-pointer"
+                    >
+                      <Send className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 </div>
-
-                {/* Inline Comment Input Box with Send Button */}
-                <div className="relative flex items-center">
-                  <input
-                    type="text"
-                    placeholder="Add a comment..."
-                    value={commentInputs[post.id] || ""}
-                    onChange={(e) => handleCommentChange(post.id, e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") handleSendComment(post.id);
-                    }}
-                    className="w-full bg-[#003825] border border-[#005a3c] rounded-full pl-3.5 pr-10 py-1.5 text-xs text-white placeholder-emerald-200/40 focus:outline-none focus:border-[#94d3a2]/70 transition-all"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => handleSendComment(post.id)}
-                    className="absolute right-2 text-emerald-300 hover:text-white p-1 transition-colors cursor-pointer"
-                  >
-                    <Send className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              </div>
-            </article>
-          ))}
-        </div>
+              </article>
+            ))}
+          </div>
+        )}
       </main>
 
       {/* ========================================================================= */}
@@ -448,8 +427,9 @@ export function HomeFeedDashboard({
               </h3>
               <button
                 type="button"
+                disabled={isSubmittingPost}
                 onClick={() => setIsComposerOpen(false)}
-                className="text-white/60 hover:text-white text-sm font-bold cursor-pointer p-1"
+                className="text-white/60 hover:text-white text-sm font-bold cursor-pointer p-1 disabled:opacity-40"
               >
                 ✕
               </button>
@@ -459,44 +439,46 @@ export function HomeFeedDashboard({
               <textarea
                 rows={4}
                 autoFocus
+                disabled={isSubmittingPost}
                 placeholder="Share your campus thoughts or confessions..."
                 value={newPostContent}
                 onChange={(e) => setNewPostContent(e.target.value)}
-                className="w-full bg-[#003825] border border-[#005a3c] rounded-xl p-3.5 text-sm text-white placeholder-white/40 focus:outline-none focus:border-[#94d3a2] transition-all resize-none"
+                className="w-full bg-[#003825] border border-[#005a3c] rounded-xl p-3.5 text-sm text-white placeholder-white/40 focus:outline-none focus:border-[#94d3a2] transition-all resize-none disabled:opacity-60"
               />
 
               <div className="flex items-center justify-between pt-2">
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-emerald-200/80 font-semibold">Post to:</span>
-                  <select
-                    value={selectedDept}
-                    onChange={(e) => setSelectedDept(e.target.value)}
-                    className="bg-[#003825] border border-[#005a3c] text-xs text-white rounded-lg px-2.5 py-1 focus:outline-none font-bold"
-                  >
-                    <option value="CITE">CITE</option>
-                    <option value="CEA">CEA</option>
-                    <option value="CMA">CMA</option>
-                    <option value="CAHS">CAHS</option>
-                    <option value="CELA">CELA</option>
-                    <option value="CCJE">CCJE</option>
-                  </select>
-                </div>
+                {/* 👻 Anonymous Mode Toggle Button */}
+                <button
+                  type="button"
+                  disabled={isSubmittingPost}
+                  onClick={() => setIsAnonymous((prev) => !prev)}
+                  className={`flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer select-none ${
+                    isAnonymous
+                      ? "bg-purple-950/80 text-purple-200 border border-purple-400/60 shadow-[0_0_12px_rgba(168,85,247,0.3)]"
+                      : "bg-[#003825] text-emerald-200/80 border border-[#005a3c] hover:text-white hover:border-[#94d3a2]/50"
+                  }`}
+                >
+                  {isAnonymous ? (
+                    <>
+                      <Ghost className="w-4 h-4 text-purple-300 animate-pulse" />
+                      <span>Post as Anonymous</span>
+                    </>
+                  ) : (
+                    <>
+                      <UserCheck className="w-4 h-4 text-emerald-300" />
+                      <span>Public Identity</span>
+                    </>
+                  )}
+                </button>
 
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setIsComposerOpen(false)}
-                    className="px-4 py-2 rounded-full text-xs text-emerald-200 hover:text-white transition-colors"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    className="px-6 py-2 rounded-full bg-white hover:bg-emerald-50 text-[#006241] font-black text-xs uppercase tracking-wider shadow-md transition-all hover:scale-105 active:scale-95 cursor-pointer"
-                  >
-                    POST
-                  </button>
-                </div>
+                {/* 🚀 Submit Button */}
+                <button
+                  type="submit"
+                  disabled={!newPostContent.trim() || isSubmittingPost}
+                  className="px-6 py-2.5 rounded-full bg-white hover:bg-emerald-50 text-[#006241] font-black text-xs uppercase tracking-wider shadow-md transition-all hover:scale-105 active:scale-95 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+                >
+                  {isSubmittingPost ? "POSTING..." : "POST"}
+                </button>
               </div>
             </form>
           </div>
