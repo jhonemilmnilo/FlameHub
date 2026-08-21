@@ -69,7 +69,8 @@ export function CustomSelect({
       <button
         type="button"
         onClick={() => setIsOpen((prev) => !prev)}
-        className={`w-full flex items-center justify-between gap-3 bg-[#00472f] hover:bg-[#005237] border text-white text-xs sm:text-sm font-semibold rounded-xl px-4 py-2.5 shadow-sm transition-all cursor-pointer focus:outline-none ${
+        style={{ borderRadius: "10px" }}
+        className={`w-full h-[42px] flex items-center justify-between gap-3 bg-[#00472f] hover:bg-[#005237] border text-white text-xs sm:text-sm font-semibold rounded-[10px] px-4 shadow-sm transition-all cursor-pointer focus:outline-none ${
           isOpen
             ? "border-[#94d3a2] ring-2 ring-[#94d3a2]/20 bg-[#005237]"
             : "border-[#005a3c] hover:border-[#94d3a2]/50"
@@ -88,7 +89,10 @@ export function CustomSelect({
 
       {/* Floating Glassmorphic Dropdown Menu */}
       {isOpen && (
-        <div className="absolute right-0 top-full mt-2 w-full min-w-[170px] max-h-60 overflow-y-auto bg-[#003825] border border-[#005a3c] rounded-xl shadow-2xl p-1.5 z-40 animate-in fade-in zoom-in-95 duration-150 backdrop-blur-md [scrollbar-width:thin] [scrollbar-color:#005a3c_transparent]">
+        <div
+          style={{ borderRadius: "10px" }}
+          className="absolute right-0 top-full mt-2 w-full min-w-[170px] max-h-60 overflow-y-auto bg-[#003825] border border-[#005a3c] rounded-[10px] shadow-2xl p-1.5 z-40 animate-in fade-in zoom-in-95 duration-150 backdrop-blur-md [scrollbar-width:thin] [scrollbar-color:#005a3c_transparent]"
+        >
           <div className="space-y-0.5">
             {options.map((option) => {
               const isSelected = option.value === value;

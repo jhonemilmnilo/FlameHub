@@ -221,14 +221,17 @@ export function CommentDrawerModal({
           {isLoading ? (
             <div className="py-12 text-center space-y-3">
               <div className="w-8 h-8 border-2 border-[#8CC497] border-t-transparent rounded-full animate-spin mx-auto" />
-              <p className="text-xs text-emerald-200/70 font-medium">
+              <p className="text-xs text-[#8CC497]/70 font-medium">
                 Loading campus comments...
               </p>
             </div>
           ) : comments.length === 0 ? (
-            <div className="py-10 text-center space-y-2 bg-[#003825]/40 border border-[#005a3c] rounded-2xl p-6">
+            <div
+              style={{ borderRadius: "10px" }}
+              className="py-10 text-center space-y-2 bg-[#002f1f]/50 border border-[#005a3c] rounded-[10px] p-6 shadow-sm"
+            >
               <p className="text-xs font-semibold text-white/90">No comments yet.</p>
-              <p className="text-[11px] text-emerald-200/60">
+              <p className="text-[11px] text-[#8CC497]/70">
                 Be the first to share your thoughts below!
               </p>
             </div>
@@ -241,16 +244,19 @@ export function CommentDrawerModal({
                 return (
                   <div
                     key={comment.id}
-                    className="bg-[#003825] border border-[#005a3c] rounded-xl px-3.5 py-2.5 space-y-1.5 transition-all shadow-xs"
+                    style={{ borderRadius: "10px" }}
+                    className="bg-[#002f1f] border border-[#005a3c] rounded-[10px] px-3.5 py-2.5 space-y-1.5 transition-all shadow-xs"
                   >
                     {/* Compact Comment Header with Heart Button */}
                     <div className="flex items-center justify-between gap-2">
                       <div className="flex items-center gap-2.5">
-                        <div className="w-8 h-8 rounded-full bg-[#8CC497] shrink-0 shadow-xs" />
+                        <div className="w-8 h-8 rounded-full bg-[#8CC497] shrink-0 flex items-center justify-center text-[#003F2A] font-black text-xs shadow-xs">
+                          {comment.isAnonymous ? "A" : comment.authorName.charAt(0).toUpperCase()}
+                        </div>
                         <div>
                           <h4 className="font-extrabold text-xs sm:text-[13px] text-white tracking-tight font-heading leading-tight">
                             {comment.isAnonymous ? "Anonymous" : comment.authorName}{" "}
-                            <span className="font-medium text-emerald-200/80 text-[11px]">
+                            <span className="font-medium text-[#8CC497] text-[11px]">
                               | {comment.isAnonymous ? "Flame" : comment.department}
                             </span>
                           </h4>

@@ -80,12 +80,15 @@ interface HomeFeedDashboardProps {
 // 💀 High-End Shimmer Skeleton Card Component
 function PostCardSkeleton() {
   return (
-    <div className="bg-[#00472f]/80 border border-[#005a3c] rounded-2xl p-5 flex flex-col justify-between space-y-4 shadow-sm animate-pulse">
+    <div
+      style={{ borderRadius: "10px" }}
+      className="bg-[#003F2A] border border-[#005a3c]/60 rounded-[10px] p-5 flex flex-col justify-between space-y-4 shadow-xl animate-pulse"
+    >
       <div className="flex items-center gap-3">
-        <div className="w-11 h-11 rounded-full bg-white/15 shrink-0" />
+        <div className="w-11 h-11 rounded-full bg-[#8CC497]/30 shrink-0" />
         <div className="space-y-2 flex-1">
           <div className="h-3.5 bg-white/20 rounded-md w-3/5" />
-          <div className="h-2.5 bg-white/10 rounded-md w-2/5" />
+          <div className="h-2.5 bg-[#8CC497]/20 rounded-md w-2/5" />
         </div>
       </div>
       <div className="space-y-2 py-1">
@@ -100,8 +103,8 @@ function PostCardSkeleton() {
           </div>
           <div className="w-5 h-5 rounded-full bg-white/15" />
         </div>
-        <div className="h-2.5 bg-white/10 rounded-md w-1/4" />
-        <div className="h-8 bg-white/10 rounded-full w-full" />
+        <div className="h-2.5 bg-[#8CC497]/20 rounded-md w-1/4" />
+        <div className="h-8 bg-[#002f1f] rounded-[10px] w-full" />
       </div>
     </div>
   );
@@ -638,12 +641,12 @@ export function HomeFeedDashboard({
   };
 
   return (
-    <div className="min-h-screen bg-[#004e34] text-white flex flex-col md:flex-row font-sans selection:bg-[#22c55e]/30 selection:text-white">
+    <div className="min-h-screen bg-[#006241] text-white flex flex-col md:flex-row font-sans selection:bg-[#8CC497]/30 selection:text-white">
       {/* ========================================================================= */}
       {/* 🌲 LEFT SIDEBAR NAVIGATION */}
       {/* ========================================================================= */}
       <aside
-        className={`bg-[#00432c] border-b md:border-b-0 md:border-r border-[#003825] shrink-0 md:sticky md:top-0 md:h-screen flex flex-col justify-between z-30 transition-all duration-300 ease-in-out ${
+        className={`bg-[#003F2A] border-b md:border-b-0 md:border-r border-[#005a3c]/60 shrink-0 md:sticky md:top-0 md:h-screen flex flex-col justify-between z-30 transition-all duration-300 ease-in-out ${
           isSidebarHidden
             ? "w-0 p-0 overflow-hidden opacity-0 border-none pointer-events-none"
             : "w-full md:w-64 lg:w-72 p-6 overflow-y-auto opacity-100 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
@@ -652,26 +655,30 @@ export function HomeFeedDashboard({
         <div className="space-y-6">
           {/* User Profile Header & Collapse Toggle */}
           <div className="flex items-center justify-between gap-2 select-none pt-2">
-            <div className="flex items-center gap-3.5 overflow-hidden">
-              <div className="w-12 h-12 lg:w-14 lg:h-14 rounded-full bg-white flex items-center justify-center shrink-0 shadow-md">
-                {/* Optional user avatar image */}
+            <button
+              type="button"
+              onClick={() => router.push("/profile")}
+              className="flex items-center gap-3.5 overflow-hidden text-left cursor-pointer group hover:opacity-90 transition-opacity"
+            >
+              <div className="w-12 h-12 lg:w-14 lg:h-14 rounded-full bg-white flex items-center justify-center shrink-0 shadow-md text-[#006241] font-black text-lg">
+                {currentUser.name ? currentUser.name.charAt(0).toUpperCase() : "U"}
               </div>
               <div className="overflow-hidden">
-                <h2 className="font-extrabold text-sm lg:text-base text-white truncate tracking-tight font-heading">
+                <h2 className="font-extrabold text-sm lg:text-base text-white truncate tracking-tight font-heading group-hover:text-[#8CC497] transition-colors">
                   {currentUser.name}
                 </h2>
-                <p className="text-xs text-emerald-200/70 font-medium tracking-wide">
+                <p className="text-xs text-[#8CC497] font-medium tracking-wide">
                   {currentUser.studentId}
                 </p>
               </div>
-            </div>
+            </button>
 
             {/* Toggle Button to Hide Sidebar */}
             <button
               type="button"
               onClick={() => setIsSidebarHidden(true)}
               title="Hide Sidebar"
-              className="p-1.5 rounded-lg hover:bg-[#004e34] text-emerald-300/80 hover:text-white transition-colors cursor-pointer shrink-0"
+              className="p-1.5 rounded-lg hover:bg-[#006241] text-[#8CC497] hover:text-white transition-colors cursor-pointer shrink-0"
             >
               <PanelLeftClose className="w-5 h-5" />
             </button>
@@ -685,17 +692,17 @@ export function HomeFeedDashboard({
             <button
               type="button"
               onClick={scrollToTop}
-              className="w-full flex items-center gap-4 px-3.5 py-3 rounded-xl text-[#004e34] font-extrabold bg-white shadow-md transition-all text-left cursor-pointer active:scale-98"
+              className="w-full flex items-center gap-4 px-3.5 py-3 rounded-xl text-[#006241] font-extrabold bg-white shadow-md transition-all text-left cursor-pointer active:scale-98"
             >
-              <Home className="w-5 h-5 text-[#004e34] shrink-0" />
+              <Home className="w-5 h-5 text-[#006241] shrink-0" />
               <span className="text-sm lg:text-base font-bold">Home</span>
             </button>
 
             <button
               type="button"
-              className="w-full flex items-center gap-4 px-3.5 py-3 rounded-xl text-emerald-100/80 hover:text-white hover:bg-[#004e34]/50 transition-all text-left cursor-pointer"
+              className="w-full flex items-center gap-4 px-3.5 py-3 rounded-xl text-emerald-100 hover:text-white hover:bg-[#006241]/60 transition-all text-left cursor-pointer"
             >
-              <Bell className="w-5 h-5 text-emerald-300 shrink-0" />
+              <Bell className="w-5 h-5 text-[#8CC497] shrink-0" />
               <span className="text-sm lg:text-base">Notifications</span>
             </button>
 
@@ -708,40 +715,40 @@ export function HomeFeedDashboard({
               }}
               className={`w-full flex items-center gap-4 px-3.5 py-3 rounded-xl transition-all text-left cursor-pointer ${
                 sortBy === "Saved"
-                  ? "bg-[#005a3c] text-white font-bold shadow-inner"
-                  : "text-emerald-100/80 hover:text-white hover:bg-[#004e34]/50"
+                  ? "bg-[#006241] text-white font-bold shadow-inner"
+                  : "text-emerald-100 hover:text-white hover:bg-[#006241]/60"
               }`}
             >
-              <Bookmark className={`w-5 h-5 shrink-0 ${sortBy === "Saved" ? "text-emerald-300 fill-emerald-300" : "text-emerald-300"}`} />
+              <Bookmark className={`w-5 h-5 shrink-0 ${sortBy === "Saved" ? "text-[#8CC497] fill-[#8CC497]" : "text-[#8CC497]"}`} />
               <span className="text-sm lg:text-base">Bookmarks</span>
             </button>
 
             <button
               type="button"
-              className="w-full flex items-center gap-4 px-3.5 py-3 rounded-xl text-emerald-100/80 hover:text-white hover:bg-[#004e34]/50 transition-all text-left cursor-pointer"
+              className="w-full flex items-center gap-4 px-3.5 py-3 rounded-xl text-emerald-100 hover:text-white hover:bg-[#006241]/60 transition-all text-left cursor-pointer"
             >
-              <HelpCircle className="w-5 h-5 text-emerald-300 shrink-0" />
+              <HelpCircle className="w-5 h-5 text-[#8CC497] shrink-0" />
               <span className="text-sm lg:text-base">Help</span>
             </button>
 
             <button
               type="button"
-              className="w-full flex items-center gap-4 px-3.5 py-3 rounded-xl text-emerald-100/80 hover:text-white hover:bg-[#004e34]/50 transition-all text-left cursor-pointer"
+              className="w-full flex items-center gap-4 px-3.5 py-3 rounded-xl text-emerald-100 hover:text-white hover:bg-[#006241]/60 transition-all text-left cursor-pointer"
             >
-              <Info className="w-5 h-5 text-emerald-300 shrink-0" />
+              <Info className="w-5 h-5 text-[#8CC497] shrink-0" />
               <span className="text-sm lg:text-base">About</span>
             </button>
           </nav>
         </div>
 
         {/* Log Out Button */}
-        <div className="pt-6 border-t border-[#003825]">
+        <div className="pt-6 border-t border-[#005a3c]/70">
           <button
             type="button"
             onClick={handleLogout}
-            className="w-full flex items-center gap-4 px-3.5 py-3 rounded-xl text-emerald-100/80 hover:text-white hover:bg-rose-950/30 transition-all text-left cursor-pointer"
+            className="w-full flex items-center gap-4 px-3.5 py-3 rounded-xl text-emerald-100 hover:text-white hover:bg-rose-950/30 transition-all text-left cursor-pointer"
           >
-            <LogOut className="w-5 h-5 text-emerald-300 shrink-0" />
+            <LogOut className="w-5 h-5 text-[#8CC497] shrink-0" />
             <span className="text-sm lg:text-base font-bold">Log out</span>
           </button>
         </div>
@@ -757,9 +764,9 @@ export function HomeFeedDashboard({
             type="button"
             onClick={() => setIsSidebarHidden(false)}
             title="Open Sidebar"
-            className="fixed top-6 left-6 z-40 p-2.5 rounded-xl bg-[#00432c] hover:bg-[#005a3c] border border-[#005a3c] text-white shadow-xl transition-all cursor-pointer flex items-center gap-2 hover:scale-105 active:scale-95 animate-fadeIn"
+            className="fixed top-6 left-6 z-40 p-2.5 rounded-xl bg-[#003F2A] hover:bg-[#004e34] border border-[#005a3c] text-white shadow-xl transition-all cursor-pointer flex items-center gap-2 hover:scale-105 active:scale-95 animate-fadeIn"
           >
-            <PanelLeftOpen className="w-5 h-5 text-emerald-300" />
+            <PanelLeftOpen className="w-5 h-5 text-[#8CC497]" />
             <span className="text-xs font-bold hidden sm:inline">Show Sidebar</span>
           </button>
         )}
@@ -773,14 +780,19 @@ export function HomeFeedDashboard({
           </p>
         </div>
 
-        {/* ✍️ Post Composer Box (Exactly as Mockup with light-mint avatar + rounded border) */}
-        <div className="w-full bg-[#00472f] border border-[#005a3c] rounded-2xl p-4 md:p-5 shadow-sm">
+        {/* ✍️ Post Composer Box */}
+        <div
+          style={{ borderRadius: "10px" }}
+          className="w-full bg-[#003F2A] border border-[#005a3c]/60 rounded-[10px] p-4 md:p-5 shadow-xl"
+        >
           <div className="flex items-center gap-4">
-            <div className="w-12 h-12 md:w-14 md:h-14 rounded-full bg-[#94d3a2] shrink-0" />
+            <div className="w-12 h-12 md:w-14 md:h-14 rounded-full bg-[#8CC497] shrink-0 flex items-center justify-center text-[#003F2A] font-black text-lg shadow-inner">
+              {currentUser.name ? currentUser.name.charAt(0).toUpperCase() : "U"}
+            </div>
             <button
               type="button"
               onClick={() => setIsComposerOpen(true)}
-              className="flex-1 text-left bg-transparent border border-[#94d3a2]/40 hover:border-[#94d3a2]/80 rounded-full px-5 py-3 text-xs md:text-sm text-emerald-100/60 transition-all cursor-pointer truncate"
+              className="flex-1 text-left bg-[#002f1f]/80 hover:bg-[#002f1f] border border-[#8CC497]/30 hover:border-[#8CC497]/70 rounded-full px-5 py-3 text-xs md:text-sm text-[#8CC497]/80 hover:text-[#8CC497] transition-all cursor-pointer truncate shadow-inner"
             >
               Is there something you need to share?
             </button>
@@ -793,27 +805,31 @@ export function HomeFeedDashboard({
             <h2 className="text-xl md:text-2xl font-bold font-heading text-white tracking-tight">
               Feed
             </h2>
-            <p className="text-xs text-emerald-200/70">
+            <p className="text-xs text-[#8CC497]/80">
               Make sure you have your <span className="font-semibold text-white/90">popcorn</span> ready!
             </p>
           </div>
 
           {/* Filter & Search Toolbar */}
-          <div className="flex flex-wrap items-center gap-3.5 pt-2">
+          <div className="flex flex-wrap items-center gap-3 pt-2">
             {/* Filter Icon Badge */}
-            <div className="p-3 rounded-xl bg-[#00472f] border border-[#005a3c] text-emerald-300 shrink-0 shadow-sm flex items-center justify-center">
-              <Filter className="w-5 h-5" />
+            <div
+              style={{ borderRadius: "10px" }}
+              className="h-[42px] w-[42px] rounded-[10px] bg-[#003F2A] border border-[#005a3c] text-[#8CC497] shrink-0 shadow-sm flex items-center justify-center"
+            >
+              <Filter className="w-4 h-4" />
             </div>
 
             {/* Bigger & Sleeker Search Input */}
-            <div className="relative flex-1 min-w-[200px] max-w-sm">
-              <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-emerald-300/70 pointer-events-none" />
+            <div className="relative flex-1 min-w-[200px] max-w-sm h-[42px]">
+              <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-[#8CC497]/70 pointer-events-none" />
               <input
                 type="text"
                 placeholder="Search posts, tags, campus..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-[#00472f] border border-[#005a3c] rounded-xl pl-10 pr-4 py-2.5 text-xs sm:text-sm text-white placeholder-emerald-200/50 focus:outline-none focus:border-[#94d3a2]/80 focus:bg-[#003d28] shadow-sm transition-all"
+                style={{ borderRadius: "10px" }}
+                className="w-full h-[42px] bg-[#003F2A] border border-[#005a3c] rounded-[10px] pl-10 pr-4 text-xs sm:text-sm text-white placeholder-[#8CC497]/50 focus:outline-none focus:border-[#8CC497] shadow-sm transition-all"
               />
             </div>
 
@@ -821,7 +837,7 @@ export function HomeFeedDashboard({
             <CustomSelect
               value={sortBy}
               onChange={(val) => setSortBy(val)}
-              className="min-w-[145px]"
+              className="min-w-[145px] h-[42px]"
               options={[
                 { value: "ALL", label: "All Posts" },
                 { value: "Saved", label: "Bookmarks" },
@@ -835,7 +851,7 @@ export function HomeFeedDashboard({
             <CustomSelect
               value={selectedDept}
               onChange={(val) => setSelectedDept(val)}
-              className="min-w-[160px]"
+              className="min-w-[160px] h-[42px]"
               options={[
                 { value: "ALL", label: "All Departments" },
                 { value: "CITE", label: "CITE" },
@@ -860,13 +876,16 @@ export function HomeFeedDashboard({
             <PostCardSkeleton />
           </div>
         ) : filteredAndSortedPosts.length === 0 ? (
-          <div className="bg-[#00472f]/60 border border-[#005a3c] rounded-2xl p-12 text-center space-y-4">
+          <div
+            style={{ borderRadius: "10px" }}
+            className="bg-[#003F2A]/60 border border-[#005a3c] rounded-[10px] p-12 text-center space-y-4 shadow-xl"
+          >
             <div className="w-16 h-16 rounded-full bg-white/10 flex items-center justify-center mx-auto text-2xl">
               🔍
             </div>
             <div className="space-y-1">
               <h3 className="text-lg font-bold text-white font-heading">No matching posts</h3>
-              <p className="text-sm text-emerald-200/70">
+              <p className="text-sm text-[#8CC497]/80">
                 {searchQuery || selectedDept !== "ALL"
                   ? "Try tweaking your department filter or search query to find more posts."
                   : "Be the very first one to spark a conversation in your campus."}
@@ -880,7 +899,8 @@ export function HomeFeedDashboard({
                   setSortBy("ALL");
                   setSearchQuery("");
                 }}
-                className="inline-flex items-center gap-2 px-6 py-2 rounded-full bg-white/10 hover:bg-white/20 text-white font-semibold text-xs transition-all cursor-pointer"
+                style={{ borderRadius: "10px" }}
+                className="inline-flex items-center gap-2 px-6 py-2.5 rounded-[10px] bg-[#003F2A] hover:bg-[#004e34] border border-[#005a3c] text-white font-semibold text-xs transition-all cursor-pointer shadow-sm"
               >
                 Reset Filters
               </button>
@@ -892,19 +912,22 @@ export function HomeFeedDashboard({
               {filteredAndSortedPosts.map((post) => (
                 <article
                   key={post.id}
-                  className="bg-[#00472f] border border-[#005a3c] rounded-2xl p-5 flex flex-col justify-between space-y-4 shadow-sm hover:border-[#94d3a2]/40 transition-all"
+                  style={{ borderRadius: "10px" }}
+                  className="bg-[#003F2A] border border-[#005a3c]/60 rounded-[10px] p-5 flex flex-col justify-between space-y-4 shadow-xl hover:border-[#8CC497]/40 transition-all"
                 >
                   {/* Card Header: Avatar + Author info */}
                   <div className="flex items-center gap-3">
-                    <div className="w-11 h-11 rounded-full bg-[#94d3a2] shrink-0" />
+                    <div className="w-11 h-11 rounded-full bg-[#8CC497] shrink-0 flex items-center justify-center text-[#003F2A] font-black text-sm shadow-inner">
+                      {post.isAnonymous ? "A" : post.authorName.charAt(0).toUpperCase()}
+                    </div>
                     <div className="overflow-hidden">
                       <h3 className="font-bold text-xs sm:text-sm text-white truncate">
                         {post.isAnonymous ? "Anonymous" : post.authorName}{" "}
-                        <span className="font-medium text-emerald-200/80">
+                        <span className="font-semibold text-[#8CC497]">
                           | {post.isAnonymous ? "Flame" : post.department}
                         </span>
                       </h3>
-                      <p className="text-[11px] text-emerald-200/60 font-medium">
+                      <p className="text-[11px] text-[#8CC497] font-medium">
                         {post.isAnonymous ? "Hidden ID" : post.studentId}
                       </p>
                     </div>
@@ -976,23 +999,28 @@ export function HomeFeedDashboard({
                         </button>
 
                         {activeMenuPostId === post.id && (
-                          <div className="absolute right-0 bottom-full mb-2 w-48 bg-[#003825] border border-[#005a3c] rounded-xl shadow-2xl p-1.5 z-30 animate-in fade-in zoom-in-95 duration-150 backdrop-blur-md">
+                          <div
+                            style={{ borderRadius: "10px" }}
+                            className="absolute right-0 bottom-full mb-2 w-48 bg-[#002f1f] border border-[#005a3c] rounded-[10px] shadow-2xl p-1.5 z-30 animate-in fade-in zoom-in-95 duration-150 backdrop-blur-md"
+                          >
                             {/* Author Only Actions */}
                             {post.isAuthor && (
                               <>
                                 <button
                                   type="button"
                                   onClick={() => handleOpenEdit(post)}
-                                  className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-emerald-300 hover:text-white hover:bg-[#004e34] rounded-lg transition-colors text-left cursor-pointer"
+                                  style={{ borderRadius: "10px" }}
+                                  className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-[#8CC497] hover:text-white hover:bg-[#004e34] rounded-[10px] transition-colors text-left cursor-pointer"
                                 >
-                                  <Pencil className="w-4 h-4 text-emerald-300" />
+                                  <Pencil className="w-4 h-4 text-[#8CC497]" />
                                   <span>Edit Post</span>
                                 </button>
 
                                 <button
                                   type="button"
                                   onClick={() => handleOpenDelete(post)}
-                                  className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-rose-400 hover:text-rose-200 hover:bg-rose-950/40 rounded-lg transition-colors text-left cursor-pointer"
+                                  style={{ borderRadius: "10px" }}
+                                  className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-rose-400 hover:text-rose-200 hover:bg-rose-950/40 rounded-[10px] transition-colors text-left cursor-pointer"
                                 >
                                   <Trash2 className="w-4 h-4 text-rose-400" />
                                   <span>Delete Post</span>
@@ -1006,13 +1034,14 @@ export function HomeFeedDashboard({
                               <button
                                 type="button"
                                 onClick={() => handleToggleSave(post)}
-                                className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-emerald-100 hover:text-white hover:bg-[#004e34] rounded-lg transition-colors text-left cursor-pointer"
+                                style={{ borderRadius: "10px" }}
+                                className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-emerald-100 hover:text-white hover:bg-[#004e34] rounded-[10px] transition-colors text-left cursor-pointer"
                               >
                                 <Bookmark
                                   className={`w-4 h-4 transition-colors ${
                                     post.isSaved
                                       ? "fill-emerald-400 text-emerald-400"
-                                      : "text-emerald-300"
+                                      : "text-[#8CC497]"
                                   }`}
                                 />
                                 <span>{post.isSaved ? "Unsave Post" : "Save Post"}</span>
@@ -1028,9 +1057,10 @@ export function HomeFeedDashboard({
                                   toast.success("Post link copied to clipboard.");
                                 }
                               }}
-                              className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-emerald-100 hover:text-white hover:bg-[#004e34] rounded-lg transition-colors text-left cursor-pointer"
+                              style={{ borderRadius: "10px" }}
+                              className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-emerald-100 hover:text-white hover:bg-[#004e34] rounded-[10px] transition-colors text-left cursor-pointer"
                             >
-                              <Copy className="w-4 h-4 text-emerald-300" />
+                              <Copy className="w-4 h-4 text-[#8CC497]" />
                               <span>Copy Link</span>
                             </button>
 
@@ -1038,7 +1068,8 @@ export function HomeFeedDashboard({
                               <button
                                 type="button"
                                 onClick={() => handleHidePost(post)}
-                                className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-amber-200 hover:text-amber-100 hover:bg-amber-950/40 rounded-lg transition-colors text-left cursor-pointer"
+                                style={{ borderRadius: "10px" }}
+                                className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-amber-200 hover:text-amber-100 hover:bg-amber-950/40 rounded-[10px] transition-colors text-left cursor-pointer"
                               >
                                 <EyeOff className="w-4 h-4 text-amber-400" />
                                 <span>Hide Post</span>
@@ -1053,7 +1084,8 @@ export function HomeFeedDashboard({
                                 setActiveMenuPostId(null);
                                 toast.success("Report submitted to the moderation team.");
                               }}
-                              className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-rose-300 hover:text-rose-100 hover:bg-rose-950/40 rounded-lg transition-colors text-left cursor-pointer"
+                              style={{ borderRadius: "10px" }}
+                              className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-rose-300 hover:text-rose-100 hover:bg-rose-950/40 rounded-[10px] transition-colors text-left cursor-pointer"
                             >
                               <Flag className="w-4 h-4 text-rose-400" />
                               <span>Report Post</span>
@@ -1067,11 +1099,11 @@ export function HomeFeedDashboard({
                     <div className="flex items-center justify-between text-[11px] text-white/80 font-medium">
                       <div className="flex items-center gap-2.5">
                         <span>{post.likesCount} {post.likesCount === 1 ? "like" : "likes"}</span>
-                        <span className="text-emerald-300/40">•</span>
+                        <span className="text-[#8CC497]/40">•</span>
                         <button
                           type="button"
                           onClick={() => setActiveDiscussionPost(post)}
-                          className="hover:text-emerald-300 hover:underline cursor-pointer transition-colors"
+                          className="hover:text-[#8CC497] hover:underline cursor-pointer transition-colors"
                         >
                           {post.commentsCount} {post.commentsCount === 1 ? "comment" : "comments"}
                         </button>
@@ -1079,13 +1111,13 @@ export function HomeFeedDashboard({
                       <time
                         dateTime={post.createdAt}
                         suppressHydrationWarning
-                        className="text-emerald-200/60 font-medium text-[11px]"
+                        className="text-[#8CC497]/80 font-medium text-[11px]"
                       >
                         {formatRelativeTime(post.createdAt)}
                       </time>
                     </div>
 
-                    {/* 💬 Sleeker, Bigger & More Professional Comment Input Box */}
+                    {/* 💬 Comment Input Box matching profile */}
                     <div className="relative flex items-center pt-0.5">
                       <input
                         type="text"
@@ -1095,22 +1127,17 @@ export function HomeFeedDashboard({
                         onKeyDown={(e) => {
                           if (e.key === "Enter") handleSendComment(post.id);
                         }}
-                        className="w-full bg-[#003422] border border-[#005a3c] rounded-xl pl-4 pr-11 py-2.5 text-xs sm:text-sm text-white placeholder-emerald-200/40 focus:outline-none focus:border-[#94d3a2]/80 focus:bg-[#002f1f] shadow-inner transition-all"
+                        style={{ borderRadius: "10px" }}
+                        className="w-full bg-[#002f1f] border border-[#005a3c] rounded-[10px] pl-4 pr-11 py-2.5 text-xs sm:text-sm text-white placeholder-[#8CC497]/40 focus:outline-none focus:border-[#8CC497] shadow-inner transition-all"
                       />
                       <button
                         type="button"
                         onClick={() => handleSendComment(post.id)}
                         disabled={!commentInputs[post.id]?.trim() || sendingComments[post.id]}
-                        className="absolute right-2 p-1.5 rounded-lg bg-emerald-700/40 hover:bg-emerald-600/70 text-emerald-200 hover:text-white disabled:opacity-30 disabled:hover:bg-transparent disabled:cursor-not-allowed transition-all cursor-pointer group"
+                        className="absolute right-2 p-1.5 rounded-[10px] text-[#8CC497] hover:text-white disabled:opacity-30 disabled:hover:bg-transparent disabled:cursor-not-allowed transition-all cursor-pointer group"
                         title={sendingComments[post.id] ? "Sending..." : "Send Comment"}
                       >
-                        <Send
-                          className={`w-4 h-4 transition-all duration-300 ease-out transform ${
-                            sendingComments[post.id]
-                              ? "rotate-0 scale-110 translate-x-0.5 -translate-y-0.5 text-[#94d3a2]"
-                              : "rotate-45 text-emerald-200 group-hover:text-white"
-                          }`}
-                        />
+                        <Send className="w-4 h-4 text-[#8CC497] group-hover:text-white transition-colors" />
                       </button>
                     </div>
                   </div>
