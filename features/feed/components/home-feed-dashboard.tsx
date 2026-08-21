@@ -38,6 +38,7 @@ import {
   type PostFeedItem,
 } from "@/features/feed/actions/post.action";
 import { toggleLikePostAction } from "@/features/feed/actions/post.liked.action";
+import { toggleSavePostAction } from "@/features/feed/actions/post.saved.action";
 import { createCommentAction } from "@/features/feed/actions/comment.action";
 import { CommentDrawerModal } from "@/features/feed/components/comment-drawer-modal";
 import { CustomSelect } from "@/components/ui/custom-select";
@@ -197,8 +198,10 @@ export function HomeFeedDashboard({
       );
     }
 
-    // 3. Sort Filter
-    if (sortBy === "Controversial") {
+    // 3. Sort / Category Filter
+    if (sortBy === "Saved") {
+      result = result.filter((p) => p.isSaved);
+    } else if (sortBy === "Controversial") {
       // ⚡ Controversial Score = Combined high activity (Likes + Comments engagement balance)
       result.sort((a, b) => {
         const scoreA = a.likesCount + a.commentsCount * 2;
@@ -395,6 +398,51 @@ export function HomeFeedDashboard({
     }
   };
 
+  const handleToggleSave = async (post: PostFeedItem) => {
+    setActiveMenuPostId(null);
+
+    // 🔒 Self-Save Prohibition Rule
+    if (post.isAuthor) {
+      toast.error("You cannot save your own post.");
+      return;
+    }
+
+    const previousIsSaved = post.isSaved;
+    const nextIsSaved = !previousIsSaved;
+
+    // ⚡ Optimistic UI update
+    setPosts((prev) =>
+      prev.map((p) => (p.id === post.id ? { ...p, isSaved: nextIsSaved } : p))
+    );
+
+    if (nextIsSaved) {
+      toast.success("Post saved to your bookmarks.");
+    } else {
+      toast.success("Post removed from your bookmarks.");
+    }
+
+    try {
+      const res = await toggleSavePostAction(post.id);
+      if (!res.success) {
+        // Rollback on server error
+        setPosts((prev) =>
+          prev.map((p) => (p.id === post.id ? { ...p, isSaved: previousIsSaved } : p))
+        );
+        toast.error(res.error || "Unable to update bookmark.");
+      } else if (res.data) {
+        setPosts((prev) =>
+          prev.map((p) => (p.id === post.id ? { ...p, isSaved: res.data.isSaved } : p))
+        );
+      }
+    } catch {
+      // Rollback on network failure
+      setPosts((prev) =>
+        prev.map((p) => (p.id === post.id ? { ...p, isSaved: previousIsSaved } : p))
+      );
+      toast.error("Network error while saving post.");
+    }
+  };
+
   const handleCommentChange = (postId: string, value: string) => {
     setCommentInputs((prev) => ({ ...prev, [postId]: value }));
   };
@@ -428,9 +476,9 @@ export function HomeFeedDashboard({
           )
         );
         setCommentInputs((prev) => ({ ...prev, [postId]: text }));
-        toast.error(res.error || "Failed to post comment.");
+        toast.error(res.error || "Unable to post comment. Please try again.");
       } else {
-        toast.success("Comment posted!");
+        toast.success("Comment submitted successfully.");
       }
     } catch {
       // Rollback on network error
@@ -442,7 +490,7 @@ export function HomeFeedDashboard({
         )
       );
       setCommentInputs((prev) => ({ ...prev, [postId]: text }));
-      toast.error("Network error while sending comment.");
+      toast.error("Network connection error. Please check your connection.");
     } finally {
       setTimeout(() => {
         setSendingComments((prev) => ({ ...prev, [postId]: false }));
@@ -468,14 +516,14 @@ export function HomeFeedDashboard({
         setIsComposerOpen(false);
         toast.success(
           isAnonymous
-            ? "Anonymous post published secretly!"
-            : "Post published successfully!"
+            ? "Anonymous post published successfully."
+            : "Post published successfully."
         );
       } else {
-        toast.error(res.error || "Failed to create post.");
+        toast.error(res.error || "Unable to publish post. Please try again.");
       }
     } catch {
-      toast.error("Something went wrong while publishing your post.");
+      toast.error("An unexpected error occurred while publishing your post.");
     } finally {
       setIsSubmittingPost(false);
     }
@@ -505,12 +553,12 @@ export function HomeFeedDashboard({
           prev.map((p) => (p.id === editingPost.id ? res.data : p))
         );
         setEditingPost(null);
-        toast.success("Post updated successfully!");
+        toast.success("Post updated successfully.");
       } else {
-        toast.error(res.error || "Failed to update post.");
+        toast.error(res.error || "Unable to update post. Please try again.");
       }
     } catch {
-      toast.error("Something went wrong while updating post.");
+      toast.error("An unexpected error occurred while updating the post.");
     } finally {
       setIsSubmittingEdit(false);
     }
@@ -535,15 +583,15 @@ export function HomeFeedDashboard({
     try {
       const res = await deletePostAction(targetPostId);
       if (res.success) {
-        toast.success("Post deleted permanently!");
+        toast.success("Post removed successfully.");
       } else {
         // Rollback on server error
         setPosts(originalPosts);
-        toast.error(res.error || "Failed to delete post.");
+        toast.error(res.error || "Unable to remove post. Please try again.");
       }
     } catch {
       setPosts(originalPosts);
-      toast.error("Network error while deleting post.");
+      toast.error("Network error while deleting post. Please try again.");
     } finally {
       setIsSubmittingDelete(false);
     }
@@ -620,6 +668,23 @@ export function HomeFeedDashboard({
             >
               <Bell className="w-5 h-5 text-emerald-300 shrink-0" />
               <span className="text-sm lg:text-base">Notifications</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                const isCurrentlySavedSort = sortBy === "Saved";
+                setSortBy(isCurrentlySavedSort ? "ALL" : "Saved");
+                scrollToTop();
+              }}
+              className={`w-full flex items-center gap-4 px-3.5 py-3 rounded-xl transition-all text-left cursor-pointer ${
+                sortBy === "Saved"
+                  ? "bg-[#005a3c] text-white font-bold shadow-inner"
+                  : "text-emerald-100/80 hover:text-white hover:bg-[#004e34]/50"
+              }`}
+            >
+              <Bookmark className={`w-5 h-5 shrink-0 ${sortBy === "Saved" ? "text-emerald-300 fill-emerald-300" : "text-emerald-300"}`} />
+              <span className="text-sm lg:text-base">Bookmarks</span>
             </button>
 
             <button
@@ -730,6 +795,7 @@ export function HomeFeedDashboard({
               className="min-w-[145px]"
               options={[
                 { value: "ALL", label: "All Posts" },
+                { value: "Saved", label: "Bookmarks" },
                 { value: "Controversial", label: "Controversial" },
                 { value: "Latest", label: "Latest" },
                 { value: "Most Liked", label: "Most Liked" },
@@ -907,17 +973,22 @@ export function HomeFeedDashboard({
                               </>
                             )}
 
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setActiveMenuPostId(null);
-                                toast.info("Bookmark feature coming soon!");
-                              }}
-                              className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-emerald-100 hover:text-white hover:bg-[#004e34] rounded-lg transition-colors text-left cursor-pointer"
-                            >
-                              <Bookmark className="w-4 h-4 text-emerald-300" />
-                              <span>Save Post</span>
-                            </button>
+                            {!post.isAuthor && (
+                              <button
+                                type="button"
+                                onClick={() => handleToggleSave(post)}
+                                className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-emerald-100 hover:text-white hover:bg-[#004e34] rounded-lg transition-colors text-left cursor-pointer"
+                              >
+                                <Bookmark
+                                  className={`w-4 h-4 transition-colors ${
+                                    post.isSaved
+                                      ? "fill-emerald-400 text-emerald-400"
+                                      : "text-emerald-300"
+                                  }`}
+                                />
+                                <span>{post.isSaved ? "Unsave Post" : "Save Post"}</span>
+                              </button>
+                            )}
 
                             <button
                               type="button"
@@ -925,7 +996,7 @@ export function HomeFeedDashboard({
                                 setActiveMenuPostId(null);
                                 if (navigator.clipboard) {
                                   navigator.clipboard.writeText(window.location.href);
-                                  toast.success("Post link copied to clipboard!");
+                                  toast.success("Post link copied to clipboard.");
                                 }
                               }}
                               className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-emerald-100 hover:text-white hover:bg-[#004e34] rounded-lg transition-colors text-left cursor-pointer"
@@ -953,7 +1024,7 @@ export function HomeFeedDashboard({
                               type="button"
                               onClick={() => {
                                 setActiveMenuPostId(null);
-                                toast.success("Report submitted to moderation team.");
+                                toast.success("Report submitted to the moderation team.");
                               }}
                               className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-rose-300 hover:text-rose-100 hover:bg-rose-950/40 rounded-lg transition-colors text-left cursor-pointer"
                             >

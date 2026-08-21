@@ -107,13 +107,11 @@ export function ConfirmationModal({
           </button>
         </div>
 
-        {/* Optional Preview Box */}
+        {/* Post Text Preview (Clean direct text, no nested card) */}
         {previewText && (
-          <div className="bg-[#002f1f] border border-[#005a3c] rounded-xl p-3.5 max-h-28 overflow-y-auto [scrollbar-width:thin] [scrollbar-color:#005a3c_transparent]">
-            <p className="text-xs text-white/80 italic line-clamp-3">
-              &ldquo;{previewText}&rdquo;
-            </p>
-          </div>
+          <p className="text-xs text-emerald-100/80 italic pl-13 line-clamp-3 leading-relaxed">
+            &ldquo;{previewText}&rdquo;
+          </p>
         )}
 
         {/* Action Buttons */}

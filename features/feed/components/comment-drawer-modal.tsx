@@ -72,11 +72,11 @@ export function CommentDrawerModal({
           if (res.success && res.data) {
             setComments(res.data);
           } else {
-            toast.error(res.error || "Could not load comments.");
+            toast.error(res.error || "Unable to load comments. Please try again.");
           }
         }
       } catch {
-        if (isMounted) toast.error("Failed to fetch discussion.");
+        if (isMounted) toast.error("Failed to load the discussion thread.");
       } finally {
         if (isMounted) setIsLoading(false);
       }
@@ -121,17 +121,17 @@ export function CommentDrawerModal({
         onCommentAdded?.(post.id);
         toast.success(
           isAnonymous
-            ? "Anonymous comment published!"
-            : "Comment published!"
+            ? "Anonymous comment submitted successfully."
+            : "Comment submitted successfully."
         );
         setTimeout(() => {
           commentsEndRef.current?.scrollIntoView({ behavior: "smooth" });
         }, 100);
       } else {
-        toast.error(res.error || "Failed to post comment.");
+        toast.error(res.error || "Unable to post comment. Please try again.");
       }
     } catch {
-      toast.error("Something went wrong while posting your comment.");
+      toast.error("An unexpected error occurred while posting your comment.");
     } finally {
       setIsSubmitting(false);
     }

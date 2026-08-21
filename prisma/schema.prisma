@@ -35,6 +35,7 @@ model User {
   // 🔗 User Relations
   posts           Post[]
   likedPosts      LikedPost[]
+  savedPosts      SavedPost[]
   comments        Comment[]
 
   @@map("User")
@@ -59,19 +60,22 @@ model RateLimit {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@index([expiresAt])
+  @@index([key, expiresAt])
   @@map("RateLimits")
 }
 
+// ==========================================
+// 🏢 DEPARTMENT TYPE MODEL (e.g. CITE, CEA)
+// ==========================================
 model DepartmentType {
   id          String   @id @default(cuid())
-  code        String   @unique // e.g. "CITE", "CEA", "CMA", "CAHS", "CELA", "CCJE"
-  name        String   // e.g. "College of Information Technology Education"
+  code        String   @unique // e.g. "CITE", "CEA", "CBA", "CHS", "CAS", "CCJ"
+  name        String   // Full department name
   description String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  // 🔗 Department Relations
+  // 🔗 Relations
   posts       Post[]
 
   @@map("DepartmentTypes")
@@ -97,6 +101,7 @@ model Post {
   user          User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   department    DepartmentType? @relation(fields: [departmentId], references: [id], onDelete: SetNull)
   likedPosts    LikedPost[]
+  savedPosts    SavedPost[]
   comments      Comment[]
 
   // ⚡ Performance Query Indexes
@@ -152,4 +157,24 @@ model LikedPost {
   @@index([postId])
   @@index([userId])
   @@map("LikedPosts")
+}
+
+// ==========================================
+// 📌 SAVED / BOOKMARKED POST MODEL
+// ==========================================
+model SavedPost {
+  id        String   @id @default(cuid())
+  userId    String
+  postId    String
+  savedAt   DateTime @default(now())
+
+  // 🔗 Relationships
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  // 🔒 Composite Unique Constraint & Performance Indexes
+  @@unique([userId, postId])
+  @@index([userId, savedAt(sort: Desc)])
+  @@index([postId])
+  @@map("SavedPosts")
 }

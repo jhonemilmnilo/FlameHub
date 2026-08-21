@@ -23,6 +23,7 @@ export type PostFeedItem = {
   isAnonymous: boolean;
   likesCount: number;
   isLiked: boolean;
+  isSaved: boolean;
   commentsCount: number;
   createdAt: string;
   isAuthor: boolean;
@@ -99,6 +100,16 @@ export async function getFeedPostsAction(options?: {
               },
             }
           : undefined,
+        savedPosts: currentUserId
+          ? {
+              where: {
+                userId: currentUserId,
+              },
+              select: {
+                id: true,
+              },
+            }
+          : undefined,
       },
       orderBy: {
         createdAt: "desc",
@@ -112,6 +123,7 @@ export async function getFeedPostsAction(options?: {
     const formattedPosts: PostFeedItem[] = postsToReturn.map((p) => {
       const isAnon = p.isAnonymous;
       const isLiked = currentUserId ? Array.isArray(p.likedPosts) && p.likedPosts.length > 0 : false;
+      const isSaved = currentUserId ? Array.isArray(p.savedPosts) && p.savedPosts.length > 0 : false;
       const isAuthor = currentUserId === p.userId;
 
       return {
@@ -123,6 +135,7 @@ export async function getFeedPostsAction(options?: {
         isAnonymous: isAnon,
         likesCount: p.likesCount,
         isLiked: isLiked,
+        isSaved: isSaved,
         commentsCount: p.commentsCount,
         createdAt: p.createdAt.toISOString(),
         isAuthor,
@@ -252,6 +265,7 @@ export async function createPostAction(rawInput: unknown): Promise<ActionResult<
         isAnonymous: isAnon,
         likesCount: newPost.likesCount,
         isLiked: false,
+        isSaved: false,
         commentsCount: newPost.commentsCount,
         createdAt: newPost.createdAt.toISOString(),
         isAuthor: true,
@@ -321,7 +335,7 @@ export async function editPostAction(rawInput: unknown): Promise<ActionResult<Po
       };
     }
 
-    // 2. Update post in DB and check current user's liked status
+    // 2. Update post in DB and check current user's liked and saved status
     const updatedPost = await prisma.post.update({
       where: { id: postId },
       data: {
@@ -339,6 +353,14 @@ export async function editPostAction(rawInput: unknown): Promise<ActionResult<Po
             id: true,
           },
         },
+        savedPosts: {
+          where: {
+            userId: authUser.id,
+          },
+          select: {
+            id: true,
+          },
+        },
       },
     });
 
@@ -346,6 +368,7 @@ export async function editPostAction(rawInput: unknown): Promise<ActionResult<Po
 
     const isAnon = updatedPost.isAnonymous;
     const isLiked = Array.isArray(updatedPost.likedPosts) && updatedPost.likedPosts.length > 0;
+    const isSaved = Array.isArray(updatedPost.savedPosts) && updatedPost.savedPosts.length > 0;
 
     return {
       success: true,
@@ -358,6 +381,7 @@ export async function editPostAction(rawInput: unknown): Promise<ActionResult<Po
         isAnonymous: isAnon,
         likesCount: updatedPost.likesCount,
         isLiked,
+        isSaved,
         commentsCount: updatedPost.commentsCount,
         createdAt: updatedPost.createdAt.toISOString(),
         isAuthor: true,
@@ -398,7 +422,7 @@ export async function deletePostAction(postId: string): Promise<ActionResult<{ i
       };
     }
 
-    // 1. Fetch post and strictly verify ownership
+    // 1. Fetch post to confirm existence
     const post = await prisma.post.findUnique({
       where: { id: postId },
     });
@@ -411,7 +435,7 @@ export async function deletePostAction(postId: string): Promise<ActionResult<{ i
       };
     }
 
-    // IDOR Protection: Only the author can delete their own post
+    // 🔒 2. Multi-Tier IDOR Protection: Strictly verify author ownership
     if (post.userId !== authUser.id) {
       return {
         success: false,
@@ -420,10 +444,21 @@ export async function deletePostAction(postId: string): Promise<ActionResult<{ i
       };
     }
 
-    // 2. Perform HARD deletion (Postgres automatically cascades to LikedPosts and Comments)
-    await prisma.post.delete({
-      where: { id: postId },
+    // 🔒 3. Atomic Scoped Deletion: Deletes ONLY if ID matches AND Author ID matches authenticated session
+    const deleteResult = await prisma.post.deleteMany({
+      where: {
+        id: postId,
+        userId: authUser.id,
+      },
     });
+
+    if (deleteResult.count === 0) {
+      return {
+        success: false,
+        error: "Forbidden: Unable to delete post. Permission denied.",
+        code: "FORBIDDEN",
+      };
+    }
 
     revalidatePath("/");
 
