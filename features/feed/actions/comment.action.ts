@@ -24,6 +24,7 @@ export type CommentFeedItem = {
   content: string;
   isAnonymous: boolean;
   likesCount: number;
+  commentCounts?: number;
   createdAt: string;
   isAuthor: boolean;
 };
