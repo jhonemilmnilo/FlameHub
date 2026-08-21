@@ -35,7 +35,7 @@ export default async function UserProfileByIdPage({ params }: PageProps) {
 
   const [profileRes, postsRes, followersRes] = await Promise.all([
     getUserProfileAction(id),
-    getUserPostsAction(id),
+    getUserPostsAction({ targetUserId: id, limit: 12 }),
     getFollowersAction(),
   ]);
 
@@ -43,10 +43,14 @@ export default async function UserProfileByIdPage({ params }: PageProps) {
     redirect("/");
   }
 
+  const postsData = postsRes.success && postsRes.data ? postsRes.data : { posts: [], nextCursor: null, hasMore: false };
+
   return (
     <ProfileDashboard
       profile={profileRes.data}
-      posts={postsRes.success && postsRes.data ? postsRes.data : []}
+      posts={postsData.posts}
+      initialNextCursor={postsData.nextCursor}
+      initialHasMore={postsData.hasMore}
       followers={followersRes.success && followersRes.data ? followersRes.data : []}
     />
   );

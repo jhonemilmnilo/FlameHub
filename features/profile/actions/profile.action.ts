@@ -4,7 +4,10 @@ import { createClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
-import type { PostFeedItem } from "@/features/feed/actions/post.action";
+import {
+  type PostFeedItem,
+  type PaginatedFeedResult,
+} from "@/features/feed/actions/post.action";
 
 export type UserProfileData = {
   id: string;
@@ -142,7 +145,14 @@ export async function getUserProfileAction(targetUserId?: string): Promise<Actio
 /**
  * 🔒 Fetch User Posts / Activity
  */
-export async function getUserPostsAction(targetUserId?: string): Promise<ActionResult<PostFeedItem[]>> {
+export async function getUserPostsAction(options?: {
+  targetUserId?: string;
+  cursor?: string;
+  limit?: number;
+}): Promise<ActionResult<PaginatedFeedResult>> {
+  const limit = options?.limit ?? 12;
+  const cursor = options?.cursor;
+
   try {
     const supabase = await createClient();
     const {
@@ -150,7 +160,7 @@ export async function getUserPostsAction(targetUserId?: string): Promise<ActionR
     } = await supabase.auth.getUser();
 
     const currentUserId = authUser?.id || null;
-    const userId = targetUserId || currentUserId;
+    const userId = options?.targetUserId || currentUserId;
 
     if (!userId) {
       return { success: false, error: "User ID is required." };
@@ -161,6 +171,9 @@ export async function getUserPostsAction(targetUserId?: string): Promise<ActionR
         userId: userId,
         isDeleted: false,
       },
+      take: limit + 1,
+      skip: cursor ? 1 : 0,
+      cursor: cursor ? { id: cursor } : undefined,
       orderBy: [
         {
           repostedAt: { sort: "desc", nulls: "last" },
@@ -205,7 +218,11 @@ export async function getUserPostsAction(targetUserId?: string): Promise<ActionR
       },
     });
 
-    const posts: PostFeedItem[] = rawPosts.map((p) => {
+    const hasMore = rawPosts.length > limit;
+    const postsToReturn = hasMore ? rawPosts.slice(0, limit) : rawPosts;
+    const nextCursor = hasMore && postsToReturn.length > 0 ? postsToReturn[postsToReturn.length - 1].id : null;
+
+    const posts: PostFeedItem[] = postsToReturn.map((p) => {
       const isPostAuthor = currentUserId === p.userId;
       const displayAuthorName = p.isAnonymous && !isPostAuthor ? "Anonymous" : p.user.displayName;
       const displayStudentId = p.isAnonymous && !isPostAuthor ? "Hidden ID" : p.user.studentId || "Student";
@@ -228,7 +245,14 @@ export async function getUserPostsAction(targetUserId?: string): Promise<ActionR
       };
     });
 
-    return { success: true, data: posts };
+    return {
+      success: true,
+      data: {
+        posts,
+        nextCursor,
+        hasMore,
+      },
+    };
   } catch (error) {
     console.error("GET_USER_POSTS_ERROR:", error);
     return { success: false, error: "Failed to load user posts." };

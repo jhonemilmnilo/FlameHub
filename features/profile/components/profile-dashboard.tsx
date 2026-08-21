@@ -23,12 +23,16 @@ import type { PostFeedItem } from "@/features/feed/actions/post.action";
 interface ProfileDashboardProps {
   profile: UserProfileData;
   posts: PostFeedItem[];
+  initialNextCursor?: string | null;
+  initialHasMore?: boolean;
   followers: FollowerItem[];
 }
 
 export function ProfileDashboard({
   profile,
   posts,
+  initialNextCursor = null,
+  initialHasMore = false,
   followers,
 }: ProfileDashboardProps) {
   const router = useRouter();
@@ -179,6 +183,9 @@ export function ProfileDashboard({
           <div className="lg:col-span-8">
             <ProfileActivityFeed
               initialPosts={posts}
+              initialNextCursor={initialNextCursor}
+              initialHasMore={initialHasMore}
+              targetUserId={profile.id}
               isSelf={profile.isSelf}
               userName={profile.displayName}
             />

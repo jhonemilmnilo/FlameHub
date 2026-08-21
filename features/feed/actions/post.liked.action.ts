@@ -119,7 +119,7 @@ export async function toggleLikePostAction(
         },
       });
 
-      return realCount;
+      return actualLikesCount;
     });
 
     return {
@@ -133,6 +133,71 @@ export async function toggleLikePostAction(
     return {
       success: false,
       error: "Failed to update like status.",
+      code: "INTERNAL_ERROR",
+    };
+  }
+}
+
+export type PostLikerItem = {
+  id: string;
+  userId: string;
+  displayName: string;
+  studentId: string;
+  department: string;
+  avatarUrl: string | null;
+  likedAt: string;
+};
+
+/**
+ * 🔒 Fetch list of students who liked a post
+ */
+export async function getPostLikersAction(
+  postId: string
+): Promise<ActionResult<PostLikerItem[]>> {
+  try {
+    if (!postId || typeof postId !== "string") {
+      return {
+        success: false,
+        error: "Invalid post ID.",
+        code: "VALIDATION_ERROR",
+      };
+    }
+
+    const likes = await prisma.likedPost.findMany({
+      where: { postId: postId },
+      orderBy: { createdAt: "desc" },
+      include: {
+        user: {
+          select: {
+            id: true,
+            displayName: true,
+            studentId: true,
+            department: true,
+            avatarUrl: true,
+          },
+        },
+      },
+    });
+
+    const likers: PostLikerItem[] = likes.map((like) => ({
+      id: like.id,
+      userId: like.user.id,
+      displayName: like.user.displayName || "Campus Student",
+      studentId: like.user.studentId || "Student",
+      department: like.user.department || "CITE",
+      avatarUrl: like.user.avatarUrl || null,
+      likedAt: like.createdAt.toISOString(),
+    }));
+
+    return {
+      success: true,
+      data: likers,
+    };
+  } catch (error) {
+    console.error("GET_POST_LIKERS_ERROR:", error);
+    return {
+      success: false,
+      error: "Failed to load likers list.",
       code: "INTERNAL_ERROR",
     };
   }

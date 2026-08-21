@@ -26,7 +26,7 @@ export default async function ProfilePage() {
   // ⚡ Parallel Server-Side Fetching for sub-millisecond initial paint
   const [profileRes, postsRes, followersRes] = await Promise.all([
     getUserProfileAction(authUser.id),
-    getUserPostsAction(authUser.id),
+    getUserPostsAction({ targetUserId: authUser.id, limit: 12 }),
     getFollowersAction(),
   ]);
 
@@ -34,10 +34,14 @@ export default async function ProfilePage() {
     redirect("/");
   }
 
+  const postsData = postsRes.success && postsRes.data ? postsRes.data : { posts: [], nextCursor: null, hasMore: false };
+
   return (
     <ProfileDashboard
       profile={profileRes.data}
-      posts={postsRes.success && postsRes.data ? postsRes.data : []}
+      posts={postsData.posts}
+      initialNextCursor={postsData.nextCursor}
+      initialHasMore={postsData.hasMore}
       followers={followersRes.success && followersRes.data ? followersRes.data : []}
     />
   );

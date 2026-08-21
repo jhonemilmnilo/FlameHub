@@ -8,7 +8,7 @@ import {
   Info,
   LogOut,
   Heart,
-  MessageCircle,
+  MessageSquareMore,
   MoreHorizontal,
   Send,
   Filter,
@@ -977,7 +977,7 @@ export function HomeFeedDashboard({
                     {post.content}
                   </p>
 
-                  {/* Action Bar (Heart, Share Icon, Comment Icon, 3-dots) */}
+                  {/* Action Bar (Heart, Comment Icon in middle, Repost/Share, 3-dots) */}
                   <div className="space-y-3 pt-2">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
@@ -995,6 +995,16 @@ export function HomeFeedDashboard({
                                 : "text-white/80 hover:text-white"
                             }`}
                           />
+                        </button>
+
+                        {/* Comment Icon with trigger to open discussion drawer (Placed in the middle) */}
+                        <button
+                          type="button"
+                          onClick={() => setActiveDiscussionPost(post)}
+                          className="p-1 text-white/80 hover:text-[#8CC497] hover:scale-110 active:scale-95 transition-all cursor-pointer flex items-center gap-1.5"
+                          title="View discussion & comments"
+                        >
+                          <MessageSquareMore className="w-5 h-5" />
                         </button>
 
                         {/* Repost Button (For Author) OR Share Button (For Non-Authors) */}
@@ -1027,16 +1037,6 @@ export function HomeFeedDashboard({
                             <Share2 className="w-5 h-5" />
                           </button>
                         )}
-
-                        {/* Comment Icon with trigger to open discussion drawer */}
-                        <button
-                          type="button"
-                          onClick={() => setActiveDiscussionPost(post)}
-                          className="p-1 text-white/80 hover:text-white hover:scale-110 active:scale-95 transition-transform cursor-pointer flex items-center gap-1.5"
-                          title="View discussion & comments"
-                        >
-                          <MessageCircle className="w-5 h-5" />
-                        </button>
                       </div>
 
                       {/* 3 Dots Menu with Dropdown Card */}

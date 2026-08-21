@@ -1,11 +1,11 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Filter,
   Search,
   Heart,
-  MessageCircle,
+  MessageSquareMore,
   MoreHorizontal,
   Send,
   Share2,
@@ -52,18 +52,162 @@ function formatRelativeTime(dateString: string): string {
   }
 }
 
+// 💀 High-End Shimmer Skeleton Card Component matching theme
+function PostCardSkeleton() {
+  return (
+    <div
+      style={{ borderRadius: "10px" }}
+      className="bg-[#003F2A] border border-[#005a3c]/60 rounded-[10px] p-5 flex flex-col justify-between space-y-4 shadow-xl animate-pulse"
+    >
+      <div className="flex items-center gap-3">
+        <div className="w-11 h-11 rounded-full bg-[#8CC497]/30 shrink-0" />
+        <div className="space-y-2 flex-1">
+          <div className="h-3.5 bg-white/20 rounded-md w-3/5" />
+          <div className="h-2.5 bg-[#8CC497]/20 rounded-md w-2/5" />
+        </div>
+      </div>
+      <div className="space-y-2 py-1">
+        <div className="h-3 bg-white/15 rounded-md w-full" />
+        <div className="h-3 bg-white/15 rounded-md w-4/5" />
+      </div>
+      <div className="space-y-3 pt-2">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-5 h-5 rounded-full bg-white/15" />
+            <div className="w-5 h-5 rounded-full bg-white/15" />
+          </div>
+          <div className="w-5 h-5 rounded-full bg-white/15" />
+        </div>
+        <div className="h-2.5 bg-[#8CC497]/20 rounded-md w-1/4" />
+        <div className="h-8 bg-[#002f1f] rounded-[10px] w-full" />
+      </div>
+    </div>
+  );
+}
+
 interface ProfileActivityFeedProps {
   initialPosts: PostFeedItem[];
+  initialNextCursor?: string | null;
+  initialHasMore?: boolean;
+  targetUserId?: string;
   isSelf: boolean;
   userName: string;
 }
 
 export function ProfileActivityFeed({
   initialPosts,
+  initialNextCursor = null,
+  initialHasMore = false,
+  targetUserId,
   isSelf,
   userName,
 }: ProfileActivityFeedProps) {
   const [posts, setPosts] = useState<PostFeedItem[]>(initialPosts);
+  const [nextCursor, setNextCursor] = useState<string | null>(initialNextCursor);
+  const [hasMore, setHasMore] = useState<boolean>(initialHasMore);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+
+  // 🔒 Ref trackers for smooth window scroll listener without re-binds
+  const nextCursorRef = React.useRef<string | null>(initialNextCursor);
+  const hasMoreRef = React.useRef<boolean>(initialHasMore);
+  const isLoadingMoreRef = React.useRef<boolean>(false);
+  const postsRef = React.useRef<PostFeedItem[]>(initialPosts);
+
+  useEffect(() => {
+    nextCursorRef.current = nextCursor;
+  }, [nextCursor]);
+
+  useEffect(() => {
+    hasMoreRef.current = hasMore;
+  }, [hasMore]);
+
+  useEffect(() => {
+    isLoadingMoreRef.current = isLoadingMore;
+  }, [isLoadingMore]);
+
+  useEffect(() => {
+    postsRef.current = posts;
+  }, [posts]);
+
+  // 🔄 Fetch more posts on reaching bottom (Infinite Scroll)
+  const handleLoadMore = React.useCallback(async () => {
+    if (isLoadingMoreRef.current || !hasMoreRef.current) return;
+
+    const currentCursor =
+      nextCursorRef.current ||
+      (postsRef.current.length > 0 ? postsRef.current[postsRef.current.length - 1].id : null);
+
+    if (!currentCursor) return;
+
+    isLoadingMoreRef.current = true;
+    setIsLoadingMore(true);
+
+    try {
+      const { getUserPostsAction } = await import("@/features/profile/actions/profile.action");
+      const res = await getUserPostsAction({
+        targetUserId,
+        cursor: currentCursor,
+        limit: 12,
+      });
+
+      if (res.success && res.data && res.data.posts && res.data.posts.length > 0) {
+        setPosts((prev) => {
+          const existingIds = new Set(prev.map((p) => p.id));
+          const newUnique = res.data!.posts.filter((p: PostFeedItem) => !existingIds.has(p.id));
+          const merged = [...prev, ...newUnique];
+          postsRef.current = merged;
+          return merged;
+        });
+
+        nextCursorRef.current = res.data.nextCursor;
+        hasMoreRef.current = res.data.hasMore;
+        setNextCursor(res.data.nextCursor);
+        setHasMore(res.data.hasMore);
+      } else {
+        hasMoreRef.current = false;
+        setHasMore(false);
+      }
+    } catch {
+      // Ignore network hiccups
+    } finally {
+      isLoadingMoreRef.current = false;
+      setIsLoadingMore(false);
+    }
+  }, [targetUserId]);
+
+  // 🌐 Global Window Scroll Engine (requestAnimationFrame Throttled)
+  useEffect(() => {
+    let ticking = false;
+
+    const checkScrollPosition = () => {
+      if (isLoadingMoreRef.current || !hasMoreRef.current) {
+        ticking = false;
+        return;
+      }
+
+      const windowHeight = window.innerHeight;
+      const documentHeight = document.documentElement.scrollHeight;
+      const currentScroll = window.scrollY || document.documentElement.scrollTop;
+
+      // When user is within 800px of page bottom, fetch next batch
+      if (currentScroll + windowHeight >= documentHeight - 800) {
+        handleLoadMore();
+      }
+
+      ticking = false;
+    };
+
+    const handleScroll = () => {
+      if (!ticking) {
+        window.requestAnimationFrame(checkScrollPosition);
+        ticking = true;
+      }
+    };
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, [handleLoadMore]);
+
   const [searchQuery, setSearchQuery] = useState("");
   const [contentType, setContentType] = useState("Post");
   const [sortBy, setSortBy] = useState("Latest");
@@ -442,10 +586,10 @@ export function ProfileActivityFeed({
                     <button
                       type="button"
                       onClick={() => setActiveDiscussionPost(post)}
-                      className="p-1 text-white/80 hover:text-white hover:scale-110 active:scale-95 transition-transform cursor-pointer"
+                      className="p-1 text-white/80 hover:text-[#8CC497] hover:scale-110 active:scale-95 transition-all cursor-pointer"
                       title="Comments"
                     >
-                      <MessageCircle className="w-5 h-5" />
+                      <MessageSquareMore className="w-5 h-5" />
                     </button>
 
                     {/* Repost Button (For Author) OR Share Button (For Non-Authors) */}
@@ -608,6 +752,42 @@ export function ProfileActivityFeed({
               </div>
             </article>
           ))}
+        </div>
+      )}
+
+      {/* 💀 Skeleton Loading Cards during Infinite Scroll */}
+      {isLoadingMore && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5 pt-2">
+          <PostCardSkeleton />
+          <PostCardSkeleton />
+        </div>
+      )}
+
+      {/* 🎯 Auto Sentinel + Explicit Trigger Fallback */}
+      {hasMore && !isLoadingMore && (
+        <div className="pt-6 pb-2 text-center select-none flex flex-col items-center gap-2">
+          <button
+            type="button"
+            onClick={() => handleLoadMore()}
+            style={{ borderRadius: "10px" }}
+            className="px-6 py-2.5 rounded-[10px] bg-[#003F2A] hover:bg-[#004e34] border border-[#005a3c] hover:border-[#8CC497]/50 text-xs font-bold text-[#8CC497] hover:text-white transition-all cursor-pointer shadow-sm"
+          >
+            Load More Posts
+          </button>
+          <span className="text-[11px] text-[#8CC497]/60">or scroll down to auto-load</span>
+        </div>
+      )}
+
+      {/* 🏁 End of Feed State */}
+      {!hasMore && posts.length > 0 && (
+        <div className="pt-8 pb-4 text-center select-none">
+          <div
+            style={{ borderRadius: "10px" }}
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-[10px] bg-[#003F2A] border border-[#005a3c] text-xs font-semibold text-[#8CC497] shadow-sm"
+          >
+            <span>🔥</span>
+            <span>You’re all caught up with all {posts.length} profile posts!</span>
+          </div>
         </div>
       )}
 
