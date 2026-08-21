@@ -104,8 +104,8 @@ export async function getFeedPostsAction(options?: {
 
       return {
         id: p.id,
-        authorName: isAnon ? "Anonymous Flame" : p.user?.displayName || "Campus Student",
-        department: p.department?.code || p.user?.department || "CITE",
+        authorName: isAnon ? "Anonymous" : p.user?.displayName || "Campus Student",
+        department: isAnon ? "Flame" : (p.department?.code || p.user?.department || "CITE"),
         studentId: isAnon ? "Hidden ID" : p.user?.studentId || "00-0000-000000",
         content: p.content,
         isAnonymous: isAnon,
@@ -232,8 +232,8 @@ export async function createPostAction(rawInput: unknown): Promise<ActionResult<
       success: true,
       data: {
         id: newPost.id,
-        authorName: isAnon ? "Anonymous Flame" : userRecord.displayName,
-        department: deptRecord?.code || userDeptCode,
+        authorName: isAnon ? "Anonymous" : userRecord.displayName,
+        department: isAnon ? "Flame" : (deptRecord?.code || userDeptCode),
         studentId: isAnon ? "Hidden ID" : userRecord.studentId || "00-0000-000000",
         content: newPost.content,
         isAnonymous: isAnon,

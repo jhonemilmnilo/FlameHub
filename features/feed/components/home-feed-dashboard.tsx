@@ -18,13 +18,40 @@ import {
   Ghost,
   PanelLeftClose,
   PanelLeftOpen,
+  Share2,
+  Flag,
+  EyeOff,
+  Bookmark,
+  Copy,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
 import { createPostAction, getFeedPostsAction, type PostFeedItem } from "@/features/feed/actions/post.action";
 import { toggleLikePostAction } from "@/features/feed/actions/post.liked.action";
+import { CustomSelect } from "@/components/ui/custom-select";
 import { toast } from "sonner";
+
+function formatRelativeTime(dateString: string): string {
+  try {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+
+    if (diffInSeconds < 60) return "Just now";
+    const diffInMinutes = Math.floor(diffInSeconds / 60);
+    if (diffInMinutes < 60) return `${diffInMinutes}m ago`;
+    const diffInHours = Math.floor(diffInMinutes / 60);
+    if (diffInHours < 24) return `${diffInHours}h ago`;
+    const diffInDays = Math.floor(diffInHours / 24);
+    if (diffInDays < 7) return `${diffInDays}d ago`;
+    const diffInWeeks = Math.floor(diffInDays / 7);
+    if (diffInWeeks < 4) return `${diffInWeeks}w ago`;
+    return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  } catch {
+    return "Recently";
+  }
+}
 
 interface HomeFeedDashboardProps {
   currentUser?: {
@@ -117,14 +144,71 @@ export function HomeFeedDashboard({
   };
 
   const [commentInputs, setCommentInputs] = useState<Record<string, string>>({});
+  const [sendingComments, setSendingComments] = useState<Record<string, boolean>>({});
   const [searchQuery, setSearchQuery] = useState("");
-  const [sortBy, setSortBy] = useState("Controversial");
-  const [selectedDept, setSelectedDept] = useState("CITE");
+  const [sortBy, setSortBy] = useState("ALL");
+  const [selectedDept, setSelectedDept] = useState("ALL");
   const [newPostContent, setNewPostContent] = useState("");
   const [isAnonymous, setIsAnonymous] = useState(false);
   const [isComposerOpen, setIsComposerOpen] = useState(false);
   const [isSubmittingPost, setIsSubmittingPost] = useState(false);
   const [isSidebarHidden, setIsSidebarHidden] = useState(false);
+  const [activeMenuPostId, setActiveMenuPostId] = useState<string | null>(null);
+
+  // 🧠 Client-Side Live Filter & Smart Controversial Sort Algorithm
+  const filteredAndSortedPosts = React.useMemo(() => {
+    let result = [...posts];
+
+    // 1. Department Filter
+    if (selectedDept !== "ALL") {
+      result = result.filter(
+        (p) => p.department?.toUpperCase() === selectedDept.toUpperCase()
+      );
+    }
+
+    // 2. Search Query Filter (Searches content, author, department, and studentId)
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim();
+      result = result.filter(
+        (p) =>
+          p.content.toLowerCase().includes(q) ||
+          p.authorName.toLowerCase().includes(q) ||
+          p.department.toLowerCase().includes(q) ||
+          p.studentId.toLowerCase().includes(q)
+      );
+    }
+
+    // 3. Sort Filter
+    if (sortBy === "Controversial") {
+      // ⚡ Controversial Score = Combined high activity (Likes + Comments engagement balance)
+      result.sort((a, b) => {
+        const scoreA = a.likesCount + a.commentsCount * 2;
+        const scoreB = b.likesCount + b.commentsCount * 2;
+        if (scoreB !== scoreA) return scoreB - scoreA;
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      });
+    } else if (sortBy === "Most Liked") {
+      result.sort((a, b) => b.likesCount - a.likesCount);
+    } else if (sortBy === "Latest") {
+      result.sort(
+        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
+    }
+
+    return result;
+  }, [posts, selectedDept, searchQuery, sortBy]);
+
+  // Close dropdown menu when clicking outside
+  useEffect(() => {
+    const handleOutsideClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (!target?.closest("[data-menu-container]")) {
+        setActiveMenuPostId(null);
+      }
+    };
+    window.addEventListener("click", handleOutsideClick);
+    return () => window.removeEventListener("click", handleOutsideClick);
+  }, []);
 
   // 🔒 Lock background scrolling when Create Post modal is open
   useEffect(() => {
@@ -283,14 +367,22 @@ export function HomeFeedDashboard({
     setCommentInputs((prev) => ({ ...prev, [postId]: value }));
   };
 
-  const handleSendComment = (postId: string) => {
+  const handleSendComment = async (postId: string) => {
     const text = commentInputs[postId]?.trim();
-    if (!text) return;
+    if (!text || sendingComments[postId]) return;
 
+    setSendingComments((prev) => ({ ...prev, [postId]: true }));
+
+    // Optimistic update
     setPosts((prev) =>
       prev.map((p) => (p.id === postId ? { ...p, commentsCount: p.commentsCount + 1 } : p))
     );
     setCommentInputs((prev) => ({ ...prev, [postId]: "" }));
+
+    // Simulate snappy network response and return arrow back to upright/horizontal center position
+    setTimeout(() => {
+      setSendingComments((prev) => ({ ...prev, [postId]: false }));
+    }, 600);
   };
 
   const handleCreatePost = async (e: React.FormEvent) => {
@@ -447,7 +539,7 @@ export function HomeFeedDashboard({
         {/* Welcome Banner Header */}
         <div className="space-y-1 select-none">
           <h1 className="text-2xl md:text-3xl lg:text-4xl font-extrabold font-heading text-white tracking-tight">
-            Welcome to <span className="text-white">Flamehub!</span>
+            Welcome to <span className="text-[#8CC497]">Flamehub!</span>
           </h1>
           <p className="text-xs md:text-sm text-emerald-200/80 font-normal">
             We are not like the other <span className="text-[#eab308] font-bold">hub</span> you are thinking about!
@@ -479,55 +571,53 @@ export function HomeFeedDashboard({
             </p>
           </div>
 
-          {/* Filter Bar */}
-          <div className="flex flex-wrap items-center gap-3 pt-1">
-            {/* Filter Icon */}
-            <div className="p-2 rounded-lg bg-[#00472f] border border-[#005a3c] text-emerald-300 shrink-0">
-              <Filter className="w-4 h-4" />
+          {/* Filter & Search Toolbar */}
+          <div className="flex flex-wrap items-center gap-3.5 pt-2">
+            {/* Filter Icon Badge */}
+            <div className="p-3 rounded-xl bg-[#00472f] border border-[#005a3c] text-emerald-300 shrink-0 shadow-sm flex items-center justify-center">
+              <Filter className="w-5 h-5" />
             </div>
 
-            {/* Search Input */}
-            <div className="relative flex-1 min-w-[160px] max-w-xs">
-              <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-emerald-300/60" />
+            {/* Bigger & Sleeker Search Input */}
+            <div className="relative flex-1 min-w-[200px] max-w-sm">
+              <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-emerald-300/70 pointer-events-none" />
               <input
                 type="text"
-                placeholder="Search..."
+                placeholder="Search posts, tags, campus..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-[#00472f] border border-[#005a3c] rounded-lg pl-8 pr-3.5 py-1.5 text-xs text-white placeholder-emerald-200/40 focus:outline-none focus:border-[#94d3a2]/60 transition-all"
+                className="w-full bg-[#00472f] border border-[#005a3c] rounded-xl pl-10 pr-4 py-2.5 text-xs sm:text-sm text-white placeholder-emerald-200/50 focus:outline-none focus:border-[#94d3a2]/80 focus:bg-[#003d28] shadow-sm transition-all"
               />
             </div>
 
-            {/* Sort Dropdown: Controversial */}
-            <div className="relative">
-              <select
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value)}
-                className="appearance-none bg-[#00472f] border border-[#005a3c] text-white text-xs font-semibold rounded-lg pl-3.5 pr-8 py-1.5 cursor-pointer focus:outline-none focus:border-[#94d3a2]/60 transition-all"
-              >
-                <option value="Controversial">Controversial</option>
-                <option value="Latest">Latest</option>
-                <option value="Most Liked">Most Liked</option>
-              </select>
-              <ChevronDown className="w-3.5 h-3.5 absolute right-2.5 top-1/2 -translate-y-1/2 text-emerald-300 pointer-events-none" />
-            </div>
+            {/* Shared Custom Select: Sort */}
+            <CustomSelect
+              value={sortBy}
+              onChange={(val) => setSortBy(val)}
+              className="min-w-[145px]"
+              options={[
+                { value: "ALL", label: "All Posts" },
+                { value: "Controversial", label: "Controversial" },
+                { value: "Latest", label: "Latest" },
+                { value: "Most Liked", label: "Most Liked" },
+              ]}
+            />
 
-            {/* Department Dropdown: CITE */}
-            <div className="relative">
-              <select
-                value={selectedDept}
-                onChange={(e) => setSelectedDept(e.target.value)}
-                className="appearance-none bg-[#00472f] border border-[#005a3c] text-white text-xs font-semibold rounded-lg pl-3.5 pr-8 py-1.5 cursor-pointer focus:outline-none focus:border-[#94d3a2]/60 transition-all"
-              >
-                <option value="CITE">CITE</option>
-                <option value="CEA">CEA</option>
-                <option value="CMA">CMA</option>
-                <option value="CAHS">CAHS</option>
-                <option value="CELA">CELA</option>
-                <option value="CCJE">CCJE</option>
-              </select>
-              <ChevronDown className="w-3.5 h-3.5 absolute right-2.5 top-1/2 -translate-y-1/2 text-emerald-300 pointer-events-none" />
-            </div>
+            {/* Shared Custom Select: Department */}
+            <CustomSelect
+              value={selectedDept}
+              onChange={(val) => setSelectedDept(val)}
+              className="min-w-[160px]"
+              options={[
+                { value: "ALL", label: "All Departments" },
+                { value: "CITE", label: "CITE" },
+                { value: "CEA", label: "CEA" },
+                { value: "CMA", label: "CMA" },
+                { value: "CAHS", label: "CAHS" },
+                { value: "CELA", label: "CELA" },
+                { value: "CCJE", label: "CCJE" },
+              ]}
+            />
           </div>
         </div>
 
@@ -541,29 +631,37 @@ export function HomeFeedDashboard({
             <PostCardSkeleton />
             <PostCardSkeleton />
           </div>
-        ) : posts.length === 0 ? (
+        ) : filteredAndSortedPosts.length === 0 ? (
           <div className="bg-[#00472f]/60 border border-[#005a3c] rounded-2xl p-12 text-center space-y-4">
             <div className="w-16 h-16 rounded-full bg-white/10 flex items-center justify-center mx-auto text-2xl">
-              ✍️
+              🔍
             </div>
             <div className="space-y-1">
-              <h3 className="text-lg font-bold text-white font-heading">No posts yet!</h3>
+              <h3 className="text-lg font-bold text-white font-heading">No matching posts</h3>
               <p className="text-sm text-emerald-200/70">
-                Be the very first one to spark a conversation in your campus.
+                {searchQuery || selectedDept !== "ALL"
+                  ? "Try tweaking your department filter or search query to find more posts."
+                  : "Be the very first one to spark a conversation in your campus."}
               </p>
             </div>
-            <button
-              type="button"
-              onClick={() => setIsComposerOpen(true)}
-              className="inline-flex items-center gap-2 px-6 py-2.5 rounded-full bg-white hover:bg-emerald-50 text-[#006241] font-bold text-xs uppercase tracking-wider shadow-md transition-all hover:scale-105 active:scale-95 cursor-pointer"
-            >
-              Create First Post
-            </button>
+            {(searchQuery || selectedDept !== "ALL" || sortBy !== "ALL") && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedDept("ALL");
+                  setSortBy("ALL");
+                  setSearchQuery("");
+                }}
+                className="inline-flex items-center gap-2 px-6 py-2 rounded-full bg-white/10 hover:bg-white/20 text-white font-semibold text-xs transition-all cursor-pointer"
+              >
+                Reset Filters
+              </button>
+            )}
           </div>
         ) : (
           <div className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-              {posts.map((post) => (
+              {filteredAndSortedPosts.map((post) => (
                 <article
                   key={post.id}
                   className="bg-[#00472f] border border-[#005a3c] rounded-2xl p-5 flex flex-col justify-between space-y-4 shadow-sm hover:border-[#94d3a2]/40 transition-all"
@@ -573,10 +671,13 @@ export function HomeFeedDashboard({
                     <div className="w-11 h-11 rounded-full bg-[#94d3a2] shrink-0" />
                     <div className="overflow-hidden">
                       <h3 className="font-bold text-xs sm:text-sm text-white truncate">
-                        {post.authorName} <span className="font-medium text-emerald-200/80">| {post.department}</span>
+                        {post.isAnonymous ? "Anonymous" : post.authorName}{" "}
+                        <span className="font-medium text-emerald-200/80">
+                          | {post.isAnonymous ? "Flame" : post.department}
+                        </span>
                       </h3>
                       <p className="text-[11px] text-emerald-200/60 font-medium">
-                        {post.studentId}
+                        {post.isAnonymous ? "Hidden ID" : post.studentId}
                       </p>
                     </div>
                   </div>
@@ -586,7 +687,7 @@ export function HomeFeedDashboard({
                     {post.content}
                   </p>
 
-                  {/* Action Bar (Heart, Comment Icon, 3-dots) */}
+                  {/* Action Bar (Heart, Share Icon, Comment Icon, 3-dots) */}
                   <div className="space-y-3 pt-2">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
@@ -595,6 +696,7 @@ export function HomeFeedDashboard({
                           type="button"
                           onClick={() => handleToggleLike(post.id)}
                           className="p-1 -ml-1 text-white hover:scale-110 active:scale-95 transition-transform cursor-pointer"
+                          title="Like"
                         >
                           <Heart
                             className={`w-5 h-5 transition-colors ${
@@ -605,53 +707,146 @@ export function HomeFeedDashboard({
                           />
                         </button>
 
-                        {/* Comment Icon */}
+                        {/* Share Button */}
                         <button
                           type="button"
+                          onClick={() => {
+                            if (navigator.clipboard) {
+                              navigator.clipboard.writeText(window.location.href);
+                              toast.success("Post link copied to clipboard! 📋");
+                            }
+                          }}
                           className="p-1 text-white/80 hover:text-white hover:scale-110 active:scale-95 transition-transform cursor-pointer"
+                          title="Share"
+                        >
+                          <Share2 className="w-5 h-5" />
+                        </button>
+
+                        {/* Comment Icon with optional counter badge */}
+                        <button
+                          type="button"
+                          className="p-1 text-white/80 hover:text-white hover:scale-110 active:scale-95 transition-transform cursor-pointer flex items-center gap-1.5"
+                          title="Comment"
                         >
                           <MessageCircle className="w-5 h-5" />
                         </button>
                       </div>
 
-                      {/* 3 Dots Menu */}
-                      <button
-                        type="button"
-                        className="p-1 text-white/60 hover:text-white transition-colors cursor-pointer"
-                      >
-                        <MoreHorizontal className="w-5 h-5" />
-                      </button>
+                      {/* 3 Dots Menu with Dropdown Card */}
+                      <div className="relative" data-menu-container>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setActiveMenuPostId((prev) => (prev === post.id ? null : post.id));
+                          }}
+                          className="p-1.5 rounded-lg text-white/60 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+                          title="More options"
+                        >
+                          <MoreHorizontal className="w-5 h-5" />
+                        </button>
+
+                        {activeMenuPostId === post.id && (
+                          <div className="absolute right-0 bottom-full mb-2 w-48 bg-[#003825] border border-[#005a3c] rounded-xl shadow-2xl p-1.5 z-30 animate-in fade-in zoom-in-95 duration-150 backdrop-blur-md">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setActiveMenuPostId(null);
+                                toast.info("Bookmark feature coming soon! 📌");
+                              }}
+                              className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-emerald-100 hover:text-white hover:bg-[#004e34] rounded-lg transition-colors text-left cursor-pointer"
+                            >
+                              <Bookmark className="w-4 h-4 text-emerald-300" />
+                              <span>Save Post</span>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setActiveMenuPostId(null);
+                                if (navigator.clipboard) {
+                                  navigator.clipboard.writeText(window.location.href);
+                                  toast.success("Post link copied to clipboard! 📋");
+                                }
+                              }}
+                              className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-emerald-100 hover:text-white hover:bg-[#004e34] rounded-lg transition-colors text-left cursor-pointer"
+                            >
+                              <Copy className="w-4 h-4 text-emerald-300" />
+                              <span>Copy Link</span>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setActiveMenuPostId(null);
+                                setPosts((prev) => prev.filter((p) => p.id !== post.id));
+                                toast.success("Post hidden from your feed. 👁️");
+                              }}
+                              className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-amber-200 hover:text-amber-100 hover:bg-amber-950/40 rounded-lg transition-colors text-left cursor-pointer"
+                            >
+                              <EyeOff className="w-4 h-4 text-amber-400" />
+                              <span>Hide Post</span>
+                            </button>
+
+                            <div className="my-1 border-t border-[#005a3c]/60" />
+
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setActiveMenuPostId(null);
+                                toast.success("Report submitted to moderation team! 🛡️");
+                              }}
+                              className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-rose-300 hover:text-rose-100 hover:bg-rose-950/40 rounded-lg transition-colors text-left cursor-pointer"
+                            >
+                              <Flag className="w-4 h-4 text-rose-400" />
+                              <span>Report Post</span>
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     </div>
 
-                    {/* Likes count & View all comments */}
+                    {/* Stats (Likes & Comments count) & Relative timestamp */}
                     <div className="flex items-center justify-between text-[11px] text-white/80 font-medium">
-                      <span>{post.likesCount} likes</span>
-                      <button
-                        type="button"
-                        className="text-emerald-200/60 hover:text-white transition-colors cursor-pointer text-[11px]"
+                      <div className="flex items-center gap-2.5">
+                        <span>{post.likesCount} {post.likesCount === 1 ? "like" : "likes"}</span>
+                        <span className="text-emerald-300/40">•</span>
+                        <span>{post.commentsCount} {post.commentsCount === 1 ? "comment" : "comments"}</span>
+                      </div>
+                      <time
+                        dateTime={post.createdAt}
+                        className="text-emerald-200/60 font-medium text-[11px]"
                       >
-                        View all comments
-                      </button>
+                        {formatRelativeTime(post.createdAt)}
+                      </time>
                     </div>
 
-                    {/* Inline Comment Input Box with Send Button */}
-                    <div className="relative flex items-center">
+                    {/* 💬 Sleeker, Bigger & More Professional Comment Input Box */}
+                    <div className="relative flex items-center pt-0.5">
                       <input
                         type="text"
-                        placeholder="Add a comment..."
+                        placeholder="Write a comment..."
                         value={commentInputs[post.id] || ""}
                         onChange={(e) => handleCommentChange(post.id, e.target.value)}
                         onKeyDown={(e) => {
                           if (e.key === "Enter") handleSendComment(post.id);
                         }}
-                        className="w-full bg-[#003825] border border-[#005a3c] rounded-full pl-3.5 pr-10 py-1.5 text-xs text-white placeholder-emerald-200/40 focus:outline-none focus:border-[#94d3a2]/70 transition-all"
+                        className="w-full bg-[#003422] border border-[#005a3c] rounded-xl pl-4 pr-11 py-2.5 text-xs sm:text-sm text-white placeholder-emerald-200/40 focus:outline-none focus:border-[#94d3a2]/80 focus:bg-[#002f1f] shadow-inner transition-all"
                       />
                       <button
                         type="button"
                         onClick={() => handleSendComment(post.id)}
-                        className="absolute right-2 text-emerald-300 hover:text-white p-1 transition-colors cursor-pointer"
+                        disabled={!commentInputs[post.id]?.trim() || sendingComments[post.id]}
+                        className="absolute right-2 p-1.5 rounded-lg bg-emerald-700/40 hover:bg-emerald-600/70 text-emerald-200 hover:text-white disabled:opacity-30 disabled:hover:bg-transparent disabled:cursor-not-allowed transition-all cursor-pointer group"
+                        title={sendingComments[post.id] ? "Sending..." : "Send Comment"}
                       >
-                        <Send className="w-3.5 h-3.5" />
+                        <Send
+                          className={`w-4 h-4 transition-all duration-300 ease-out transform ${
+                            sendingComments[post.id]
+                              ? "rotate-0 scale-110 translate-x-0.5 -translate-y-0.5 text-[#94d3a2]"
+                              : "rotate-45 text-emerald-200 group-hover:text-white"
+                          }`}
+                        />
                       </button>
                     </div>
                   </div>
