@@ -14,6 +14,7 @@ import {
   Trash2,
   Ghost,
   UserCheck,
+  Repeat2,
 } from "lucide-react";
 import { CustomSelect } from "@/components/ui/custom-select";
 import { ConfirmationModal } from "@/components/ui/confirmation-modal";
@@ -22,6 +23,7 @@ import {
   createPostAction,
   editPostAction,
   deletePostAction,
+  repostPostAction,
   type PostFeedItem,
 } from "@/features/feed/actions/post.action";
 import { toggleLikePostAction } from "@/features/feed/actions/post.liked.action";
@@ -316,6 +318,44 @@ export function ProfileActivityFeed({
     }
   };
 
+  const [repostingPostId, setRepostingPostId] = useState<string | null>(null);
+
+  const handleRepostPost = async (post: PostFeedItem) => {
+    if (repostingPostId) return;
+
+    // Check client-side cooldown first
+    const now = new Date();
+    const lastTimestamp = post.repostedAt ? new Date(post.repostedAt) : new Date(post.createdAt);
+    const diffInHours = (now.getTime() - lastTimestamp.getTime()) / (1000 * 60 * 60);
+
+    if (diffInHours < 24) {
+      const remainingHours = Math.ceil(24 - diffInHours);
+      toast.error(`You can only repost this once every 24 hours. Please wait ${remainingHours}h.`);
+      return;
+    }
+
+    setRepostingPostId(post.id);
+    try {
+      const res = await repostPostAction(post.id);
+      if (res.success && res.data) {
+        toast.success("Post reposted to top of campus feed! 🚀");
+        setPosts((prev) => {
+          const target = prev.find((p) => p.id === post.id);
+          if (!target) return prev;
+          const updated = { ...target, repostedAt: res.data.repostedAt };
+          const others = prev.filter((p) => p.id !== post.id);
+          return [updated, ...others];
+        });
+      } else {
+        toast.error(res.error || "Unable to repost.");
+      }
+    } catch {
+      toast.error("Network error while reposting.");
+    } finally {
+      setRepostingPostId(null);
+    }
+  };
+
   return (
     <div className="space-y-5">
       {/* Activity Heading */}
@@ -407,6 +447,37 @@ export function ProfileActivityFeed({
                     >
                       <MessageCircle className="w-5 h-5" />
                     </button>
+
+                    {/* Repost Button (For Author) OR Share Button (For Non-Authors) */}
+                    {post.isAuthor ? (
+                      <button
+                        type="button"
+                        onClick={() => handleRepostPost(post)}
+                        disabled={Boolean(repostingPostId)}
+                        className={`p-1 transition-all cursor-pointer ${
+                          repostingPostId === post.id
+                            ? "animate-spin text-[#8CC497]"
+                            : "text-[#8CC497] hover:text-white hover:scale-110 active:scale-95"
+                        }`}
+                        title="Repost to feed (Once every 24h)"
+                      >
+                        <Repeat2 className="w-5 h-5" />
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (navigator.clipboard) {
+                            navigator.clipboard.writeText(window.location.href);
+                            toast.success("Post link copied to clipboard!");
+                          }
+                        }}
+                        className="p-1 text-white/80 hover:text-white hover:scale-110 active:scale-95 transition-transform cursor-pointer"
+                        title="Share post"
+                      >
+                        <Share2 className="w-5 h-5" />
+                      </button>
+                    )}
                   </div>
 
                   {/* 3-Dots Menu */}
@@ -479,7 +550,7 @@ export function ProfileActivityFeed({
                   </div>
                 </div>
 
-                {/* Stats (Likes & Comments count beside each other) & Relative timestamp replacing 'View all comments' */}
+                {/* Stats (Likes & Comments count beside each other) & Relative timestamp */}
                 <div className="flex items-center justify-between text-[11px] text-white/80 font-medium">
                   <div className="flex items-center gap-2.5">
                     <span>{post.likesCount} {post.likesCount === 1 ? "like" : "likes"}</span>
@@ -493,11 +564,19 @@ export function ProfileActivityFeed({
                     </button>
                   </div>
                   <time
-                    dateTime={post.createdAt}
+                    dateTime={post.repostedAt || post.createdAt}
                     suppressHydrationWarning
-                    className="text-[#8CC497]/80 font-medium text-[11px]"
+                    className="text-[#8CC497] font-medium text-[11px]"
                   >
-                    {formatRelativeTime(post.createdAt)}
+                    {post.repostedAt ? (
+                      <span className="text-[#8CC497] font-semibold">
+                        Reposted {formatRelativeTime(post.repostedAt)}
+                      </span>
+                    ) : (
+                      <span className="text-[#8CC497]/80">
+                        {formatRelativeTime(post.createdAt)}
+                      </span>
+                    )}
                   </time>
                 </div>
 

@@ -26,6 +26,7 @@ export type PostFeedItem = {
   isSaved: boolean;
   commentsCount: number;
   createdAt: string;
+  repostedAt?: string | null;
   isAuthor: boolean;
 };
 
@@ -120,9 +121,14 @@ export async function getFeedPostsAction(options?: {
             }
           : undefined,
       },
-      orderBy: {
-        createdAt: "desc",
-      },
+      orderBy: [
+        {
+          repostedAt: { sort: "desc", nulls: "last" },
+        },
+        {
+          createdAt: "desc",
+        },
+      ],
     });
 
     const hasMore = rawPosts.length > limit;
@@ -147,6 +153,7 @@ export async function getFeedPostsAction(options?: {
         isSaved: isSaved,
         commentsCount: p.commentsCount,
         createdAt: p.createdAt.toISOString(),
+        repostedAt: p.repostedAt ? p.repostedAt.toISOString() : null,
         isAuthor,
       };
     });
@@ -483,3 +490,96 @@ export async function deletePostAction(postId: string): Promise<ActionResult<{ i
     };
   }
 }
+
+/**
+ * 🔁 Repost / Bump Own Post to Feed (Strict 24-Hour Cooldown Limit)
+ */
+export async function repostPostAction(postId: string): Promise<ActionResult<{ repostedAt: string }>> {
+  try {
+    const supabase = await createClient();
+    const {
+      data: { user: authUser },
+    } = await supabase.auth.getUser();
+
+    if (!authUser) {
+      return {
+        success: false,
+        error: "Unauthorized: Please log in to repost your post.",
+        code: "UNAUTHORIZED",
+      };
+    }
+
+    // 1. Fetch post to verify ownership & previous repost timestamp
+    const post = await prisma.post.findUnique({
+      where: { id: postId },
+      select: {
+        id: true,
+        userId: true,
+        repostedAt: true,
+        createdAt: true,
+        isDeleted: true,
+      },
+    });
+
+    if (!post || post.isDeleted) {
+      return {
+        success: false,
+        error: "Post not found or deleted.",
+        code: "NOT_FOUND",
+      };
+    }
+
+    // 🔒 2. Authorization: Only author can repost their own post
+    if (post.userId !== authUser.id) {
+      return {
+        success: false,
+        error: "You can only repost your own post.",
+        code: "FORBIDDEN",
+      };
+    }
+
+    // 🔒 3. 24-Hour Cooldown Validation
+    const now = new Date();
+    const lastTimestamp = post.repostedAt || post.createdAt;
+    const diffInMs = now.getTime() - lastTimestamp.getTime();
+    const diffInHours = diffInMs / (1000 * 60 * 60);
+
+    if (diffInHours < 24) {
+      const remainingHours = Math.ceil(24 - diffInHours);
+      return {
+        success: false,
+        error: `You can only repost this once every 24 hours. Please wait ${remainingHours}h.`,
+        code: "COOLDOWN_ACTIVE",
+      };
+    }
+
+    // 4. Update repostedAt timestamp to bump to top of feed
+    const updatedPost = await prisma.post.update({
+      where: { id: postId },
+      data: {
+        repostedAt: now,
+      },
+      select: {
+        repostedAt: true,
+      },
+    });
+
+    revalidatePath("/");
+    revalidatePath("/profile");
+
+    return {
+      success: true,
+      data: {
+        repostedAt: updatedPost.repostedAt ? updatedPost.repostedAt.toISOString() : now.toISOString(),
+      },
+    };
+  } catch (error) {
+    console.error("REPOST_POST_ERROR:", error);
+    return {
+      success: false,
+      error: "Unable to repost. Please try again later.",
+      code: "INTERNAL_ERROR",
+    };
+  }
+}
+

@@ -161,9 +161,14 @@ export async function getUserPostsAction(targetUserId?: string): Promise<ActionR
         userId: userId,
         isDeleted: false,
       },
-      orderBy: {
-        createdAt: "desc",
-      },
+      orderBy: [
+        {
+          repostedAt: { sort: "desc", nulls: "last" },
+        },
+        {
+          createdAt: "desc",
+        },
+      ],
       include: {
         user: {
           select: {
@@ -218,6 +223,7 @@ export async function getUserPostsAction(targetUserId?: string): Promise<ActionR
         isSaved: Array.isArray(p.savedPosts) && p.savedPosts.length > 0,
         commentsCount: p.commentsCount,
         createdAt: p.createdAt.toISOString(),
+        repostedAt: p.repostedAt ? p.repostedAt.toISOString() : null,
         isAuthor: isPostAuthor,
       };
     });

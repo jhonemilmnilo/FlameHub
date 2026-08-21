@@ -95,6 +95,7 @@ model Post {
   commentsCount Int             @default(0)
   isDeleted     Boolean         @default(false)
   deletedAt     DateTime?
+  repostedAt    DateTime?
   createdAt     DateTime        @default(now())
   updatedAt     DateTime        @updatedAt
 
@@ -110,6 +111,7 @@ model Post {
   @@index([userId])
   @@index([departmentId])
   @@index([createdAt(sort: Desc)])
+  @@index([repostedAt(sort: Desc)])
   @@index([isDeleted, createdAt(sort: Desc)])
   @@map("Posts")
 }

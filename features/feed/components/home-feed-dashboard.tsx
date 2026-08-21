@@ -26,6 +26,7 @@ import {
   Pencil,
   Trash2,
   AlertTriangle,
+  Repeat2,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
@@ -35,6 +36,7 @@ import {
   getFeedPostsAction,
   editPostAction,
   deletePostAction,
+  repostPostAction,
   type PostFeedItem,
 } from "@/features/feed/actions/post.action";
 import { toggleLikePostAction } from "@/features/feed/actions/post.liked.action";
@@ -640,6 +642,43 @@ export function HomeFeedDashboard({
     }
   };
 
+  const [repostingPostId, setRepostingPostId] = useState<string | null>(null);
+
+  const handleRepostPost = async (post: PostFeedItem) => {
+    if (repostingPostId) return;
+
+    const now = new Date();
+    const lastTimestamp = post.repostedAt ? new Date(post.repostedAt) : new Date(post.createdAt);
+    const diffInHours = (now.getTime() - lastTimestamp.getTime()) / (1000 * 60 * 60);
+
+    if (diffInHours < 24) {
+      const remainingHours = Math.ceil(24 - diffInHours);
+      toast.error(`You can only repost this once every 24 hours. Please wait ${remainingHours}h.`);
+      return;
+    }
+
+    setRepostingPostId(post.id);
+    try {
+      const res = await repostPostAction(post.id);
+      if (res.success && res.data) {
+        toast.success("Post reposted to top of campus feed! 🚀");
+        setPosts((prev) => {
+          const target = prev.find((p) => p.id === post.id);
+          if (!target) return prev;
+          const updated = { ...target, repostedAt: res.data.repostedAt };
+          const others = prev.filter((p) => p.id !== post.id);
+          return [updated, ...others];
+        });
+      } else {
+        toast.error(res.error || "Unable to repost.");
+      }
+    } catch {
+      toast.error("Network error while reposting.");
+    } finally {
+      setRepostingPostId(null);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#006241] text-white flex flex-col md:flex-row font-sans selection:bg-[#8CC497]/30 selection:text-white">
       {/* ========================================================================= */}
@@ -958,20 +997,36 @@ export function HomeFeedDashboard({
                           />
                         </button>
 
-                        {/* Share Button */}
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (navigator.clipboard) {
-                              navigator.clipboard.writeText(window.location.href);
-                              toast.success("Post link copied to clipboard!");
-                            }
-                          }}
-                          className="p-1 text-white/80 hover:text-white hover:scale-110 active:scale-95 transition-transform cursor-pointer"
-                          title="Share"
-                        >
-                          <Share2 className="w-5 h-5" />
-                        </button>
+                        {/* Repost Button (For Author) OR Share Button (For Non-Authors) */}
+                        {post.isAuthor ? (
+                          <button
+                            type="button"
+                            onClick={() => handleRepostPost(post)}
+                            disabled={Boolean(repostingPostId)}
+                            className={`p-1 transition-all cursor-pointer ${
+                              repostingPostId === post.id
+                                ? "animate-spin text-[#8CC497]"
+                                : "text-[#8CC497] hover:text-white hover:scale-110 active:scale-95"
+                            }`}
+                            title="Repost to feed (Once every 24h)"
+                          >
+                            <Repeat2 className="w-5 h-5" />
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (navigator.clipboard) {
+                                navigator.clipboard.writeText(window.location.href);
+                                toast.success("Post link copied to clipboard!");
+                              }
+                            }}
+                            className="p-1 text-white/80 hover:text-white hover:scale-110 active:scale-95 transition-transform cursor-pointer"
+                            title="Share"
+                          >
+                            <Share2 className="w-5 h-5" />
+                          </button>
+                        )}
 
                         {/* Comment Icon with trigger to open discussion drawer */}
                         <button
@@ -1065,31 +1120,33 @@ export function HomeFeedDashboard({
                             </button>
 
                             {!post.isAuthor && (
-                              <button
-                                type="button"
-                                onClick={() => handleHidePost(post)}
-                                style={{ borderRadius: "10px" }}
-                                className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-amber-200 hover:text-amber-100 hover:bg-amber-950/40 rounded-[10px] transition-colors text-left cursor-pointer"
-                              >
-                                <EyeOff className="w-4 h-4 text-amber-400" />
-                                <span>Hide Post</span>
-                              </button>
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={() => handleHidePost(post)}
+                                  style={{ borderRadius: "10px" }}
+                                  className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-amber-200 hover:text-amber-100 hover:bg-amber-950/40 rounded-[10px] transition-colors text-left cursor-pointer"
+                                >
+                                  <EyeOff className="w-4 h-4 text-amber-400" />
+                                  <span>Hide Post</span>
+                                </button>
+
+                                <div className="my-1 border-t border-[#005a3c]/60" />
+
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setActiveMenuPostId(null);
+                                    toast.success("Report submitted to the moderation team.");
+                                  }}
+                                  style={{ borderRadius: "10px" }}
+                                  className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-rose-300 hover:text-rose-100 hover:bg-rose-950/40 rounded-[10px] transition-colors text-left cursor-pointer"
+                                >
+                                  <Flag className="w-4 h-4 text-rose-400" />
+                                  <span>Report Post</span>
+                                </button>
+                              </>
                             )}
-
-                            <div className="my-1 border-t border-[#005a3c]/60" />
-
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setActiveMenuPostId(null);
-                                toast.success("Report submitted to the moderation team.");
-                              }}
-                              style={{ borderRadius: "10px" }}
-                              className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-rose-300 hover:text-rose-100 hover:bg-rose-950/40 rounded-[10px] transition-colors text-left cursor-pointer"
-                            >
-                              <Flag className="w-4 h-4 text-rose-400" />
-                              <span>Report Post</span>
-                            </button>
                           </div>
                         )}
                       </div>
@@ -1109,11 +1166,19 @@ export function HomeFeedDashboard({
                         </button>
                       </div>
                       <time
-                        dateTime={post.createdAt}
+                        dateTime={post.repostedAt || post.createdAt}
                         suppressHydrationWarning
-                        className="text-[#8CC497]/80 font-medium text-[11px]"
+                        className="text-[#8CC497] font-medium text-[11px]"
                       >
-                        {formatRelativeTime(post.createdAt)}
+                        {post.repostedAt ? (
+                          <span className="text-[#8CC497] font-semibold">
+                            Reposted {formatRelativeTime(post.repostedAt)}
+                          </span>
+                        ) : (
+                          <span className="text-[#8CC497]/80">
+                            {formatRelativeTime(post.createdAt)}
+                          </span>
+                        )}
                       </time>
                     </div>
 
