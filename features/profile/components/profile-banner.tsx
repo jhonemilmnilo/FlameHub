@@ -2,18 +2,17 @@
 
 import React, { useState } from "react";
 import Image from "next/image";
-import { MoreHorizontal, Edit3, Share2, Copy } from "lucide-react";
+import { Edit2, Camera, Share2, Copy } from "lucide-react";
 import { toast } from "sonner";
 import type { UserProfileData } from "../actions/profile.action";
 
 interface ProfileBannerProps {
   profile: UserProfileData;
   onEditBio?: () => void;
+  onEditAvatar?: () => void;
 }
 
-export function ProfileBanner({ profile, onEditBio }: ProfileBannerProps) {
-  const [showMenu, setShowMenu] = useState(false);
-
+export function ProfileBanner({ profile, onEditBio, onEditAvatar }: ProfileBannerProps) {
   const formattedDate = React.useMemo(() => {
     try {
       const d = new Date(profile.createdAt);
@@ -27,11 +26,21 @@ export function ProfileBanner({ profile, onEditBio }: ProfileBannerProps) {
     }
   }, [profile.createdAt]);
 
-  const handleCopyLink = () => {
-    setShowMenu(false);
-    if (typeof window !== "undefined" && navigator.clipboard) {
-      navigator.clipboard.writeText(window.location.href);
-      toast.success("Profile link copied to clipboard!");
+  const handleAvatarClick = () => {
+    if (profile.isSelf) {
+      if (onEditAvatar) {
+        onEditAvatar();
+      } else {
+        toast.info("Avatar customization coming soon!");
+      }
+    }
+  };
+
+  const handleEditClick = () => {
+    if (onEditBio) {
+      onEditBio();
+    } else {
+      toast.info("Edit profile options");
     }
   };
 
@@ -41,7 +50,7 @@ export function ProfileBanner({ profile, onEditBio }: ProfileBannerProps) {
       className="w-full bg-[#003F2A] border border-[#005a3c]/60 rounded-[10px] p-6 md:p-8 shadow-xl relative overflow-hidden transition-all duration-300"
     >
       <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6 lg:gap-8">
-        {/* User Portrait / Avatar Box */}
+        {/* User Portrait / Avatar Box with Edit Overlay */}
         <div
           style={{ borderRadius: "10px" }}
           className="relative w-28 h-28 sm:w-36 sm:h-36 md:w-44 md:h-44 rounded-[10px] overflow-hidden shrink-0 bg-[#002f1f] border-2 border-[#8CC497]/40 shadow-inner group"
@@ -59,6 +68,23 @@ export function ProfileBanner({ profile, onEditBio }: ProfileBannerProps) {
                 {profile.displayName ? profile.displayName.charAt(0).toUpperCase() : "U"}
               </span>
             </div>
+          )}
+
+          {/* Edit Avatar Overlay Button (Author Only) */}
+          {profile.isSelf && (
+            <button
+              type="button"
+              onClick={handleAvatarClick}
+              title="Change Profile Photo"
+              className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-1.5 cursor-pointer backdrop-blur-[2px]"
+            >
+              <div className="p-2 rounded-full bg-[#003F2A] border border-[#8CC497] text-[#8CC497] shadow-lg hover:scale-110 active:scale-95 transition-transform">
+                <Camera className="w-5 h-5" />
+              </div>
+              <span className="text-[11px] font-bold text-white tracking-wide drop-shadow-md">
+                Change Photo
+              </span>
+            </button>
           )}
         </div>
 
@@ -112,45 +138,19 @@ export function ProfileBanner({ profile, onEditBio }: ProfileBannerProps) {
           </div>
         </div>
 
-        {/* 3-Dots Action Menu Trigger Button */}
-        <div className="absolute top-5 right-5 sm:top-6 sm:right-6">
-          <div className="relative">
+        {/* Top-Right Pen Edit Icon Button matching Bio card */}
+        {profile.isSelf && (
+          <div className="absolute top-5 right-5 sm:top-6 sm:right-6">
             <button
               type="button"
-              onClick={() => setShowMenu((prev) => !prev)}
+              onClick={handleEditClick}
               className="p-2 rounded-xl text-[#8CC497] hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
-              title="Profile Options"
+              title="Edit Profile"
             >
-              <MoreHorizontal className="w-6 h-6" />
+              <Edit2 className="w-5 h-5" />
             </button>
-
-            {showMenu && (
-              <div className="absolute right-0 top-full mt-2 w-48 bg-[#002f1f] border border-[#005a3c] rounded-2xl shadow-2xl p-1.5 z-30 animate-in fade-in zoom-in-95 duration-150 backdrop-blur-md">
-                {profile.isSelf && onEditBio && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowMenu(false);
-                      onEditBio();
-                    }}
-                    className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-[#8CC497] hover:text-white hover:bg-[#004e34] rounded-xl transition-colors text-left cursor-pointer"
-                  >
-                    <Edit3 className="w-4 h-4 text-[#8CC497]" />
-                    <span>Edit Bio</span>
-                  </button>
-                )}
-                <button
-                  type="button"
-                  onClick={handleCopyLink}
-                  className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-emerald-100 hover:text-white hover:bg-[#004e34] rounded-xl transition-colors text-left cursor-pointer"
-                >
-                  <Copy className="w-4 h-4 text-[#8CC497]" />
-                  <span>Copy Profile Link</span>
-                </button>
-              </div>
-            )}
           </div>
-        </div>
+        )}
       </div>
     </div>
   );

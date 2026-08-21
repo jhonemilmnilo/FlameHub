@@ -44,6 +44,7 @@ import { toggleSavePostAction } from "@/features/feed/actions/post.saved.action"
 import { hidePostAction } from "@/features/feed/actions/post.hide.action";
 import { createCommentAction } from "@/features/feed/actions/comment.action";
 import { CommentDrawerModal } from "@/features/feed/components/comment-drawer-modal";
+import { PostLikersModal } from "@/features/feed/components/post-likers-modal";
 import { CustomSelect } from "@/components/ui/custom-select";
 import { ConfirmationModal } from "@/components/ui/confirmation-modal";
 import { toast } from "sonner";
@@ -174,6 +175,7 @@ export function HomeFeedDashboard({
   const [isSidebarHidden, setIsSidebarHidden] = useState(false);
   const [activeMenuPostId, setActiveMenuPostId] = useState<string | null>(null);
   const [activeDiscussionPost, setActiveDiscussionPost] = useState<PostFeedItem | null>(null);
+  const [activeLikersPostId, setActiveLikersPostId] = useState<string | null>(null);
   const [editingPost, setEditingPost] = useState<PostFeedItem | null>(null);
   const [editContent, setEditContent] = useState("");
   const [editIsAnonymous, setEditIsAnonymous] = useState(false);
@@ -1155,7 +1157,14 @@ export function HomeFeedDashboard({
                     {/* Stats (Likes & Comments count) & Relative timestamp */}
                     <div className="flex items-center justify-between text-[11px] text-white/80 font-medium">
                       <div className="flex items-center gap-2.5">
-                        <span>{post.likesCount} {post.likesCount === 1 ? "like" : "likes"}</span>
+                        <button
+                          type="button"
+                          onClick={() => setActiveLikersPostId(post.id)}
+                          className="hover:text-[#8CC497] hover:underline cursor-pointer transition-colors"
+                          title="See who liked this post"
+                        >
+                          {post.likesCount} {post.likesCount === 1 ? "like" : "likes"}
+                        </button>
                         <span className="text-[#8CC497]/40">•</span>
                         <button
                           type="button"
@@ -1426,6 +1435,15 @@ export function HomeFeedDashboard({
             )
           );
         }}
+      />
+
+      {/* ========================================================================= */}
+      {/* 💖 WHO LIKED THIS POST MODAL (With Shimmer Skeletons) */}
+      {/* ========================================================================= */}
+      <PostLikersModal
+        postId={activeLikersPostId}
+        isOpen={Boolean(activeLikersPostId)}
+        onClose={() => setActiveLikersPostId(null)}
       />
     </div>
   );

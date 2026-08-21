@@ -19,6 +19,7 @@ import {
 import { CustomSelect } from "@/components/ui/custom-select";
 import { ConfirmationModal } from "@/components/ui/confirmation-modal";
 import { CommentDrawerModal } from "@/features/feed/components/comment-drawer-modal";
+import { PostLikersModal } from "@/features/feed/components/post-likers-modal";
 import {
   createPostAction,
   editPostAction,
@@ -217,6 +218,7 @@ export function ProfileActivityFeed({
   const [sendingComments, setSendingComments] = useState<Record<string, boolean>>({});
   const [activeMenuPostId, setActiveMenuPostId] = useState<string | null>(null);
   const [activeDiscussionPost, setActiveDiscussionPost] = useState<PostFeedItem | null>(null);
+  const [activeLikersPostId, setActiveLikersPostId] = useState<string | null>(null);
 
   // Modals
   const [isComposerOpen, setIsComposerOpen] = useState(false);
@@ -697,7 +699,14 @@ export function ProfileActivityFeed({
                 {/* Stats (Likes & Comments count beside each other) & Relative timestamp */}
                 <div className="flex items-center justify-between text-[11px] text-white/80 font-medium">
                   <div className="flex items-center gap-2.5">
-                    <span>{post.likesCount} {post.likesCount === 1 ? "like" : "likes"}</span>
+                    <button
+                      type="button"
+                      onClick={() => setActiveLikersPostId(post.id)}
+                      className="hover:text-[#8CC497] hover:underline cursor-pointer transition-colors"
+                      title="See who liked this post"
+                    >
+                      {post.likesCount} {post.likesCount === 1 ? "like" : "likes"}
+                    </button>
                     <span className="text-[#8CC497]/40">•</span>
                     <button
                       type="button"
@@ -951,6 +960,13 @@ export function ProfileActivityFeed({
             )
           );
         }}
+      />
+
+      {/* 💖 Likers Modal (With Shimmer Skeleton) */}
+      <PostLikersModal
+        postId={activeLikersPostId}
+        isOpen={Boolean(activeLikersPostId)}
+        onClose={() => setActiveLikersPostId(null)}
       />
     </div>
   );

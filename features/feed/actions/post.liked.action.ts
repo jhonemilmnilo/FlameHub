@@ -119,7 +119,7 @@ export async function toggleLikePostAction(
         },
       });
 
-      return actualLikesCount;
+      return realCount;
     });
 
     return {
