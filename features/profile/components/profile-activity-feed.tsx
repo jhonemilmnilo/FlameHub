@@ -15,6 +15,7 @@ import {
   Ghost,
   UserCheck,
   Repeat2,
+  X,
 } from "lucide-react";
 import { CustomSelect } from "@/components/ui/custom-select";
 import { ConfirmationModal } from "@/components/ui/confirmation-modal";
@@ -484,7 +485,7 @@ export function ProfileActivityFeed({
     try {
       const res = await repostPostAction(post.id);
       if (res.success && res.data) {
-        toast.success("Post reposted to top of campus feed! 🚀");
+        toast.success("Post reposted to top of campus feed.");
         setPosts((prev) => {
           const target = prev.find((p) => p.id === post.id);
           if (!target) return prev;
@@ -863,51 +864,80 @@ export function ProfileActivityFeed({
         </div>
       )}
 
-      {/* Edit Modal */}
+      {/* ========================================================================= */}
+      {/* ✏️ EDIT POST MODAL */}
+      {/* ========================================================================= */}
       {editingPost && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-fadeIn">
-          <div className="w-full max-w-lg bg-[#003F2A] border border-[#005a3c] rounded-3xl p-6 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between border-b border-[#005a3c] pb-3">
-              <h3 className="font-extrabold text-base text-white font-heading">
-                Edit Post
-              </h3>
+        <div
+          onClick={() => setEditingPost(null)}
+          className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4 animate-fadeIn"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{ borderRadius: "10px" }}
+            className="w-full max-w-lg bg-[#003F2A] border border-[#005a3c] rounded-[10px] p-6 shadow-2xl space-y-5"
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between border-b border-[#005a3c]/70 pb-3.5">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-[10px] bg-[#002f1f] text-[#8CC497] border border-[#005a3c]">
+                  <Pencil className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-lg text-white font-heading tracking-tight">
+                    Edit Post
+                  </h3>
+                  <p className="text-xs text-[#8CC497]">Update your thoughts or identity</p>
+                </div>
+              </div>
               <button
                 type="button"
+                disabled={isSubmittingEdit}
                 onClick={() => setEditingPost(null)}
-                className="text-white/60 hover:text-white text-sm font-bold cursor-pointer"
+                className="p-1.5 rounded-[10px] text-white/60 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
               >
-                ✕
+                <X className="w-5 h-5" />
               </button>
             </div>
 
             <form onSubmit={handleSaveEditPost} className="space-y-4">
-              <textarea
-                rows={4}
-                autoFocus
-                value={editContent}
-                onChange={(e) => setEditContent(e.target.value)}
-                className="w-full bg-[#002f1f] border border-[#005a3c] rounded-2xl p-3.5 text-sm text-white placeholder-white/40 focus:outline-none focus:border-[#8CC497] transition-all resize-none"
-              />
+              <div className="space-y-1.5">
+                <label className="block text-xs font-bold text-white tracking-wide">
+                  Post Content
+                </label>
+                <textarea
+                  rows={4}
+                  autoFocus
+                  disabled={isSubmittingEdit}
+                  placeholder="Edit your post content..."
+                  value={editContent}
+                  onChange={(e) => setEditContent(e.target.value)}
+                  style={{ borderRadius: "10px" }}
+                  className="w-full bg-[#002f1f] border border-[#005a3c] rounded-[10px] p-3.5 text-xs sm:text-sm text-white placeholder-[#8CC497]/40 focus:outline-none focus:border-[#8CC497] transition-all resize-none leading-relaxed disabled:opacity-60"
+                />
+              </div>
 
-              <div className="flex items-center justify-between pt-2">
+              <div className="flex items-center justify-between pt-2 border-t border-[#005a3c]/70">
                 <button
                   type="button"
+                  disabled={isSubmittingEdit}
                   onClick={() => setEditIsAnonymous((prev) => !prev)}
-                  className={`flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer ${
+                  style={{ borderRadius: "10px" }}
+                  className={`flex items-center gap-2 px-3.5 py-2 rounded-[10px] text-xs font-bold transition-all cursor-pointer select-none ${
                     editIsAnonymous
-                      ? "bg-purple-950/80 text-purple-200 border border-purple-400/60"
-                      : "bg-[#002f1f] text-[#8CC497] border border-[#005a3c]"
+                      ? "bg-purple-950/80 text-purple-200 border border-purple-400/60 shadow-[0_0_12px_rgba(168,85,247,0.3)]"
+                      : "bg-[#002f1f] text-[#8CC497] border border-[#005a3c] hover:text-white hover:border-[#8CC497]/60"
                   }`}
                 >
                   {editIsAnonymous ? (
                     <>
-                      <Ghost className="w-4 h-4 text-purple-300" />
-                      <span>Anonymous</span>
+                      <Ghost className="w-4 h-4 text-purple-300 animate-pulse" />
+                      <span>Post as Anonymous</span>
                     </>
                   ) : (
                     <>
                       <UserCheck className="w-4 h-4 text-[#8CC497]" />
-                      <span>Public</span>
+                      <span>Public Identity</span>
                     </>
                   )}
                 </button>
@@ -915,17 +945,20 @@ export function ProfileActivityFeed({
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
+                    disabled={isSubmittingEdit}
                     onClick={() => setEditingPost(null)}
-                    className="px-4 py-2 rounded-full text-xs font-bold text-white/70 hover:text-white cursor-pointer"
+                    style={{ borderRadius: "10px" }}
+                    className="px-4 py-2.5 rounded-[10px] text-xs font-bold text-white hover:bg-white/10 transition-all cursor-pointer"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
                     disabled={!editContent.trim() || isSubmittingEdit}
-                    className="px-6 py-2 rounded-full bg-[#8CC497] hover:bg-[#a1d7ab] text-[#003F2A] font-extrabold text-xs uppercase tracking-wider shadow-md transition-all cursor-pointer disabled:opacity-50"
+                    style={{ borderRadius: "10px" }}
+                    className="px-6 py-2.5 rounded-[10px] bg-white hover:bg-emerald-50 text-[#006241] font-black text-xs uppercase tracking-wider shadow-md transition-all hover:scale-105 active:scale-95 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
                   >
-                    {isSubmittingEdit ? "SAVING..." : "SAVE"}
+                    {isSubmittingEdit ? "SAVING..." : "SAVE CHANGES"}
                   </button>
                 </div>
               </div>

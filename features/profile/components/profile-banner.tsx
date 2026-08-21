@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import Image from "next/image";
-import { Edit2, Camera, Share2, Copy } from "lucide-react";
+import { Edit2 } from "lucide-react";
 import { toast } from "sonner";
 import type { UserProfileData } from "../actions/profile.action";
 
@@ -50,40 +50,38 @@ export function ProfileBanner({ profile, onEditBio, onEditAvatar }: ProfileBanne
       className="w-full bg-[#003F2A] border border-[#005a3c]/60 rounded-[10px] p-6 md:p-8 shadow-xl relative overflow-hidden transition-all duration-300"
     >
       <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6 lg:gap-8">
-        {/* User Portrait / Avatar Box with Edit Overlay */}
-        <div
-          style={{ borderRadius: "10px" }}
-          className="relative w-28 h-28 sm:w-36 sm:h-36 md:w-44 md:h-44 rounded-[10px] overflow-hidden shrink-0 bg-[#002f1f] border-2 border-[#8CC497]/40 shadow-inner group"
-        >
-          {profile.avatarUrl ? (
-            <Image
-              src={profile.avatarUrl}
-              alt={profile.displayName}
-              fill
-              className="object-cover group-hover:scale-105 transition-transform duration-500"
-            />
-          ) : (
-            <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-[#004e34] to-[#002f1f] text-[#8CC497]">
-              <span className="text-4xl md:text-5xl font-black font-heading">
-                {profile.displayName ? profile.displayName.charAt(0).toUpperCase() : "U"}
-              </span>
-            </div>
-          )}
+        {/* User Portrait / Avatar Box with Edit Badge & Overlay */}
+        <div className="relative shrink-0 group">
+          <div
+            style={{ borderRadius: "10px" }}
+            className="relative w-28 h-28 sm:w-36 sm:h-36 md:w-44 md:h-44 rounded-[10px] overflow-hidden bg-[#002f1f] border-2 border-[#8CC497]/40 shadow-inner"
+          >
+            {profile.avatarUrl ? (
+              <Image
+                src={profile.avatarUrl}
+                alt={profile.displayName}
+                fill
+                className="object-cover transition-transform duration-500"
+              />
+            ) : (
+              <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-[#004e34] to-[#002f1f] text-[#8CC497]">
+                <span className="text-4xl md:text-5xl font-black font-heading">
+                  {profile.displayName ? profile.displayName.charAt(0).toUpperCase() : "U"}
+                </span>
+              </div>
+            )}
+          </div>
 
-          {/* Edit Avatar Overlay Button (Author Only) */}
+          {/* Bottom-Right Pen Edit Icon Badge (Author Only) */}
           {profile.isSelf && (
             <button
               type="button"
               onClick={handleAvatarClick}
-              title="Change Profile Photo"
-              className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-1.5 cursor-pointer backdrop-blur-[2px]"
+              title="Edit Profile Photo"
+              style={{ borderRadius: "10px" }}
+              className="absolute -bottom-2 -right-2 p-2 rounded-[10px] bg-[#003F2A] border-2 border-[#8CC497] text-[#8CC497] hover:bg-[#8CC497] hover:text-[#003F2A] shadow-xl hover:scale-110 active:scale-95 transition-all cursor-pointer z-10"
             >
-              <div className="p-2 rounded-full bg-[#003F2A] border border-[#8CC497] text-[#8CC497] shadow-lg hover:scale-110 active:scale-95 transition-transform">
-                <Camera className="w-5 h-5" />
-              </div>
-              <span className="text-[11px] font-bold text-white tracking-wide drop-shadow-md">
-                Change Photo
-              </span>
+              <Edit2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             </button>
           )}
         </div>
@@ -91,8 +89,13 @@ export function ProfileBanner({ profile, onEditBio, onEditAvatar }: ProfileBanne
         {/* User Details & Stats */}
         <div className="flex-1 space-y-4">
           <div>
-            <h1 className="text-xl sm:text-2xl lg:text-3xl font-extrabold text-white font-heading tracking-tight">
-              {profile.displayName}
+            <h1 className="text-xl sm:text-2xl lg:text-3xl font-extrabold text-white font-heading tracking-tight flex items-center flex-wrap gap-2">
+              <span>{profile.displayName}</span>
+              {profile.nickname && (
+                <span className="text-[#8CC497] font-semibold text-lg sm:text-xl lg:text-2xl">
+                  | @{profile.nickname}
+                </span>
+              )}
             </h1>
             <p className="text-xs sm:text-sm text-[#8CC497] font-medium tracking-wide">
               {profile.email || `${profile.studentId || "student"}@phinmaed.com`}

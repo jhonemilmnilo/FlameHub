@@ -17,6 +17,8 @@ import { ProfileBanner } from "./profile-banner";
 import { ProfileBioCard } from "./profile-bio-card";
 import { ProfileFollowersWidget } from "./profile-followers-widget";
 import { ProfileActivityFeed } from "./profile-activity-feed";
+import { ProfileEditModal } from "./profile-edit-modal";
+import { ProfileBioModal } from "./profile-bio-modal";
 import type { UserProfileData, FollowerItem } from "../actions/profile.action";
 import type { PostFeedItem } from "@/features/feed/actions/post.action";
 
@@ -29,15 +31,17 @@ interface ProfileDashboardProps {
 }
 
 export function ProfileDashboard({
-  profile,
+  profile: initialProfile,
   posts,
   initialNextCursor = null,
   initialHasMore = false,
   followers,
 }: ProfileDashboardProps) {
   const router = useRouter();
+  const [profile, setProfile] = useState<UserProfileData>(initialProfile);
   const [isSidebarHidden, setIsSidebarHidden] = useState(false);
   const [isEditingBio, setIsEditingBio] = useState(false);
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
 
   const handleLogout = async () => {
     try {
@@ -165,15 +169,14 @@ export function ProfileDashboard({
           <div className="lg:col-span-8 flex">
             <ProfileBanner
               profile={profile}
-              onEditBio={() => setIsEditingBio(true)}
+              onEditBio={() => setIsEditingProfile(true)}
             />
           </div>
           <div className="lg:col-span-4 flex">
             <ProfileBioCard
-              initialBio={profile.bio}
+              bio={profile.bio}
               isSelf={profile.isSelf}
-              isEditing={isEditingBio}
-              onCloseEdit={() => setIsEditingBio(false)}
+              onOpenEditBio={() => setIsEditingBio(true)}
             />
           </div>
         </div>
@@ -195,6 +198,36 @@ export function ProfileDashboard({
           </div>
         </div>
       </main>
+
+      {/* ========================================================================= */}
+      {/* ✏️ PROFILE EDIT MODAL */}
+      {/* ========================================================================= */}
+      <ProfileEditModal
+        profile={profile}
+        isOpen={isEditingProfile}
+        onClose={() => setIsEditingProfile(false)}
+        onProfileUpdated={(updated) => {
+          setProfile((prev) => ({
+            ...prev,
+            ...updated,
+          }));
+        }}
+      />
+
+      {/* ========================================================================= */}
+      {/* 📝 BIO EDIT MODAL */}
+      {/* ========================================================================= */}
+      <ProfileBioModal
+        initialBio={profile.bio}
+        isOpen={isEditingBio}
+        onClose={() => setIsEditingBio(false)}
+        onBioUpdated={(newBio) => {
+          setProfile((prev) => ({
+            ...prev,
+            bio: newBio,
+          }));
+        }}
+      />
     </div>
   );
 }

@@ -12,6 +12,7 @@ import {
 export type UserProfileData = {
   id: string;
   email: string | null;
+  nickname: string | null;
   displayName: string;
   firstName: string | null;
   lastName: string | null;
@@ -118,6 +119,7 @@ export async function getUserProfileAction(targetUserId?: string): Promise<Actio
       data: {
         id: dbUser.id,
         email: dbUser.email,
+        nickname: dbUser.nickname,
         displayName: dbUser.displayName || `${dbUser.firstName || ""} ${dbUser.lastName || ""}`.trim() || "FlameHub User",
         firstName: dbUser.firstName,
         lastName: dbUser.lastName,
@@ -344,3 +346,121 @@ export async function updateBioAction(input: { bio: string }): Promise<ActionRes
     return { success: false, error: "Failed to update bio." };
   }
 }
+
+const UpdateProfileDetailsSchema = z.object({
+  displayName: z
+    .string()
+    .trim()
+    .min(2, "Display name must be at least 2 characters")
+    .max(50, "Display name cannot exceed 50 characters"),
+  nickname: z
+    .string()
+    .trim()
+    .max(30, "Nickname cannot exceed 30 characters")
+    .regex(/^[a-zA-Z0-9_]*$/, "Nickname can only contain letters, numbers, and underscores")
+    .optional()
+    .nullable()
+    .transform((val) => (val && val.trim().length > 0 ? val.trim().toLowerCase() : null)),
+  firstName: z.string().trim().max(50).optional().nullable(),
+  lastName: z.string().trim().max(50).optional().nullable(),
+  department: z.string().trim().max(30).optional().nullable(),
+});
+
+export type UpdateProfileDetailsInput = z.infer<typeof UpdateProfileDetailsSchema>;
+
+/**
+ * 🔒 Fortress-Grade Update User Profile Details (Anti-IDOR & Nickname Conflict Prevention)
+ */
+export async function updateProfileDetailsAction(
+  input: UpdateProfileDetailsInput
+): Promise<ActionResult<{ user: Partial<UserProfileData> }>> {
+  try {
+    const validated = UpdateProfileDetailsSchema.safeParse(input);
+    if (!validated.success) {
+      return {
+        success: false,
+        error: validated.error.errors[0]?.message || "Invalid profile data.",
+        code: "VALIDATION_ERROR",
+      };
+    }
+
+    // 🔒 1. Zero Client Trust: Strictly resolve authenticated user session
+    const supabase = await createClient();
+    const {
+      data: { user: authUser },
+    } = await supabase.auth.getUser();
+
+    if (!authUser) {
+      return {
+        success: false,
+        error: "Unauthorized: Please log in to edit your profile.",
+        code: "UNAUTHORIZED",
+      };
+    }
+
+    const { displayName, nickname, firstName, lastName, department } = validated.data;
+
+    // 🔒 2. Unique Nickname Conflict Detection
+    if (nickname) {
+      const existingNicknameOwner = await prisma.user.findFirst({
+        where: {
+          nickname: {
+            equals: nickname,
+            mode: "insensitive",
+          },
+          id: {
+            not: authUser.id,
+          },
+        },
+        select: { id: true },
+      });
+
+      if (existingNicknameOwner) {
+        return {
+          success: false,
+          error: `The nickname "@${nickname}" is already taken by another student.`,
+          code: "NICKNAME_TAKEN",
+        };
+      }
+    }
+
+    // 🔒 3. Atomic Scoped Update targeting ONLY authenticated user ID
+    const updatedUser = await prisma.user.update({
+      where: {
+        id: authUser.id,
+      },
+      data: {
+        displayName,
+        nickname: nickname || null,
+        firstName: firstName || null,
+        lastName: lastName || null,
+        department: department || "CITE",
+      },
+    });
+
+    revalidatePath("/profile");
+    revalidatePath("/");
+
+    return {
+      success: true,
+      data: {
+        user: {
+          id: updatedUser.id,
+          displayName: updatedUser.displayName,
+          nickname: updatedUser.nickname,
+          firstName: updatedUser.firstName,
+          lastName: updatedUser.lastName,
+          department: updatedUser.department,
+        },
+      },
+    };
+  } catch (error) {
+    console.error("UPDATE_PROFILE_DETAILS_ERROR:", error);
+    return {
+      success: false,
+      error: "Unable to update profile. Please try again later.",
+      code: "INTERNAL_ERROR",
+    };
+  }
+}
+
