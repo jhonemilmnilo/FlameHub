@@ -39,6 +39,7 @@ import {
 } from "@/features/feed/actions/post.action";
 import { toggleLikePostAction } from "@/features/feed/actions/post.liked.action";
 import { toggleSavePostAction } from "@/features/feed/actions/post.saved.action";
+import { hidePostAction } from "@/features/feed/actions/post.hide.action";
 import { createCommentAction } from "@/features/feed/actions/comment.action";
 import { CommentDrawerModal } from "@/features/feed/components/comment-drawer-modal";
 import { CustomSelect } from "@/components/ui/custom-select";
@@ -440,6 +441,34 @@ export function HomeFeedDashboard({
         prev.map((p) => (p.id === post.id ? { ...p, isSaved: previousIsSaved } : p))
       );
       toast.error("Network error while saving post.");
+    }
+  };
+
+  const handleHidePost = async (post: PostFeedItem) => {
+    setActiveMenuPostId(null);
+
+    // 🔒 Self-Hide Prohibition Rule
+    if (post.isAuthor) {
+      toast.error("You cannot hide your own post.");
+      return;
+    }
+
+    // ⚡ Optimistic UI removal
+    const originalPosts = posts;
+    setPosts((prev) => prev.filter((p) => p.id !== post.id));
+    toast.success("Post hidden from your feed.");
+
+    try {
+      const res = await hidePostAction(post.id);
+      if (!res.success) {
+        // Rollback on server error
+        setPosts(originalPosts);
+        toast.error(res.error || "Unable to hide post.");
+      }
+    } catch {
+      // Rollback on network failure
+      setPosts(originalPosts);
+      toast.error("Network error while hiding post.");
     }
   };
 
@@ -1005,18 +1034,16 @@ export function HomeFeedDashboard({
                               <span>Copy Link</span>
                             </button>
 
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setActiveMenuPostId(null);
-                                setPosts((prev) => prev.filter((p) => p.id !== post.id));
-                                toast.success("Post hidden from your feed.");
-                              }}
-                              className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-amber-200 hover:text-amber-100 hover:bg-amber-950/40 rounded-lg transition-colors text-left cursor-pointer"
-                            >
-                              <EyeOff className="w-4 h-4 text-amber-400" />
-                              <span>Hide Post</span>
-                            </button>
+                            {!post.isAuthor && (
+                              <button
+                                type="button"
+                                onClick={() => handleHidePost(post)}
+                                className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-amber-200 hover:text-amber-100 hover:bg-amber-950/40 rounded-lg transition-colors text-left cursor-pointer"
+                              >
+                                <EyeOff className="w-4 h-4 text-amber-400" />
+                                <span>Hide Post</span>
+                              </button>
+                            )}
 
                             <div className="my-1 border-t border-[#005a3c]/60" />
 

@@ -36,6 +36,7 @@ model User {
   posts           Post[]
   likedPosts      LikedPost[]
   savedPosts      SavedPost[]
+  hiddenPosts     HiddenPost[]
   comments        Comment[]
 
   @@map("User")
@@ -102,6 +103,7 @@ model Post {
   department    DepartmentType? @relation(fields: [departmentId], references: [id], onDelete: SetNull)
   likedPosts    LikedPost[]
   savedPosts    SavedPost[]
+  hiddenPosts   HiddenPost[]
   comments      Comment[]
 
   // ⚡ Performance Query Indexes
@@ -177,4 +179,24 @@ model SavedPost {
   @@index([userId, savedAt(sort: Desc)])
   @@index([postId])
   @@map("SavedPosts")
+}
+
+// ==========================================
+// 👁️ HIDDEN POST MODEL (Per-User Feed Filter)
+// ==========================================
+model HiddenPost {
+  id        String   @id @default(cuid())
+  userId    String
+  postId    String
+  hiddenAt  DateTime @default(now())
+
+  // 🔗 Relationships with Cascading Deletions
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  // 🔒 Composite Unique Constraint & Performance Indexes
+  @@unique([userId, postId])
+  @@index([userId])
+  @@index([postId])
+  @@map("HiddenPosts")
 }

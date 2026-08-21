@@ -70,6 +70,15 @@ export async function getFeedPostsAction(options?: {
     // Build cursor condition
     const whereClause: Record<string, unknown> = {
       isDeleted: false,
+      ...(currentUserId
+        ? {
+            hiddenPosts: {
+              none: {
+                userId: currentUserId,
+              },
+            },
+          }
+        : {}),
     };
 
     const rawPosts = await prisma.post.findMany({
