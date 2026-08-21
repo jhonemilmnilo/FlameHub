@@ -25,6 +25,7 @@ export type PostFeedItem = {
   isLiked: boolean;
   commentsCount: number;
   createdAt: string;
+  isAuthor: boolean;
 };
 
 type ActionResult<T> =
@@ -36,6 +37,16 @@ export type PaginatedFeedResult = {
   nextCursor: string | null;
   hasMore: boolean;
 };
+
+const EditPostSchema = z.object({
+  postId: z.string().min(1, "Post ID is required"),
+  content: z
+    .string()
+    .trim()
+    .min(1, "Post content cannot be empty")
+    .max(2000, "Post content cannot exceed 2,000 characters"),
+  isAnonymous: z.boolean().optional(),
+});
 
 /**
  * 🔒 Fetch paginated real posts from PostgreSQL via Prisma (Facebook-Style Cursor Stream)
@@ -101,6 +112,7 @@ export async function getFeedPostsAction(options?: {
     const formattedPosts: PostFeedItem[] = postsToReturn.map((p) => {
       const isAnon = p.isAnonymous;
       const isLiked = currentUserId ? Array.isArray(p.likedPosts) && p.likedPosts.length > 0 : false;
+      const isAuthor = currentUserId === p.userId;
 
       return {
         id: p.id,
@@ -113,6 +125,7 @@ export async function getFeedPostsAction(options?: {
         isLiked: isLiked,
         commentsCount: p.commentsCount,
         createdAt: p.createdAt.toISOString(),
+        isAuthor,
       };
     });
 
@@ -241,12 +254,187 @@ export async function createPostAction(rawInput: unknown): Promise<ActionResult<
         isLiked: false,
         commentsCount: newPost.commentsCount,
         createdAt: newPost.createdAt.toISOString(),
+        isAuthor: true,
       },
     };
   } catch {
     return {
       success: false,
       error: "Failed to publish post. Please try again.",
+      code: "INTERNAL_ERROR",
+    };
+  }
+}
+
+/**
+ * 🔒 Edit Post Action with strict IDOR verification
+ */
+export async function editPostAction(rawInput: unknown): Promise<ActionResult<PostFeedItem>> {
+  try {
+    const supabase = await createClient();
+    const {
+      data: { user: authUser },
+    } = await supabase.auth.getUser();
+
+    if (!authUser) {
+      return {
+        success: false,
+        error: "You must be logged in to edit your post.",
+        code: "UNAUTHORIZED",
+      };
+    }
+
+    const parsed = EditPostSchema.safeParse(rawInput);
+    if (!parsed.success) {
+      return {
+        success: false,
+        error: parsed.error.issues[0]?.message || "Invalid edit input.",
+        code: "VALIDATION_ERROR",
+      };
+    }
+
+    const { postId, content, isAnonymous } = parsed.data;
+
+    // 1. Fetch post and strictly verify ownership
+    const post = await prisma.post.findUnique({
+      where: { id: postId },
+      include: {
+        user: true,
+        department: true,
+      },
+    });
+
+    if (!post || post.isDeleted) {
+      return {
+        success: false,
+        error: "Post not found or already deleted.",
+        code: "NOT_FOUND",
+      };
+    }
+
+    // IDOR Protection: Only the author can edit their own post
+    if (post.userId !== authUser.id) {
+      return {
+        success: false,
+        error: "Forbidden: You are not authorized to edit this post.",
+        code: "FORBIDDEN",
+      };
+    }
+
+    // 2. Update post in DB and check current user's liked status
+    const updatedPost = await prisma.post.update({
+      where: { id: postId },
+      data: {
+        content,
+        ...(isAnonymous !== undefined ? { isAnonymous } : {}),
+      },
+      include: {
+        user: true,
+        department: true,
+        likedPosts: {
+          where: {
+            userId: authUser.id,
+          },
+          select: {
+            id: true,
+          },
+        },
+      },
+    });
+
+    revalidatePath("/");
+
+    const isAnon = updatedPost.isAnonymous;
+    const isLiked = Array.isArray(updatedPost.likedPosts) && updatedPost.likedPosts.length > 0;
+
+    return {
+      success: true,
+      data: {
+        id: updatedPost.id,
+        authorName: isAnon ? "Anonymous" : updatedPost.user?.displayName || "Campus Student",
+        department: isAnon ? "Flame" : (updatedPost.department?.code || updatedPost.user?.department || "CITE"),
+        studentId: isAnon ? "Hidden ID" : updatedPost.user?.studentId || "00-0000-000000",
+        content: updatedPost.content,
+        isAnonymous: isAnon,
+        likesCount: updatedPost.likesCount,
+        isLiked,
+        commentsCount: updatedPost.commentsCount,
+        createdAt: updatedPost.createdAt.toISOString(),
+        isAuthor: true,
+      },
+    };
+  } catch {
+    return {
+      success: false,
+      error: "Unable to update post. Please try again.",
+      code: "INTERNAL_ERROR",
+    };
+  }
+}
+
+/**
+ * 🔒 Hard Delete Post Action with strict IDOR verification & Cascading Cleanup
+ */
+export async function deletePostAction(postId: string): Promise<ActionResult<{ id: string }>> {
+  try {
+    const supabase = await createClient();
+    const {
+      data: { user: authUser },
+    } = await supabase.auth.getUser();
+
+    if (!authUser) {
+      return {
+        success: false,
+        error: "You must be logged in to delete a post.",
+        code: "UNAUTHORIZED",
+      };
+    }
+
+    if (!postId || typeof postId !== "string") {
+      return {
+        success: false,
+        error: "Invalid post ID.",
+        code: "VALIDATION_ERROR",
+      };
+    }
+
+    // 1. Fetch post and strictly verify ownership
+    const post = await prisma.post.findUnique({
+      where: { id: postId },
+    });
+
+    if (!post) {
+      return {
+        success: false,
+        error: "Post not found or already deleted.",
+        code: "NOT_FOUND",
+      };
+    }
+
+    // IDOR Protection: Only the author can delete their own post
+    if (post.userId !== authUser.id) {
+      return {
+        success: false,
+        error: "Forbidden: You are not authorized to delete this post.",
+        code: "FORBIDDEN",
+      };
+    }
+
+    // 2. Perform HARD deletion (Postgres automatically cascades to LikedPosts and Comments)
+    await prisma.post.delete({
+      where: { id: postId },
+    });
+
+    revalidatePath("/");
+
+    return {
+      success: true,
+      data: { id: postId },
+    };
+  } catch {
+    return {
+      success: false,
+      error: "Failed to delete post. Please try again.",
       code: "INTERNAL_ERROR",
     };
   }

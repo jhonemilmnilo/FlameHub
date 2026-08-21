@@ -23,13 +23,25 @@ import {
   EyeOff,
   Bookmark,
   Copy,
+  Pencil,
+  Trash2,
+  AlertTriangle,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
-import { createPostAction, getFeedPostsAction, type PostFeedItem } from "@/features/feed/actions/post.action";
+import {
+  createPostAction,
+  getFeedPostsAction,
+  editPostAction,
+  deletePostAction,
+  type PostFeedItem,
+} from "@/features/feed/actions/post.action";
 import { toggleLikePostAction } from "@/features/feed/actions/post.liked.action";
+import { createCommentAction } from "@/features/feed/actions/comment.action";
+import { CommentDrawerModal } from "@/features/feed/components/comment-drawer-modal";
 import { CustomSelect } from "@/components/ui/custom-select";
+import { ConfirmationModal } from "@/components/ui/confirmation-modal";
 import { toast } from "sonner";
 
 function formatRelativeTime(dateString: string): string {
@@ -154,6 +166,13 @@ export function HomeFeedDashboard({
   const [isSubmittingPost, setIsSubmittingPost] = useState(false);
   const [isSidebarHidden, setIsSidebarHidden] = useState(false);
   const [activeMenuPostId, setActiveMenuPostId] = useState<string | null>(null);
+  const [activeDiscussionPost, setActiveDiscussionPost] = useState<PostFeedItem | null>(null);
+  const [editingPost, setEditingPost] = useState<PostFeedItem | null>(null);
+  const [editContent, setEditContent] = useState("");
+  const [editIsAnonymous, setEditIsAnonymous] = useState(false);
+  const [isSubmittingEdit, setIsSubmittingEdit] = useState(false);
+  const [deletingPost, setDeletingPost] = useState<PostFeedItem | null>(null);
+  const [isSubmittingDelete, setIsSubmittingDelete] = useState(false);
 
   // 🧠 Client-Side Live Filter & Smart Controversial Sort Algorithm
   const filteredAndSortedPosts = React.useMemo(() => {
@@ -346,6 +365,19 @@ export function HomeFeedDashboard({
           )
         );
         toast.error(res.error || "Failed to update like.");
+      } else if (res.data) {
+        // 🛡️ Sync to exact server-verified count and like state
+        setPosts((prev) =>
+          prev.map((post) =>
+            post.id === postId
+              ? {
+                  ...post,
+                  isLiked: res.data.isLiked,
+                  likesCount: res.data.likesCount,
+                }
+              : post
+          )
+        );
       }
     } catch {
       // Rollback on network failure
@@ -373,16 +405,49 @@ export function HomeFeedDashboard({
 
     setSendingComments((prev) => ({ ...prev, [postId]: true }));
 
-    // Optimistic update
+    // ⚡ Optimistic update: increment count and clear input immediately
     setPosts((prev) =>
       prev.map((p) => (p.id === postId ? { ...p, commentsCount: p.commentsCount + 1 } : p))
     );
     setCommentInputs((prev) => ({ ...prev, [postId]: "" }));
 
-    // Simulate snappy network response and return arrow back to upright/horizontal center position
-    setTimeout(() => {
-      setSendingComments((prev) => ({ ...prev, [postId]: false }));
-    }, 600);
+    try {
+      const res = await createCommentAction({
+        postId,
+        content: text,
+        isAnonymous: false,
+      });
+
+      if (!res.success) {
+        // Rollback on server error
+        setPosts((prev) =>
+          prev.map((p) =>
+            p.id === postId
+              ? { ...p, commentsCount: Math.max(0, p.commentsCount - 1) }
+              : p
+          )
+        );
+        setCommentInputs((prev) => ({ ...prev, [postId]: text }));
+        toast.error(res.error || "Failed to post comment.");
+      } else {
+        toast.success("Comment posted!");
+      }
+    } catch {
+      // Rollback on network error
+      setPosts((prev) =>
+        prev.map((p) =>
+          p.id === postId
+            ? { ...p, commentsCount: Math.max(0, p.commentsCount - 1) }
+            : p
+        )
+      );
+      setCommentInputs((prev) => ({ ...prev, [postId]: text }));
+      toast.error("Network error while sending comment.");
+    } finally {
+      setTimeout(() => {
+        setSendingComments((prev) => ({ ...prev, [postId]: false }));
+      }, 500);
+    }
   };
 
   const handleCreatePost = async (e: React.FormEvent) => {
@@ -403,8 +468,8 @@ export function HomeFeedDashboard({
         setIsComposerOpen(false);
         toast.success(
           isAnonymous
-            ? "Anonymous post published secretly! 👻"
-            : "Post published successfully! 🎉"
+            ? "Anonymous post published secretly!"
+            : "Post published successfully!"
         );
       } else {
         toast.error(res.error || "Failed to create post.");
@@ -413,6 +478,74 @@ export function HomeFeedDashboard({
       toast.error("Something went wrong while publishing your post.");
     } finally {
       setIsSubmittingPost(false);
+    }
+  };
+
+  const handleOpenEdit = (post: PostFeedItem) => {
+    setActiveMenuPostId(null);
+    setEditingPost(post);
+    setEditContent(post.content);
+    setEditIsAnonymous(post.isAnonymous);
+  };
+
+  const handleSaveEditPost = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingPost || !editContent.trim() || isSubmittingEdit) return;
+
+    setIsSubmittingEdit(true);
+    try {
+      const res = await editPostAction({
+        postId: editingPost.id,
+        content: editContent.trim(),
+        isAnonymous: editIsAnonymous,
+      });
+
+      if (res.success && res.data) {
+        setPosts((prev) =>
+          prev.map((p) => (p.id === editingPost.id ? res.data : p))
+        );
+        setEditingPost(null);
+        toast.success("Post updated successfully!");
+      } else {
+        toast.error(res.error || "Failed to update post.");
+      }
+    } catch {
+      toast.error("Something went wrong while updating post.");
+    } finally {
+      setIsSubmittingEdit(false);
+    }
+  };
+
+  const handleOpenDelete = (post: PostFeedItem) => {
+    setActiveMenuPostId(null);
+    setDeletingPost(post);
+  };
+
+  const handleConfirmDeletePost = async () => {
+    if (!deletingPost || isSubmittingDelete) return;
+
+    const targetPostId = deletingPost.id;
+    setIsSubmittingDelete(true);
+
+    // Optimistic remove
+    const originalPosts = posts;
+    setPosts((prev) => prev.filter((p) => p.id !== targetPostId));
+    setDeletingPost(null);
+
+    try {
+      const res = await deletePostAction(targetPostId);
+      if (res.success) {
+        toast.success("Post deleted permanently!");
+      } else {
+        // Rollback on server error
+        setPosts(originalPosts);
+        toast.error(res.error || "Failed to delete post.");
+      }
+    } catch {
+      setPosts(originalPosts);
+      toast.error("Network error while deleting post.");
+    } finally {
+      setIsSubmittingDelete(false);
     }
   };
 
@@ -713,7 +846,7 @@ export function HomeFeedDashboard({
                           onClick={() => {
                             if (navigator.clipboard) {
                               navigator.clipboard.writeText(window.location.href);
-                              toast.success("Post link copied to clipboard! 📋");
+                              toast.success("Post link copied to clipboard!");
                             }
                           }}
                           className="p-1 text-white/80 hover:text-white hover:scale-110 active:scale-95 transition-transform cursor-pointer"
@@ -722,11 +855,12 @@ export function HomeFeedDashboard({
                           <Share2 className="w-5 h-5" />
                         </button>
 
-                        {/* Comment Icon with optional counter badge */}
+                        {/* Comment Icon with trigger to open discussion drawer */}
                         <button
                           type="button"
+                          onClick={() => setActiveDiscussionPost(post)}
                           className="p-1 text-white/80 hover:text-white hover:scale-110 active:scale-95 transition-transform cursor-pointer flex items-center gap-1.5"
-                          title="Comment"
+                          title="View discussion & comments"
                         >
                           <MessageCircle className="w-5 h-5" />
                         </button>
@@ -748,11 +882,36 @@ export function HomeFeedDashboard({
 
                         {activeMenuPostId === post.id && (
                           <div className="absolute right-0 bottom-full mb-2 w-48 bg-[#003825] border border-[#005a3c] rounded-xl shadow-2xl p-1.5 z-30 animate-in fade-in zoom-in-95 duration-150 backdrop-blur-md">
+                            {/* Author Only Actions */}
+                            {post.isAuthor && (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenEdit(post)}
+                                  className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-emerald-300 hover:text-white hover:bg-[#004e34] rounded-lg transition-colors text-left cursor-pointer"
+                                >
+                                  <Pencil className="w-4 h-4 text-emerald-300" />
+                                  <span>Edit Post</span>
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenDelete(post)}
+                                  className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-rose-400 hover:text-rose-200 hover:bg-rose-950/40 rounded-lg transition-colors text-left cursor-pointer"
+                                >
+                                  <Trash2 className="w-4 h-4 text-rose-400" />
+                                  <span>Delete Post</span>
+                                </button>
+
+                                <div className="my-1 border-t border-[#005a3c]/60" />
+                              </>
+                            )}
+
                             <button
                               type="button"
                               onClick={() => {
                                 setActiveMenuPostId(null);
-                                toast.info("Bookmark feature coming soon! 📌");
+                                toast.info("Bookmark feature coming soon!");
                               }}
                               className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-emerald-100 hover:text-white hover:bg-[#004e34] rounded-lg transition-colors text-left cursor-pointer"
                             >
@@ -766,7 +925,7 @@ export function HomeFeedDashboard({
                                 setActiveMenuPostId(null);
                                 if (navigator.clipboard) {
                                   navigator.clipboard.writeText(window.location.href);
-                                  toast.success("Post link copied to clipboard! 📋");
+                                  toast.success("Post link copied to clipboard!");
                                 }
                               }}
                               className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-emerald-100 hover:text-white hover:bg-[#004e34] rounded-lg transition-colors text-left cursor-pointer"
@@ -780,7 +939,7 @@ export function HomeFeedDashboard({
                               onClick={() => {
                                 setActiveMenuPostId(null);
                                 setPosts((prev) => prev.filter((p) => p.id !== post.id));
-                                toast.success("Post hidden from your feed. 👁️");
+                                toast.success("Post hidden from your feed.");
                               }}
                               className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-amber-200 hover:text-amber-100 hover:bg-amber-950/40 rounded-lg transition-colors text-left cursor-pointer"
                             >
@@ -794,7 +953,7 @@ export function HomeFeedDashboard({
                               type="button"
                               onClick={() => {
                                 setActiveMenuPostId(null);
-                                toast.success("Report submitted to moderation team! 🛡️");
+                                toast.success("Report submitted to moderation team.");
                               }}
                               className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-rose-300 hover:text-rose-100 hover:bg-rose-950/40 rounded-lg transition-colors text-left cursor-pointer"
                             >
@@ -811,10 +970,17 @@ export function HomeFeedDashboard({
                       <div className="flex items-center gap-2.5">
                         <span>{post.likesCount} {post.likesCount === 1 ? "like" : "likes"}</span>
                         <span className="text-emerald-300/40">•</span>
-                        <span>{post.commentsCount} {post.commentsCount === 1 ? "comment" : "comments"}</span>
+                        <button
+                          type="button"
+                          onClick={() => setActiveDiscussionPost(post)}
+                          className="hover:text-emerald-300 hover:underline cursor-pointer transition-colors"
+                        >
+                          {post.commentsCount} {post.commentsCount === 1 ? "comment" : "comments"}
+                        </button>
                       </div>
                       <time
                         dateTime={post.createdAt}
+                        suppressHydrationWarning
                         className="text-emerald-200/60 font-medium text-[11px]"
                       >
                         {formatRelativeTime(post.createdAt)}
@@ -959,6 +1125,118 @@ export function HomeFeedDashboard({
           </div>
         </div>
       )}
+
+      {/* ========================================================================= */}
+      {/* ✏️ POST EDIT MODAL */}
+      {/* ========================================================================= */}
+      {editingPost && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-fadeIn">
+          <div className="w-full max-w-lg bg-[#00432c] border border-[#005a3c] rounded-2xl p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-[#005a3c] pb-3">
+              <h3 className="font-extrabold text-base text-white font-heading">
+                Edit Post
+              </h3>
+              <button
+                type="button"
+                disabled={isSubmittingEdit}
+                onClick={() => setEditingPost(null)}
+                className="text-white/60 hover:text-white text-sm font-bold cursor-pointer p-1 disabled:opacity-40"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveEditPost} className="space-y-4">
+              <textarea
+                rows={4}
+                autoFocus
+                disabled={isSubmittingEdit}
+                placeholder="Edit your post content..."
+                value={editContent}
+                onChange={(e) => setEditContent(e.target.value)}
+                className="w-full bg-[#003825] border border-[#005a3c] rounded-xl p-3.5 text-sm text-white placeholder-white/40 focus:outline-none focus:border-[#94d3a2] transition-all resize-none disabled:opacity-60"
+              />
+
+              <div className="flex items-center justify-between pt-2">
+                {/* 👻 Anonymous Mode Toggle Button for Edit */}
+                <button
+                  type="button"
+                  disabled={isSubmittingEdit}
+                  onClick={() => setEditIsAnonymous((prev) => !prev)}
+                  className={`flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer select-none ${
+                    editIsAnonymous
+                      ? "bg-purple-950/80 text-purple-200 border border-purple-400/60 shadow-[0_0_12px_rgba(168,85,247,0.3)]"
+                      : "bg-[#003825] text-emerald-200/80 border border-[#005a3c] hover:text-white hover:border-[#94d3a2]/50"
+                  }`}
+                >
+                  {editIsAnonymous ? (
+                    <>
+                      <Ghost className="w-4 h-4 text-purple-300 animate-pulse" />
+                      <span>Post as Anonymous</span>
+                    </>
+                  ) : (
+                    <>
+                      <UserCheck className="w-4 h-4 text-emerald-300" />
+                      <span>Public Identity</span>
+                    </>
+                  )}
+                </button>
+
+                {/* 🚀 Save Changes Button */}
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    disabled={isSubmittingEdit}
+                    onClick={() => setEditingPost(null)}
+                    className="px-4 py-2 rounded-full text-xs font-bold text-white/70 hover:text-white hover:bg-white/10 transition-all cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={!editContent.trim() || isSubmittingEdit}
+                    className="px-6 py-2.5 rounded-full bg-white hover:bg-emerald-50 text-[#006241] font-black text-xs uppercase tracking-wider shadow-md transition-all hover:scale-105 active:scale-95 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+                  >
+                    {isSubmittingEdit ? "SAVING..." : "SAVE"}
+                  </button>
+                </div>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* 🗑️ SHARED DELETE CONFIRMATION MODAL */}
+      {/* ========================================================================= */}
+      <ConfirmationModal
+        isOpen={Boolean(deletingPost)}
+        onClose={() => setDeletingPost(null)}
+        onConfirm={handleConfirmDeletePost}
+        title="Delete Post?"
+        description="Are you sure you want to delete this post? This action is permanent and will also remove all discussions attached to it."
+        previewText={deletingPost?.content}
+        confirmText="DELETE"
+        confirmLoadingText="DELETING..."
+        isLoading={isSubmittingDelete}
+        variant="danger"
+      />
+
+      {/* ========================================================================= */}
+      {/* 💬 COMMENT THREAD & DISCUSSION DRAWER */}
+      {/* ========================================================================= */}
+      <CommentDrawerModal
+        post={activeDiscussionPost}
+        isOpen={Boolean(activeDiscussionPost)}
+        onClose={() => setActiveDiscussionPost(null)}
+        onCommentAdded={(postId) => {
+          setPosts((prev) =>
+            prev.map((p) =>
+              p.id === postId ? { ...p, commentsCount: p.commentsCount + 1 } : p
+            )
+          );
+        }}
+      />
     </div>
   );
 }
