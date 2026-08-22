@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import Image from "next/image";
 import {
   Home,
   Bell,
@@ -75,6 +76,8 @@ interface HomeFeedDashboardProps {
   currentUser?: {
     name: string;
     studentId: string;
+    avatarUrl?: string | null;
+    nickname?: string | null;
   };
   initialPosts?: PostFeedItem[];
   initialNextCursor?: string | null;
@@ -702,8 +705,18 @@ export function HomeFeedDashboard({
               onClick={() => router.push("/profile")}
               className="flex items-center gap-3.5 overflow-hidden text-left cursor-pointer group hover:opacity-90 transition-opacity"
             >
-              <div className="w-12 h-12 lg:w-14 lg:h-14 rounded-full bg-white flex items-center justify-center shrink-0 shadow-md text-[#006241] font-black text-lg">
-                {currentUser.name ? currentUser.name.charAt(0).toUpperCase() : "U"}
+              <div className="w-12 h-12 lg:w-14 lg:h-14 rounded-full bg-[#002f1f] border-2 border-[#8CC497] overflow-hidden flex items-center justify-center shrink-0 shadow-md text-[#8CC497] font-black text-lg relative">
+                {currentUser.avatarUrl ? (
+                  <Image
+                    src={currentUser.avatarUrl}
+                    alt={currentUser.name}
+                    fill
+                    unoptimized
+                    className="object-cover"
+                  />
+                ) : (
+                  <span>{currentUser.name ? currentUser.name.charAt(0).toUpperCase() : "U"}</span>
+                )}
               </div>
               <div className="overflow-hidden">
                 <h2 className="font-extrabold text-sm lg:text-base text-white truncate tracking-tight font-heading group-hover:text-[#8CC497] transition-colors">
@@ -828,8 +841,18 @@ export function HomeFeedDashboard({
           className="w-full bg-[#003F2A] border border-[#005a3c]/60 rounded-[10px] p-4 md:p-5 shadow-xl"
         >
           <div className="flex items-center gap-4">
-            <div className="w-12 h-12 md:w-14 md:h-14 rounded-full bg-[#8CC497] shrink-0 flex items-center justify-center text-[#003F2A] font-black text-lg shadow-inner">
-              {currentUser.name ? currentUser.name.charAt(0).toUpperCase() : "U"}
+            <div className="w-12 h-12 md:w-14 md:h-14 rounded-full bg-[#002f1f] border-2 border-[#8CC497] shrink-0 flex items-center justify-center text-[#8CC497] font-black text-lg shadow-inner relative overflow-hidden">
+              {currentUser.avatarUrl ? (
+                <Image
+                  src={currentUser.avatarUrl}
+                  alt={currentUser.name}
+                  fill
+                  unoptimized
+                  className="object-cover"
+                />
+              ) : (
+                <span>{currentUser.name ? currentUser.name.charAt(0).toUpperCase() : "U"}</span>
+              )}
             </div>
             <button
               type="button"
@@ -959,18 +982,36 @@ export function HomeFeedDashboard({
                 >
                   {/* Card Header: Avatar + Author info */}
                   <div className="flex items-center gap-3">
-                    <div className="w-11 h-11 rounded-full bg-[#8CC497] shrink-0 flex items-center justify-center text-[#003F2A] font-black text-sm shadow-inner">
-                      {post.isAnonymous ? "A" : post.authorName.charAt(0).toUpperCase()}
+                    <div
+                      className={`w-11 h-11 rounded-full shrink-0 flex items-center justify-center font-black text-sm relative overflow-hidden shadow-inner ${
+                        post.isAnonymous && !post.isAuthor
+                          ? "bg-purple-950/80 border border-purple-500/40 text-purple-300"
+                          : "bg-[#002f1f] border border-[#8CC497] text-[#8CC497]"
+                      }`}
+                    >
+                      {post.isAnonymous && !post.isAuthor ? (
+                        <Ghost className="w-5 h-5 text-purple-300" />
+                      ) : post.authorAvatarUrl ? (
+                        <Image
+                          src={post.authorAvatarUrl}
+                          alt={post.authorName}
+                          fill
+                          unoptimized
+                          className="object-cover"
+                        />
+                      ) : (
+                        <span>{post.authorName.charAt(0).toUpperCase()}</span>
+                      )}
                     </div>
                     <div className="overflow-hidden">
-                      <h3 className="font-bold text-xs sm:text-sm text-white truncate">
-                        {post.isAnonymous ? "Anonymous" : post.authorName}{" "}
+                      <h3 className="font-bold text-xs sm:text-sm text-white truncate flex items-center gap-1.5">
+                        <span>{post.authorName}</span>
                         <span className="font-semibold text-[#8CC497]">
-                          | {post.isAnonymous ? "Flame" : post.department}
+                          | {post.isAnonymous && !post.isAuthor ? "Flame" : post.department}
                         </span>
                       </h3>
                       <p className="text-[11px] text-[#8CC497] font-medium">
-                        {post.isAnonymous ? "Hidden ID" : post.studentId}
+                        {post.isAnonymous && !post.isAuthor ? "Hidden ID" : post.studentId}
                       </p>
                     </div>
                   </div>

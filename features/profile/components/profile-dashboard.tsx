@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -76,8 +77,18 @@ export function ProfileDashboard({
               href="/profile"
               className="flex items-center gap-3.5 overflow-hidden group hover:opacity-90 transition-opacity"
             >
-              <div className="w-12 h-12 rounded-full bg-white flex items-center justify-center shrink-0 shadow-md text-[#006241] font-black text-lg">
-                {profile.displayName.charAt(0).toUpperCase()}
+              <div className="w-12 h-12 rounded-full bg-[#002f1f] border-2 border-[#8CC497] overflow-hidden flex items-center justify-center shrink-0 shadow-md text-[#8CC497] font-black text-lg relative">
+                {profile.avatarUrl ? (
+                  <Image
+                    src={profile.avatarUrl}
+                    alt={profile.displayName}
+                    fill
+                    unoptimized
+                    className="object-cover"
+                  />
+                ) : (
+                  <span>{profile.displayName.charAt(0).toUpperCase()}</span>
+                )}
               </div>
               <div className="overflow-hidden">
                 <h2 className="font-extrabold text-sm lg:text-base text-white truncate tracking-tight font-heading group-hover:text-[#8CC497] transition-colors">

@@ -1,12 +1,14 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
+import Image from "next/image";
 import {
   X,
   Send,
   Heart,
   MoreHorizontal,
   ChevronDown,
+  Ghost,
 } from "lucide-react";
 import {
   createCommentAction,
@@ -250,14 +252,32 @@ export function CommentDrawerModal({
                     {/* Compact Comment Header with Heart Button */}
                     <div className="flex items-center justify-between gap-2">
                       <div className="flex items-center gap-2.5">
-                        <div className="w-8 h-8 rounded-full bg-[#8CC497] shrink-0 flex items-center justify-center text-[#003F2A] font-black text-xs shadow-xs">
-                          {comment.isAnonymous ? "A" : comment.authorName.charAt(0).toUpperCase()}
+                        <div
+                          className={`w-8 h-8 rounded-full shrink-0 flex items-center justify-center font-black text-xs relative overflow-hidden shadow-xs ${
+                            comment.isAnonymous && !comment.isAuthor
+                              ? "bg-purple-950/80 border border-purple-500/40 text-purple-300"
+                              : "bg-[#003F2A] border border-[#8CC497] text-[#8CC497]"
+                          }`}
+                        >
+                          {comment.isAnonymous && !comment.isAuthor ? (
+                            <Ghost className="w-4 h-4 text-purple-300" />
+                          ) : comment.authorAvatarUrl ? (
+                            <Image
+                              src={comment.authorAvatarUrl}
+                              alt={comment.authorName}
+                              fill
+                              unoptimized
+                              className="object-cover"
+                            />
+                          ) : (
+                            <span>{comment.authorName.charAt(0).toUpperCase()}</span>
+                          )}
                         </div>
                         <div>
                           <h4 className="font-extrabold text-xs sm:text-[13px] text-white tracking-tight font-heading leading-tight">
-                            {comment.isAnonymous ? "Anonymous" : comment.authorName}{" "}
+                            {comment.authorName}{" "}
                             <span className="font-medium text-[#8CC497] text-[11px]">
-                              | {comment.isAnonymous ? "Flame" : comment.department}
+                              | {comment.isAnonymous && !comment.isAuthor ? "Flame" : comment.department}
                             </span>
                           </h4>
                         </div>

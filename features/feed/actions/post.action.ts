@@ -17,6 +17,8 @@ const CreatePostSchema = z.object({
 export type PostFeedItem = {
   id: string;
   authorName: string;
+  authorNickname?: string | null;
+  authorAvatarUrl?: string | null;
   department: string;
   studentId: string;
   content: string;
@@ -91,6 +93,8 @@ export async function getFeedPostsAction(options?: {
         user: {
           select: {
             displayName: true,
+            nickname: true,
+            avatarUrl: true,
             studentId: true,
             department: true,
           },
@@ -141,11 +145,16 @@ export async function getFeedPostsAction(options?: {
       const isSaved = currentUserId ? Array.isArray(p.savedPosts) && p.savedPosts.length > 0 : false;
       const isAuthor = currentUserId === p.userId;
 
+      // 🛡️ Privacy Guard: If anonymous, ONLY author sees their own avatar & info. Others see Anonymous Ghost state.
+      const canViewIdentity = !isAnon || isAuthor;
+
       return {
         id: p.id,
-        authorName: isAnon ? "Anonymous" : p.user?.displayName || "Campus Student",
-        department: isAnon ? "Flame" : (p.department?.code || p.user?.department || "CITE"),
-        studentId: isAnon ? "Hidden ID" : p.user?.studentId || "00-0000-000000",
+        authorName: isAnon ? (isAuthor ? `${p.user?.displayName || "You"} (Anonymous)` : "Anonymous") : p.user?.displayName || "Campus Student",
+        authorNickname: canViewIdentity ? p.user?.nickname : null,
+        authorAvatarUrl: canViewIdentity ? p.user?.avatarUrl : null,
+        department: isAnon && !isAuthor ? "Flame" : (p.department?.code || p.user?.department || "CITE"),
+        studentId: isAnon && !isAuthor ? "Hidden ID" : p.user?.studentId || "00-0000-000000",
         content: p.content,
         isAnonymous: isAnon,
         likesCount: p.likesCount,

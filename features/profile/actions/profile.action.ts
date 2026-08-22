@@ -188,6 +188,8 @@ export async function getUserPostsAction(options?: {
         user: {
           select: {
             displayName: true,
+            nickname: true,
+            avatarUrl: true,
             studentId: true,
             department: true,
           },
@@ -226,13 +228,19 @@ export async function getUserPostsAction(options?: {
 
     const posts: PostFeedItem[] = postsToReturn.map((p) => {
       const isPostAuthor = currentUserId === p.userId;
-      const displayAuthorName = p.isAnonymous && !isPostAuthor ? "Anonymous" : p.user.displayName;
+      const canViewIdentity = !p.isAnonymous || isPostAuthor;
+
+      const displayAuthorName = p.isAnonymous
+        ? (isPostAuthor ? `${p.user.displayName} (Anonymous)` : "Anonymous")
+        : p.user.displayName;
       const displayStudentId = p.isAnonymous && !isPostAuthor ? "Hidden ID" : p.user.studentId || "Student";
-      const displayDepartment = p.department?.code || p.user.department || "CITE";
+      const displayDepartment = p.isAnonymous && !isPostAuthor ? "Flame" : (p.department?.code || p.user.department || "CITE");
 
       return {
         id: p.id,
         authorName: displayAuthorName,
+        authorNickname: canViewIdentity ? p.user.nickname : null,
+        authorAvatarUrl: canViewIdentity ? p.user.avatarUrl : null,
         department: displayDepartment,
         studentId: displayStudentId,
         content: p.content,

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import Image from "next/image";
 import {
   Filter,
   Search,
@@ -542,20 +543,38 @@ export function ProfileActivityFeed({
               style={{ borderRadius: "10px" }}
               className="bg-[#003F2A] border border-[#005a3c]/60 rounded-[10px] p-5 flex flex-col justify-between space-y-4 shadow-xl hover:border-[#8CC497]/40 transition-all"
             >
-              {/* Header: Light Green Avatar + Author + Dept + Student ID */}
+              {/* Header: Avatar + Author + Dept + Student ID */}
               <div className="flex items-center gap-3.5">
-                <div className="w-12 h-12 rounded-full bg-[#8CC497] shrink-0 flex items-center justify-center text-[#003F2A] font-black text-base shadow-inner">
-                  {post.isAnonymous ? "A" : post.authorName.charAt(0).toUpperCase()}
+                <div
+                  className={`w-11 h-11 rounded-full shrink-0 flex items-center justify-center font-black text-sm relative overflow-hidden shadow-inner ${
+                    post.isAnonymous && !post.isAuthor
+                      ? "bg-purple-950/80 border border-purple-500/40 text-purple-300"
+                      : "bg-[#002f1f] border border-[#8CC497] text-[#8CC497]"
+                  }`}
+                >
+                  {post.isAnonymous && !post.isAuthor ? (
+                    <Ghost className="w-5 h-5 text-purple-300" />
+                  ) : post.authorAvatarUrl ? (
+                    <Image
+                      src={post.authorAvatarUrl}
+                      alt={post.authorName}
+                      fill
+                      unoptimized
+                      className="object-cover"
+                    />
+                  ) : (
+                    <span>{post.authorName.charAt(0).toUpperCase()}</span>
+                  )}
                 </div>
                 <div className="overflow-hidden">
-                  <h3 className="font-bold text-xs sm:text-sm text-white truncate">
-                    {post.isAnonymous ? "Anonymous" : post.authorName}{" "}
+                  <h3 className="font-bold text-xs sm:text-sm text-white truncate flex items-center gap-1.5">
+                    <span>{post.authorName}</span>
                     <span className="text-[#8CC497] font-semibold">
-                      | {post.isAnonymous ? "Flame" : post.department}
+                      | {post.isAnonymous && !post.isAuthor ? "Flame" : post.department}
                     </span>
                   </h3>
                   <p className="text-[11px] text-[#8CC497] font-medium">
-                    {post.isAnonymous ? "Hidden ID" : post.studentId}
+                    {post.isAnonymous && !post.isAuthor ? "Hidden ID" : post.studentId}
                   </p>
                 </div>
               </div>

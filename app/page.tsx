@@ -23,8 +23,20 @@ export default async function Home() {
   const meta = authUser.user_metadata || {};
   const firstName = meta.first_name || "";
   const lastName = meta.last_name || "";
-  const displayName = meta.display_name || `${firstName} ${lastName}`.trim() || "";
-  const studentId = meta.student_id || "";
+  const metaDisplayName = meta.display_name || `${firstName} ${lastName}`.trim() || "";
+  const metaStudentId = meta.student_id || "";
+
+  // ⚡ Fetch DB user to retrieve freshest avatarUrl & details
+  const { prisma } = await import("@/lib/prisma");
+  const dbUser = await prisma.user.findUnique({
+    where: { id: authUser.id },
+    select: {
+      avatarUrl: true,
+      displayName: true,
+      studentId: true,
+      nickname: true,
+    },
+  });
 
   // ⚡ Server-Side Fetch 30 real posts
   const initialFeedData = await getFeedPostsAction({ limit: 30 });
@@ -32,8 +44,10 @@ export default async function Home() {
   return (
     <HomeFeedDashboard
       currentUser={{
-        name: displayName,
-        studentId: studentId,
+        name: dbUser?.displayName || metaDisplayName || "Campus Student",
+        studentId: dbUser?.studentId || metaStudentId || "00-0000-000000",
+        avatarUrl: dbUser?.avatarUrl || null,
+        nickname: dbUser?.nickname || null,
       }}
       initialPosts={initialFeedData.posts}
       initialNextCursor={initialFeedData.nextCursor}

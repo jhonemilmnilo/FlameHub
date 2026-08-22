@@ -19,6 +19,8 @@ export type CommentFeedItem = {
   id: string;
   postId: string;
   authorName: string;
+  authorNickname?: string | null;
+  authorAvatarUrl?: string | null;
   department: string;
   studentId: string;
   content: string;
@@ -76,7 +78,7 @@ export async function createCommentAction(
       const displayName =
         meta.display_name || `${firstName} ${lastName}`.trim() || "Student";
       const studentId = meta.student_id || "00-0000-000000";
-      const department = meta.department || "CITE";
+      const metaDept = meta.department || "CITE";
 
       userRecord = await prisma.user.create({
         data: {
@@ -86,35 +88,20 @@ export async function createCommentAction(
           firstName,
           lastName,
           studentId,
-          department,
+          department: metaDept,
           isEmailVerified: true,
         },
       });
     }
 
-    // 2. Ensure parent post exists and is not deleted
-    const targetPost = await prisma.post.findFirst({
-      where: { id: postId, isDeleted: false },
-    });
-
-    if (!targetPost) {
-      return {
-        success: false,
-        error: "Post not found or has been deleted.",
-        code: "NOT_FOUND",
-      };
-    }
-
-    // 3. Atomic insertion of comment + increment post.commentsCount
+    // 2. Perform Atomic Post Comment Creation + Increment Post.commentsCount
     const [newComment] = await prisma.$transaction([
       prisma.comment.create({
         data: {
-          postId,
-          userId: userRecord.id,
           content,
-          isAnonymous,
-          likesCount: 0,
-          commentCounts: 0,
+          postId,
+          userId: authUser.id,
+          isAnonymous: Boolean(isAnonymous),
         },
       }),
       prisma.post.update({
@@ -136,7 +123,9 @@ export async function createCommentAction(
       data: {
         id: newComment.id,
         postId: newComment.postId,
-        authorName: isAnon ? "Anonymous" : userRecord.displayName,
+        authorName: isAnon ? `${userRecord.displayName} (Anonymous)` : userRecord.displayName,
+        authorNickname: userRecord.nickname,
+        authorAvatarUrl: userRecord.avatarUrl,
         department: isAnon ? "Flame" : (userRecord.department || "CITE"),
         studentId: isAnon ? "Hidden ID" : (userRecord.studentId || "00-0000-000000"),
         content: newComment.content,
@@ -178,6 +167,8 @@ export async function getPostCommentsAction(
         user: {
           select: {
             displayName: true,
+            nickname: true,
+            avatarUrl: true,
             studentId: true,
             department: true,
           },
@@ -191,13 +182,16 @@ export async function getPostCommentsAction(
     const sanitizedComments: CommentFeedItem[] = rawComments.map((c) => {
       const isAnon = c.isAnonymous;
       const isAuthor = currentUserId === c.userId;
+      const canViewIdentity = !isAnon || isAuthor;
 
       return {
         id: c.id,
         postId: c.postId,
-        authorName: isAnon ? "Anonymous" : c.user?.displayName || "Student",
-        department: isAnon ? "Flame" : (c.user?.department || "CITE"),
-        studentId: isAnon ? "Hidden ID" : (c.user?.studentId || "00-0000-000000"),
+        authorName: isAnon ? (isAuthor ? `${c.user?.displayName || "You"} (Anonymous)` : "Anonymous") : c.user?.displayName || "Student",
+        authorNickname: canViewIdentity ? c.user?.nickname : null,
+        authorAvatarUrl: canViewIdentity ? c.user?.avatarUrl : null,
+        department: isAnon && !isAuthor ? "Flame" : (c.user?.department || "CITE"),
+        studentId: isAnon && !isAuthor ? "Hidden ID" : (c.user?.studentId || "00-0000-000000"),
         content: c.content,
         isAnonymous: isAnon,
         likesCount: c.likesCount,

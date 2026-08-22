@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import Image from "next/image";
 import { X, Heart, Search } from "lucide-react";
 import Link from "next/link";
 import {
@@ -173,8 +174,18 @@ export function PostLikersModal({
                   onClick={onClose}
                   className="flex items-center gap-2.5 flex-1 overflow-hidden"
                 >
-                  <div className="w-8 h-8 rounded-full bg-[#8CC497] shrink-0 flex items-center justify-center text-[#003F2A] font-black text-xs shadow-inner group-hover:scale-105 transition-transform">
-                    {user.displayName.charAt(0).toUpperCase()}
+                  <div className="w-8 h-8 rounded-full bg-[#003F2A] border border-[#8CC497] overflow-hidden shrink-0 flex items-center justify-center text-[#8CC497] font-black text-xs shadow-inner group-hover:scale-105 transition-transform relative">
+                    {user.avatarUrl ? (
+                      <Image
+                        src={user.avatarUrl}
+                        alt={user.displayName}
+                        fill
+                        unoptimized
+                        className="object-cover"
+                      />
+                    ) : (
+                      <span>{user.displayName.charAt(0).toUpperCase()}</span>
+                    )}
                   </div>
                   <div className="overflow-hidden">
                     <h4 className="font-bold text-xs text-white truncate group-hover:text-[#8CC497] transition-colors font-heading">

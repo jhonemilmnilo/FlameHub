@@ -58,10 +58,7 @@ export function ProfileBanner({
       <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6 lg:gap-8">
         {/* User Portrait / Avatar Box with Edit Badge & Overlay */}
         <div className="relative shrink-0 group">
-          <div
-            style={{ borderRadius: "10px" }}
-            className="relative w-28 h-28 sm:w-36 sm:h-36 md:w-44 md:h-44 rounded-[10px] overflow-hidden bg-[#002f1f] border-2 border-[#8CC497] shadow-[0_10px_30px_rgba(0,0,0,0.5),0_0_20px_rgba(140,196,151,0.25)] ring-1 ring-white/20 transition-all duration-300 group-hover:border-white"
-          >
+          <div className="relative w-28 h-28 sm:w-36 sm:h-36 md:w-44 md:h-44 rounded-full overflow-hidden bg-[#002f1f] border-2 border-[#8CC497] shadow-[0_10px_30px_rgba(0,0,0,0.5),0_0_20px_rgba(140,196,151,0.25)] ring-1 ring-white/20 transition-all duration-300 group-hover:border-white">
             {profile.avatarUrl ? (
               <Image
                 src={profile.avatarUrl}
@@ -97,13 +94,12 @@ export function ProfileBanner({
               disabled={isAvatarLoading}
               onClick={handleAvatarClick}
               title="Edit Profile Photo"
-              style={{ borderRadius: "10px" }}
-              className="absolute -bottom-2 -right-2 p-2 rounded-[10px] bg-[#003F2A] border-2 border-[#8CC497] text-[#8CC497] hover:bg-[#8CC497] hover:text-[#003F2A] shadow-xl hover:scale-110 active:scale-95 transition-all cursor-pointer z-10 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="absolute bottom-1 right-1 p-2.5 rounded-full bg-[#003F2A] border-2 border-[#8CC497] text-[#8CC497] hover:bg-[#8CC497] hover:text-[#003F2A] shadow-xl hover:scale-110 active:scale-95 transition-all cursor-pointer z-10 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isAvatarLoading ? (
-                <Loader2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 animate-spin" />
+                <Loader2 className="w-4 h-4 animate-spin" />
               ) : (
-                <Edit2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                <Edit2 className="w-4 h-4" />
               )}
             </button>
           )}
