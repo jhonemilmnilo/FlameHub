@@ -41,6 +41,7 @@ function ProfileAvatarModalContent({
   onAvatarUpdated,
 }: Omit<ProfileAvatarModalProps, "isOpen">) {
   const [imageSrc, setImageSrc] = useState<string | null>(currentAvatarUrl || null);
+  const [isImageLoading, setIsImageLoading] = useState(Boolean(currentAvatarUrl));
   const [crop, setCrop] = useState<Point>({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
   const [rotation, setRotation] = useState(0);
@@ -67,6 +68,10 @@ function ProfileAvatarModalContent({
     setCroppedAreaPixels(croppedAreaPixels);
   }, []);
 
+  const handleMediaLoaded = useCallback(() => {
+    setIsImageLoading(false);
+  }, []);
+
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -78,6 +83,8 @@ function ProfileAvatarModalContent({
       if (fileInputRef.current) fileInputRef.current.value = "";
       return;
     }
+
+    setIsImageLoading(true);
 
     // 2. Read as local Data URL for Interactive Cropper
     const reader = new FileReader();
@@ -187,6 +194,26 @@ function ProfileAvatarModalContent({
                 style={{ borderRadius: "10px" }}
                 className="relative w-full h-64 sm:h-72 bg-[#002f1f] border-2 border-[#8CC497] rounded-[10px] overflow-hidden shadow-inner"
               >
+                {/* 🌟 Left-to-Right Glowing Progress Line Beam */}
+                {(isImageLoading || isProcessing) && (
+                  <div className="absolute top-0 left-0 right-0 h-1.5 z-40 bg-[#002f1f]/80 overflow-hidden">
+                    <div className="h-full bg-gradient-to-r from-[#006241] via-[#8CC497] to-white shadow-[0_0_12px_rgba(140,196,151,0.8)] w-full -translate-x-full animate-[progressSweep_1.5s_infinite_ease-in-out]" />
+                  </div>
+                )}
+
+                {/* 🌟 Shimmering Skeleton Loader while Image Loads */}
+                {isImageLoading && (
+                  <div className="absolute inset-0 z-30 bg-[#002f1f] flex flex-col items-center justify-center p-6 space-y-3">
+                    <div className="relative w-28 h-28 rounded-full bg-[#004e34]/60 border-2 border-[#8CC497]/40 flex items-center justify-center overflow-hidden">
+                      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-[#8CC497]/20 to-transparent -translate-x-full animate-[shimmer_1.5s_infinite]" />
+                      <Camera className="w-8 h-8 text-[#8CC497]/50" />
+                    </div>
+                    <div className="w-32 h-3 rounded-full bg-[#004e34]/50 overflow-hidden relative">
+                      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-[#8CC497]/20 to-transparent -translate-x-full animate-[shimmer_1.5s_infinite]" />
+                    </div>
+                  </div>
+                )}
+
                 <Cropper
                   image={imageSrc}
                   crop={crop}
@@ -195,6 +222,7 @@ function ProfileAvatarModalContent({
                   aspect={1}
                   cropShape="round"
                   showGrid={false}
+                  onMediaLoaded={handleMediaLoaded}
                   onCropChange={(newCrop) => {
                     setCrop(newCrop);
                     setHasChanged(true);

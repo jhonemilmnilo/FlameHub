@@ -803,8 +803,15 @@ export function ProfileActivityFeed({
 
       {/* Create Post Modal */}
       {isComposerOpen && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-fadeIn">
-          <div className="w-full max-w-lg bg-[#003F2A] border border-[#005a3c] rounded-3xl p-6 shadow-2xl space-y-4">
+        <div
+          onClick={() => setIsComposerOpen(false)}
+          className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4 animate-fadeIn"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{ borderRadius: "10px" }}
+            className="w-full max-w-lg bg-[#003F2A] border border-[#005a3c] rounded-[10px] p-6 shadow-2xl space-y-4"
+          >
             <div className="flex items-center justify-between border-b border-[#005a3c] pb-3">
               <h3 className="font-extrabold text-base text-white font-heading">
                 Create Post

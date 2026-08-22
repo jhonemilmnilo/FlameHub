@@ -121,8 +121,6 @@ features/
 └── auth/               # User onboarding, session verification, OAuth
 ```
 
----
-
 ## 5. 🎯 Strict Zero-`any` & Enterprise Type-Safety Directives
 
 To maintain world-class engineering standards and prevent runtime bugs:
@@ -134,5 +132,35 @@ To maintain world-class engineering standards and prevent runtime bugs:
   - For string lookup arrays derived from `as const` objects, use `readonly string[]` assertions instead of loosening types to `any`.
 - **Generics & Discriminated Unions**:
   - Use Generic Type parameters `<T>` and Discriminated Union types instead of loose `any` shapes.
+
+---
+
+## 6. 🪟 Modal Architecture, Event Cleanup & Zero-Memory-Leak Directives
+
+To prevent frontend performance degradation, zombie listeners, and browser memory leaks:
+- **Clean Unmount Gate**:
+  - Every modal must unmount completely from the DOM when closed (`if (!isOpen) return null`). Never leave invisible hidden DOM subtrees with active canvas/listeners running in the background.
+- **Strict Backdrop Click-Outside Dismissal**:
+  - The outer backdrop container (`fixed inset-0`) must always have `onClick={onClose}`.
+  - The inner dialog card must stop event bubbling with `onClick={(e) => e.stopPropagation()}` to prevent accidental closures when interacting with inputs.
+- **Mandatory Lifecycle Cleanup (`useEffect`)**:
+  - Whenever a modal adds global listeners or modifies document styles:
+    ```tsx
+    React.useEffect(() => {
+      document.body.style.overflow = "hidden";
+      const handleKeyDown = (e: KeyboardEvent) => {
+        if (e.key === "Escape") onClose();
+      };
+      window.addEventListener("keydown", handleKeyDown);
+      return () => {
+        document.body.style.overflow = "unset";
+        window.removeEventListener("keydown", handleKeyDown);
+      };
+    }, [onClose]);
+    ```
+- **Zero Object URL Memory Leaks**:
+  - Whenever `URL.createObjectURL(blob)` is generated for image preview, revoke it when cleaning up or replacing files via `URL.revokeObjectURL(url)`.
+
+
 
 
