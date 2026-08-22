@@ -2,17 +2,23 @@
 
 import React, { useState } from "react";
 import Image from "next/image";
-import { Edit2 } from "lucide-react";
+import { Edit2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import type { UserProfileData } from "../actions/profile.action";
 
 interface ProfileBannerProps {
   profile: UserProfileData;
+  isAvatarLoading?: boolean;
   onEditBio?: () => void;
   onEditAvatar?: () => void;
 }
 
-export function ProfileBanner({ profile, onEditBio, onEditAvatar }: ProfileBannerProps) {
+export function ProfileBanner({
+  profile,
+  isAvatarLoading = false,
+  onEditBio,
+  onEditAvatar,
+}: ProfileBannerProps) {
   const formattedDate = React.useMemo(() => {
     try {
       const d = new Date(profile.createdAt);
@@ -27,7 +33,7 @@ export function ProfileBanner({ profile, onEditBio, onEditAvatar }: ProfileBanne
   }, [profile.createdAt]);
 
   const handleAvatarClick = () => {
-    if (profile.isSelf) {
+    if (profile.isSelf && !isAvatarLoading) {
       if (onEditAvatar) {
         onEditAvatar();
       } else {
@@ -61,7 +67,9 @@ export function ProfileBanner({ profile, onEditBio, onEditAvatar }: ProfileBanne
                 src={profile.avatarUrl}
                 alt={profile.displayName}
                 fill
-                className="object-cover transition-transform duration-500"
+                className={`object-cover transition-all duration-300 ${
+                  isAvatarLoading ? "blur-xs opacity-50" : "opacity-100"
+                }`}
               />
             ) : (
               <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-[#004e34] to-[#002f1f] text-[#8CC497]">
@@ -70,18 +78,31 @@ export function ProfileBanner({ profile, onEditBio, onEditAvatar }: ProfileBanne
                 </span>
               </div>
             )}
+
+            {/* 🌀 Spinner Overlay during Avatar Update */}
+            {isAvatarLoading && (
+              <div className="absolute inset-0 bg-black/60 backdrop-blur-xs flex flex-col items-center justify-center gap-1.5 z-20 animate-fadeIn">
+                <Loader2 className="w-6 h-6 animate-spin text-[#8CC497]" />
+                <span className="text-[10px] font-bold text-white tracking-wider uppercase">Updating</span>
+              </div>
+            )}
           </div>
 
           {/* Bottom-Right Pen Edit Icon Badge (Author Only) */}
           {profile.isSelf && (
             <button
               type="button"
+              disabled={isAvatarLoading}
               onClick={handleAvatarClick}
               title="Edit Profile Photo"
               style={{ borderRadius: "10px" }}
-              className="absolute -bottom-2 -right-2 p-2 rounded-[10px] bg-[#003F2A] border-2 border-[#8CC497] text-[#8CC497] hover:bg-[#8CC497] hover:text-[#003F2A] shadow-xl hover:scale-110 active:scale-95 transition-all cursor-pointer z-10"
+              className="absolute -bottom-2 -right-2 p-2 rounded-[10px] bg-[#003F2A] border-2 border-[#8CC497] text-[#8CC497] hover:bg-[#8CC497] hover:text-[#003F2A] shadow-xl hover:scale-110 active:scale-95 transition-all cursor-pointer z-10 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <Edit2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              {isAvatarLoading ? (
+                <Loader2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 animate-spin" />
+              ) : (
+                <Edit2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              )}
             </button>
           )}
         </div>

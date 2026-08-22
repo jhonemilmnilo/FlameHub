@@ -464,3 +464,137 @@ export async function updateProfileDetailsAction(
   }
 }
 
+/**
+ * 🔒 Fortress-Grade Upload Avatar Action
+ * Features:
+ * 1. Zero-Trust Server Session Authentication
+ * 2. Magic Bytes Inspection
+ * 3. Deep In-Memory Binary Malware Scanning
+ * 4. Path Traversal & Double Extension Defense
+ * 5. Supabase Storage Object Upload (`avatars` bucket)
+ * 6. Atomic User.avatarUrl Postgres Mutation
+ */
+export async function uploadAvatarAction(
+  formData: FormData
+): Promise<ActionResult<{ avatarUrl: string }>> {
+  try {
+    const supabase = await createClient();
+    const {
+      data: { user: authUser },
+    } = await supabase.auth.getUser();
+
+    if (!authUser) {
+      return {
+        success: false,
+        error: "Unauthorized: Please log in to upload an avatar.",
+        code: "UNAUTHORIZED",
+      };
+    }
+
+    const file = formData.get("avatar") as File | null;
+    if (!file || typeof file === "string") {
+      return {
+        success: false,
+        error: "No image file provided.",
+        code: "VALIDATION_ERROR",
+      };
+    }
+
+    // 1. Size Gate
+    if (file.size > 2 * 1024 * 1024) {
+      return {
+        success: false,
+        error: "Avatar image cannot exceed 2MB.",
+        code: "FILE_TOO_LARGE",
+      };
+    }
+
+    // 2. Read raw binary buffer for deep security inspection
+    const arrayBuffer = await file.arrayBuffer();
+    const { scanBinaryForMalware } = await import("@/lib/security/malware-scanner");
+
+    const scanResult = scanBinaryForMalware(arrayBuffer, file.name);
+    if (!scanResult.isClean) {
+      console.warn("MALWARE_SCAN_ALERT:", {
+        userId: authUser.id,
+        filename: file.name,
+        threat: scanResult.detectedThreat,
+      });
+      return {
+        success: false,
+        error: `Security Alert: ${scanResult.detectedThreat || "Malicious file format detected."}`,
+        code: "SECURITY_VIOLATION",
+      };
+    }
+
+    const safeExtension = scanResult.mimeType === "image/png" ? "png" : scanResult.mimeType === "image/webp" ? "webp" : "jpg";
+    const uniqueFileId = crypto.randomUUID();
+    // 📁 Folder Namespace: avatars/{userId}/{uniqueFileId}.{ext}
+    const filePath = `avatars/${authUser.id}/${uniqueFileId}.${safeExtension}`;
+
+    // 3. Upload to Unified Public Bucket: 'flamehub-media'
+    const { error: uploadError } = await supabase.storage
+      .from("flamehub-media")
+      .upload(filePath, arrayBuffer, {
+        contentType: scanResult.mimeType || file.type || "image/jpeg",
+        upsert: true,
+      });
+
+    if (uploadError) {
+      console.error("SUPABASE_STORAGE_UPLOAD_ERROR:", uploadError);
+      return {
+        success: false,
+        error: "Failed to upload avatar to storage. Please check bucket configuration.",
+        code: "STORAGE_ERROR",
+      };
+    }
+
+    // 4. Retrieve Clean Public URL
+    const {
+      data: { publicUrl },
+    } = supabase.storage.from("flamehub-media").getPublicUrl(filePath);
+
+    // 5. Query existing avatar to clean up old storage file (Avoid ghost storage accumulation)
+    const existingUser = await prisma.user.findUnique({
+      where: { id: authUser.id },
+      select: { avatarUrl: true },
+    });
+
+    if (existingUser?.avatarUrl) {
+      try {
+        // Extract relative storage path e.g. avatars/{userId}/{fileId}.webp
+        const urlParts = existingUser.avatarUrl.split("/flamehub-media/");
+        if (urlParts.length > 1) {
+          const oldFilePath = decodeURIComponent(urlParts[1]);
+          // Asynchronously delete old file from bucket
+          await supabase.storage.from("flamehub-media").remove([oldFilePath]);
+        }
+      } catch (cleanErr) {
+        console.warn("OLD_AVATAR_CLEANUP_WARN:", cleanErr);
+      }
+    }
+
+    // 6. Atomic Update in Postgres Database
+    await prisma.user.update({
+      where: { id: authUser.id },
+      data: { avatarUrl: publicUrl },
+    });
+
+    revalidatePath("/profile");
+    revalidatePath("/");
+
+    return {
+      success: true,
+      data: { avatarUrl: publicUrl },
+    };
+  } catch (error) {
+    console.error("UPLOAD_AVATAR_ERROR:", error);
+    return {
+      success: false,
+      error: "An unexpected error occurred while saving your avatar.",
+      code: "INTERNAL_ERROR",
+    };
+  }
+}
+
+

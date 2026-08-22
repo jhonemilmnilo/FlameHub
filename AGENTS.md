@@ -107,6 +107,8 @@ To keep this platform immune to penetration tests, script kiddies, and advanced 
 
 ---
 
+---
+
 ## 4. 📁 Feature-Driven Directory Standard
 
 ```
@@ -118,4 +120,19 @@ features/
 ├── direct-messages/    # Private 1-on-1 and group chat threads
 └── auth/               # User onboarding, session verification, OAuth
 ```
+
+---
+
+## 5. 🎯 Strict Zero-`any` & Enterprise Type-Safety Directives
+
+To maintain world-class engineering standards and prevent runtime bugs:
+- **Zero Explicit `any` (`@typescript-eslint/no-explicit-any`)**:
+  - Never use `any` in variable types, function parameters, returns, or type assertions (`as any`).
+- **Use `unknown` for Dynamic/Inbound Payloads**:
+  - When the incoming data shape is not yet validated (Server Action inputs, API bodies, JSON parse results), use `unknown` and validate via Zod schema (`Schema.safeParse(...)`) before use.
+- **Strict Readonly Arrays & Const Assertions**:
+  - For string lookup arrays derived from `as const` objects, use `readonly string[]` assertions instead of loosening types to `any`.
+- **Generics & Discriminated Unions**:
+  - Use Generic Type parameters `<T>` and Discriminated Union types instead of loose `any` shapes.
+
 

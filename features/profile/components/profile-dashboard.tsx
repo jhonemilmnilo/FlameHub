@@ -19,6 +19,7 @@ import { ProfileFollowersWidget } from "./profile-followers-widget";
 import { ProfileActivityFeed } from "./profile-activity-feed";
 import { ProfileEditModal } from "./profile-edit-modal";
 import { ProfileBioModal } from "./profile-bio-modal";
+import { ProfileAvatarModal } from "./profile-avatar-modal";
 import type { UserProfileData, FollowerItem } from "../actions/profile.action";
 import type { PostFeedItem } from "@/features/feed/actions/post.action";
 
@@ -42,6 +43,8 @@ export function ProfileDashboard({
   const [isSidebarHidden, setIsSidebarHidden] = useState(false);
   const [isEditingBio, setIsEditingBio] = useState(false);
   const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [isEditingAvatar, setIsEditingAvatar] = useState(false);
+  const [isUpdatingAvatar, setIsUpdatingAvatar] = useState(false);
 
   const handleLogout = async () => {
     try {
@@ -169,7 +172,9 @@ export function ProfileDashboard({
           <div className="lg:col-span-8 flex">
             <ProfileBanner
               profile={profile}
+              isAvatarLoading={isUpdatingAvatar}
               onEditBio={() => setIsEditingProfile(true)}
+              onEditAvatar={() => setIsEditingAvatar(true)}
             />
           </div>
           <div className="lg:col-span-4 flex">
@@ -226,6 +231,25 @@ export function ProfileDashboard({
             ...prev,
             bio: newBio,
           }));
+        }}
+      />
+
+      {/* ========================================================================= */}
+      {/* 📸 AVATAR PHOTO UPLOAD MODAL */}
+      {/* ========================================================================= */}
+      <ProfileAvatarModal
+        currentAvatarUrl={profile.avatarUrl}
+        isOpen={isEditingAvatar}
+        onClose={() => setIsEditingAvatar(false)}
+        onAvatarUpdated={(newAvatarUrl) => {
+          setIsUpdatingAvatar(true);
+          setProfile((prev) => ({
+            ...prev,
+            avatarUrl: newAvatarUrl,
+          }));
+          setTimeout(() => {
+            setIsUpdatingAvatar(false);
+          }, 800);
         }}
       />
     </div>
