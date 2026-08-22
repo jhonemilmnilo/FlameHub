@@ -540,8 +540,9 @@ export function ProfileActivityFeed({
           {filteredPosts.map((post) => (
             <article
               key={post.id}
+              onClick={() => setActiveDiscussionPost(post)}
               style={{ borderRadius: "10px" }}
-              className="bg-[#003F2A] border border-[#005a3c]/60 rounded-[10px] p-5 flex flex-col justify-between space-y-4 shadow-xl hover:border-[#8CC497]/40 transition-all"
+              className="bg-[#003F2A] border border-[#005a3c]/60 rounded-[10px] p-5 flex flex-col justify-between space-y-4 shadow-xl hover:border-[#8CC497]/60 hover:shadow-2xl transition-all cursor-pointer group select-none"
             >
               {/* Header: Avatar + Author + Dept + Student ID */}
               <div className="flex items-center gap-3.5">
@@ -567,14 +568,16 @@ export function ProfileActivityFeed({
                   )}
                 </div>
                 <div className="overflow-hidden">
-                  <h3 className="font-bold text-xs sm:text-sm text-white truncate flex items-center gap-1.5">
+                  <h3 className="font-bold text-xs sm:text-sm text-white truncate flex items-center gap-1.5 font-heading">
                     <span>{post.authorName}</span>
-                    <span className="text-[#8CC497] font-semibold">
-                      | {post.isAnonymous && !post.isAuthor ? "Flame" : post.department}
-                    </span>
+                    {post.authorNickname && (
+                      <span className="text-[#8CC497] font-semibold text-[11px] sm:text-xs">
+                        | @{post.authorNickname}
+                      </span>
+                    )}
                   </h3>
-                  <p className="text-[11px] text-[#8CC497] font-medium">
-                    {post.isAnonymous && !post.isAuthor ? "Hidden ID" : post.studentId}
+                  <p className="text-[11px] text-[#8CC497] font-medium tracking-wide">
+                    {post.isAnonymous && !post.isAuthor ? "Flame" : post.department}
                   </p>
                 </div>
               </div>
@@ -591,7 +594,10 @@ export function ProfileActivityFeed({
                     {/* Like */}
                     <button
                       type="button"
-                      onClick={() => handleToggleLike(post.id)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleToggleLike(post.id);
+                      }}
                       className="p-1 -ml-1 text-white hover:scale-110 active:scale-95 transition-transform cursor-pointer"
                       title="Like"
                     >
@@ -607,7 +613,10 @@ export function ProfileActivityFeed({
                     {/* Open Comments Drawer */}
                     <button
                       type="button"
-                      onClick={() => setActiveDiscussionPost(post)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setActiveDiscussionPost(post);
+                      }}
                       className="p-1 text-white/80 hover:text-[#8CC497] hover:scale-110 active:scale-95 transition-all cursor-pointer"
                       title="Comments"
                     >
@@ -618,7 +627,10 @@ export function ProfileActivityFeed({
                     {post.isAuthor ? (
                       <button
                         type="button"
-                        onClick={() => handleRepostPost(post)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleRepostPost(post);
+                        }}
                         disabled={Boolean(repostingPostId)}
                         className={`p-1 transition-all cursor-pointer ${
                           repostingPostId === post.id
@@ -632,21 +644,22 @@ export function ProfileActivityFeed({
                     ) : (
                       <button
                         type="button"
-                        onClick={() => {
+                        onClick={(e) => {
+                          e.stopPropagation();
                           if (navigator.clipboard) {
                             navigator.clipboard.writeText(window.location.href);
                             toast.success("Post link copied to clipboard!");
                           }
                         }}
                         className="p-1 text-white/80 hover:text-white hover:scale-110 active:scale-95 transition-transform cursor-pointer"
-                        title="Share post"
+                        title="Share"
                       >
                         <Share2 className="w-5 h-5" />
                       </button>
                     )}
                   </div>
 
-                  {/* 3-Dots Menu */}
+                  {/* 3-Dots Action Button & Dropdown Menu */}
                   <div className="relative" data-menu-container>
                     <button
                       type="button"
@@ -654,7 +667,8 @@ export function ProfileActivityFeed({
                         e.stopPropagation();
                         setActiveMenuPostId((prev) => (prev === post.id ? null : post.id));
                       }}
-                      className="p-1 text-white/60 hover:text-white transition-colors cursor-pointer"
+                      className="p-1 text-white/40 hover:text-white transition-colors cursor-pointer"
+                      title="Post options"
                     >
                       <MoreHorizontal className="w-5 h-5" />
                     </button>
@@ -1017,6 +1031,16 @@ export function ProfileActivityFeed({
             prev.map((p) =>
               p.id === postId ? { ...p, commentsCount: p.commentsCount + 1 } : p
             )
+          );
+        }}
+        onPostLikeToggled={(postId, isLiked, likesCount) => {
+          setPosts((prev) =>
+            prev.map((p) =>
+              p.id === postId ? { ...p, isLiked, likesCount } : p
+            )
+          );
+          setActiveDiscussionPost((prev) =>
+            prev && prev.id === postId ? { ...prev, isLiked, likesCount } : prev
           );
         }}
       />

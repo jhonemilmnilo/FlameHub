@@ -44,10 +44,7 @@ export default function ProfileLoading() {
               className="w-full bg-[#003F2A] border border-[#005a3c]/60 rounded-[10px] p-6 md:p-8 shadow-xl flex flex-col sm:flex-row items-start sm:items-center gap-6 lg:gap-8"
             >
               {/* Avatar Box */}
-              <div
-                style={{ borderRadius: "10px" }}
-                className="w-28 h-28 sm:w-36 sm:h-36 md:w-44 md:h-44 rounded-[10px] bg-[#002f1f] border-2 border-[#8CC497]/30 shrink-0"
-              />
+              <div className="w-28 h-28 sm:w-36 sm:h-36 md:w-44 md:h-44 rounded-full bg-[#002f1f] border-2 border-[#8CC497]/30 shrink-0" />
               {/* Info & Stats */}
               <div className="flex-1 space-y-4 w-full">
                 <div className="space-y-2">

@@ -15,6 +15,7 @@ import {
   getPostCommentsAction,
   type CommentFeedItem,
 } from "@/features/feed/actions/comment.action";
+import { toggleLikePostAction } from "@/features/feed/actions/post.liked.action";
 import { type PostFeedItem } from "@/features/feed/actions/post.action";
 import { toast } from "sonner";
 
@@ -23,6 +24,7 @@ interface CommentDrawerModalProps {
   isOpen: boolean;
   onClose: () => void;
   onCommentAdded?: (postId: string) => void;
+  onPostLikeToggled?: (postId: string, isLiked: boolean, likesCount: number) => void;
 }
 
 function formatRelativeTime(dateString: string): string {
@@ -49,25 +51,75 @@ export function CommentDrawerModal({
   isOpen,
   onClose,
   onCommentAdded,
+  onPostLikeToggled,
 }: CommentDrawerModalProps) {
   const [comments, setComments] = useState<CommentFeedItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [newCommentText, setNewCommentText] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [likedCommentIds, setLikedCommentIds] = useState<Record<string, boolean>>({});
+  const [isPostLiked, setIsPostLiked] = useState(Boolean(post?.isLiked));
+  const [postLikesCount, setPostLikesCount] = useState(post?.likesCount || 0);
+  const [isLikingPost, setIsLikingPost] = useState(false);
   const commentsEndRef = useRef<HTMLDivElement>(null);
 
-  // Fetch comments whenever the modal opens for a post
+  // Sync post likes count only when modal opens or post ID changes
   useEffect(() => {
-    if (!isOpen || !post) return;
+    if (isOpen && post) {
+      setIsPostLiked(Boolean(post.isLiked));
+      setPostLikesCount(post.likesCount || 0);
+    }
+  }, [isOpen, post?.id]);
+
+  const handleTogglePostLike = async () => {
+    if (!post || isLikingPost) return;
+
+    const previousIsLiked = isPostLiked;
+    const previousLikesCount = postLikesCount;
+
+    const nextIsLiked = !previousIsLiked;
+    const nextLikesCount = nextIsLiked ? previousLikesCount + 1 : Math.max(0, previousLikesCount - 1);
+
+    // 1. Optimistic instant UI update
+    setIsPostLiked(nextIsLiked);
+    setPostLikesCount(nextLikesCount);
+    onPostLikeToggled?.(post.id, nextIsLiked, nextLikesCount);
+
+    setIsLikingPost(true);
+    try {
+      const res = await toggleLikePostAction(post.id);
+      if (res.success && res.data) {
+        setIsPostLiked(res.data.isLiked);
+        setPostLikesCount(res.data.likesCount);
+        onPostLikeToggled?.(post.id, res.data.isLiked, res.data.likesCount);
+      } else {
+        // Rollback on server rejection
+        setIsPostLiked(previousIsLiked);
+        setPostLikesCount(previousLikesCount);
+        onPostLikeToggled?.(post.id, previousIsLiked, previousLikesCount);
+        toast.error(res.error || "Unable to update like.");
+      }
+    } catch {
+      // Rollback on network failure
+      setIsPostLiked(previousIsLiked);
+      setPostLikesCount(previousLikesCount);
+      onPostLikeToggled?.(post.id, previousIsLiked, previousLikesCount);
+    } finally {
+      setIsLikingPost(false);
+    }
+  };
+
+  // Fetch comments ONLY when the modal opens or the active post ID changes
+  useEffect(() => {
+    if (!isOpen || !post?.id) return;
 
     let isMounted = true;
+    const currentPostId = post.id;
 
     async function loadDiscussion() {
       setIsLoading(true);
       try {
-        if (!post) return;
-        const res = await getPostCommentsAction(post.id);
+        const res = await getPostCommentsAction(currentPostId);
         if (isMounted) {
           if (res.success && res.data) {
             setComments(res.data);
@@ -87,7 +139,7 @@ export function CommentDrawerModal({
     return () => {
       isMounted = false;
     };
-  }, [isOpen, post]);
+  }, [isOpen, post?.id]);
 
   // Lock body scroll when modal is open
   useEffect(() => {
@@ -172,16 +224,38 @@ export function CommentDrawerModal({
           <div className="space-y-3 pt-1">
             <div className="flex items-start justify-between gap-3">
               <div className="flex items-center gap-3.5">
-                <div className="w-12 h-12 rounded-full bg-[#8CC497] shrink-0 shadow-sm" />
-                <div>
-                  <h3 className="font-extrabold text-sm sm:text-base text-white tracking-tight font-heading">
-                    {post.isAnonymous ? "Anonymous" : post.authorName}{" "}
-                    <span className="font-semibold text-emerald-200/90">
-                      | {post.isAnonymous ? "Flame" : post.department}
-                    </span>
+                <div
+                  className={`w-11 h-11 sm:w-12 sm:h-12 rounded-full shrink-0 flex items-center justify-center font-black text-sm relative overflow-hidden shadow-inner ${
+                    post.isAnonymous && !post.isAuthor
+                      ? "bg-purple-950/80 border border-purple-500/40 text-purple-300"
+                      : "bg-[#002f1f] border-2 border-[#8CC497] text-[#8CC497]"
+                  }`}
+                >
+                  {post.isAnonymous && !post.isAuthor ? (
+                    <Ghost className="w-5 h-5 text-purple-300" />
+                  ) : post.authorAvatarUrl ? (
+                    <Image
+                      src={post.authorAvatarUrl}
+                      alt={post.authorName}
+                      fill
+                      unoptimized
+                      className="object-cover"
+                    />
+                  ) : (
+                    <span>{post.authorName.charAt(0).toUpperCase()}</span>
+                  )}
+                </div>
+                <div className="overflow-hidden">
+                  <h3 className="font-extrabold text-sm sm:text-base text-white tracking-tight font-heading flex items-center gap-1.5 truncate">
+                    <span>{post.authorName}</span>
+                    {post.authorNickname && (
+                      <span className="text-[#8CC497] font-semibold text-xs sm:text-sm">
+                        | @{post.authorNickname}
+                      </span>
+                    )}
                   </h3>
-                  <p className="text-xs text-emerald-200/70 font-medium">
-                    {post.isAnonymous ? "Hidden ID" : post.studentId}
+                  <p className="text-xs text-[#8CC497] font-medium tracking-wide">
+                    {post.isAnonymous && !post.isAuthor ? "Flame" : post.department}
                   </p>
                 </div>
               </div>
@@ -197,10 +271,22 @@ export function CommentDrawerModal({
 
             {/* Post Meta Row (Likes & Comments Count) */}
             <div className="flex items-center justify-between text-xs text-white/80 font-medium pt-1">
-              <div className="flex items-center gap-1.5 text-white/90">
-                <Heart className={`w-3.5 h-3.5 ${post.isLiked ? "fill-rose-500 text-rose-500" : "text-white/70"}`} />
-                <span>{post.likesCount} {post.likesCount === 1 ? "like" : "likes"}</span>
-              </div>
+              <button
+                type="button"
+                onClick={handleTogglePostLike}
+                disabled={isLikingPost}
+                className="flex items-center gap-1.5 text-white/90 hover:text-white cursor-pointer transition-all group active:scale-95 select-none"
+                title={isPostLiked ? "Unlike post" : "Like post"}
+              >
+                <Heart
+                  className={`w-4 h-4 transition-all group-hover:scale-110 ${
+                    isPostLiked ? "fill-rose-500 text-rose-500" : "text-white/70 hover:text-white"
+                  }`}
+                />
+                <span className={isPostLiked ? "font-bold text-rose-400" : ""}>
+                  {postLikesCount} {postLikesCount === 1 ? "like" : "likes"}
+                </span>
+              </button>
               <span className="text-white/80">
                 {post.commentsCount} {post.commentsCount === 1 ? "comment" : "comments"}
               </span>
@@ -221,11 +307,29 @@ export function CommentDrawerModal({
           {/* 💬 COMMENTS LIST (Green Nested Bubble Cards with Reaction & Reply) */}
           {/* ========================================================================= */}
           {isLoading ? (
-            <div className="py-12 text-center space-y-3">
-              <div className="w-8 h-8 border-2 border-[#8CC497] border-t-transparent rounded-full animate-spin mx-auto" />
-              <p className="text-xs text-[#8CC497]/70 font-medium">
-                Loading campus comments...
-              </p>
+            <div className="space-y-2.5 py-1">
+              {[1, 2, 3].map((i) => (
+                <div
+                  key={i}
+                  style={{ borderRadius: "10px" }}
+                  className="bg-[#002f1f] border border-[#005a3c]/60 rounded-[10px] px-3.5 py-3 space-y-2.5 animate-pulse"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2.5 flex-1">
+                      <div className="w-8 h-8 rounded-full bg-[#8CC497]/30 shrink-0" />
+                      <div className="space-y-1.5 flex-1">
+                        <div className="h-3 bg-white/20 rounded-md w-2/5" />
+                        <div className="h-2 bg-[#8CC497]/20 rounded-md w-1/4" />
+                      </div>
+                    </div>
+                    <div className="w-4 h-4 rounded-full bg-white/10" />
+                  </div>
+                  <div className="space-y-1.5 pl-10.5">
+                    <div className="h-2.5 bg-white/15 rounded-md w-5/6" />
+                    <div className="h-2.5 bg-white/10 rounded-md w-3/5" />
+                  </div>
+                </div>
+              ))}
             </div>
           ) : comments.length === 0 ? (
             <div
@@ -273,13 +377,18 @@ export function CommentDrawerModal({
                             <span>{comment.authorName.charAt(0).toUpperCase()}</span>
                           )}
                         </div>
-                        <div>
-                          <h4 className="font-extrabold text-xs sm:text-[13px] text-white tracking-tight font-heading leading-tight">
-                            {comment.authorName}{" "}
-                            <span className="font-medium text-[#8CC497] text-[11px]">
-                              | {comment.isAnonymous && !comment.isAuthor ? "Flame" : comment.department}
-                            </span>
+                        <div className="overflow-hidden">
+                          <h4 className="font-extrabold text-xs sm:text-[13px] text-white tracking-tight font-heading leading-tight flex items-center gap-1.5 truncate">
+                            <span>{comment.authorName}</span>
+                            {comment.authorNickname && (
+                              <span className="text-[#8CC497] font-semibold text-[11px]">
+                                | @{comment.authorNickname}
+                              </span>
+                            )}
                           </h4>
+                          <p className="text-[10px] text-[#8CC497] font-medium tracking-wide">
+                            {comment.isAnonymous && !comment.isAuthor ? "Flame" : comment.department}
+                          </p>
                         </div>
                       </div>
 
