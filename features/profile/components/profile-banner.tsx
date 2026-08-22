@@ -60,13 +60,15 @@ export function ProfileBanner({
         <div className="relative shrink-0 group">
           <div
             style={{ borderRadius: "10px" }}
-            className="relative w-28 h-28 sm:w-36 sm:h-36 md:w-44 md:h-44 rounded-[10px] overflow-hidden bg-[#002f1f] border-2 border-[#8CC497]/40 shadow-inner"
+            className="relative w-28 h-28 sm:w-36 sm:h-36 md:w-44 md:h-44 rounded-[10px] overflow-hidden bg-[#002f1f] border-2 border-[#8CC497] shadow-[0_10px_30px_rgba(0,0,0,0.5),0_0_20px_rgba(140,196,151,0.25)] ring-1 ring-white/20 transition-all duration-300 group-hover:border-white"
           >
             {profile.avatarUrl ? (
               <Image
                 src={profile.avatarUrl}
                 alt={profile.displayName}
                 fill
+                unoptimized
+                priority
                 className={`object-cover transition-all duration-300 ${
                   isAvatarLoading ? "blur-xs opacity-50" : "opacity-100"
                 }`}

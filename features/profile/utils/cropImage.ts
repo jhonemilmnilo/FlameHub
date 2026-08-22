@@ -86,7 +86,11 @@ export async function getCroppedImg(
   croppedCanvas.width = pixelCrop.width;
   croppedCanvas.height = pixelCrop.height;
 
-  // Draw the cropped image onto the new canvas
+  // Ensure high quality downsampling & smoothing
+  croppedCtx.imageSmoothingEnabled = true;
+  croppedCtx.imageSmoothingQuality = "high";
+
+  // Draw the cropped image onto the new canvas with crisp fidelity
   croppedCtx.drawImage(
     canvas,
     pixelCrop.x,
@@ -99,7 +103,7 @@ export async function getCroppedImg(
     pixelCrop.height
   );
 
-  // Convert to WebP File
+  // Convert to high-definition WebP File
   return new Promise((resolve, reject) => {
     croppedCanvas.toBlob(
       (blob) => {
@@ -111,7 +115,7 @@ export async function getCroppedImg(
         resolve(file);
       },
       "image/webp",
-      0.92
+      0.95
     );
   });
 }

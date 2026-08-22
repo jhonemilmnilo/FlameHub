@@ -49,6 +49,7 @@ function ProfileAvatarModalContent({
   const [hasChanged, setHasChanged] = useState(false);
 
   const [isProcessing, setIsProcessing] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   // Lock background scroll and listen for Escape key
@@ -107,9 +108,12 @@ function ProfileAvatarModalContent({
     if (!imageSrc || !croppedAreaPixels || isProcessing) return;
 
     setIsProcessing(true);
+    setUploadProgress(10); // Phase 1: Canvas pixel extraction started
+
     try {
       // 1. Crop, Rotate & Extract Canvas result to WebP File
       const croppedFile = await getCroppedImg(imageSrc, croppedAreaPixels, rotation);
+      setUploadProgress(35); // Phase 2: Canvas extraction complete
 
       // 2. Compress WebP File via browser-image-compression
       const options = {
@@ -118,24 +122,39 @@ function ProfileAvatarModalContent({
         useWebWorker: true,
         fileType: "image/webp",
         initialQuality: AVATAR_RULES.quality,
+        onProgress: (percent: number) => {
+          // Map compression (0-100) into Phase 2-3 (35% -> 70%)
+          setUploadProgress(Math.min(35 + Math.round(percent * 0.35), 70));
+        },
       };
       const optimizedFile = await imageCompression(croppedFile, options);
+      setUploadProgress(75); // Phase 3: Binary ready for network upload
 
       // 3. Upload to Supabase Storage via Server Action
       const formData = new FormData();
       formData.append("avatar", optimizedFile);
 
+      // Start gentle ticker from 75% -> 92% during network transmission
+      const networkTicker = setInterval(() => {
+        setUploadProgress((prev) => (prev < 92 ? prev + 3 : prev));
+      }, 150);
+
       const res = await uploadAvatarAction(formData);
+      clearInterval(networkTicker);
 
       if (res.success && res.data?.avatarUrl) {
+        setUploadProgress(100); // Phase 4: Full loop closure meeting point!
+        await new Promise((r) => setTimeout(r, 450)); // Allow user to see 100% completed glow loop
         toast.success("Profile photo updated successfully.");
         onAvatarUpdated(res.data.avatarUrl);
         onClose();
       } else {
+        setUploadProgress(0);
         toast.error(res.error || "Unable to upload avatar.");
       }
     } catch (err) {
       console.error("AVATAR_PROCESSING_ERROR:", err);
+      setUploadProgress(0);
       toast.error("An error occurred while saving your photo.");
     } finally {
       setIsProcessing(false);
@@ -192,12 +211,38 @@ function ProfileAvatarModalContent({
             <div className="w-full space-y-4">
               <div
                 style={{ borderRadius: "10px" }}
-                className="relative w-full h-64 sm:h-72 bg-[#002f1f] border-2 border-[#8CC497] rounded-[10px] overflow-hidden shadow-inner"
+                className="relative w-full h-64 sm:h-72 bg-[#002f1f] rounded-[10px] overflow-hidden shadow-inner border border-[#005a3c]"
               >
-                {/* 🌟 Left-to-Right Glowing Progress Line Beam */}
-                {(isImageLoading || isProcessing) && (
-                  <div className="absolute top-0 left-0 right-0 h-1.5 z-40 bg-[#002f1f]/80 overflow-hidden">
-                    <div className="h-full bg-gradient-to-r from-[#006241] via-[#8CC497] to-white shadow-[0_0_12px_rgba(140,196,151,0.8)] w-full -translate-x-full animate-[progressSweep_1.5s_infinite_ease-in-out]" />
+                {/* 🌟 Real-time 360° Perimeter Border Laser Tracer (Synchronized with Upload Progress) */}
+                {isProcessing && (
+                  <svg
+                    className="absolute inset-0 w-full h-full pointer-events-none z-40"
+                    preserveAspectRatio="none"
+                  >
+                    <rect
+                      x="2"
+                      y="2"
+                      width="calc(100% - 4px)"
+                      height="calc(100% - 4px)"
+                      rx="10"
+                      ry="10"
+                      fill="none"
+                      stroke="#8CC497"
+                      strokeWidth="3"
+                      strokeLinecap="round"
+                      pathLength="100"
+                      strokeDasharray="100"
+                      strokeDashoffset={100 - uploadProgress}
+                      className="transition-all duration-300 ease-out filter drop-shadow-[0_0_8px_#8CC497]"
+                    />
+                  </svg>
+                )}
+
+                {/* 🌟 Percentage Floating Badge during upload */}
+                {isProcessing && (
+                  <div className="absolute top-3 right-3 z-50 px-2.5 py-1 rounded-full bg-black/80 backdrop-blur-xs border border-[#8CC497]/60 text-[11px] font-mono font-bold text-[#8CC497] shadow-lg animate-fadeIn flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#8CC497] animate-pulse" />
+                    <span>{uploadProgress}%</span>
                   </div>
                 )}
 

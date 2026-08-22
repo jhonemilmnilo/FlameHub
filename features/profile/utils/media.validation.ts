@@ -15,8 +15,8 @@ export const AVATAR_RULES = {
   maxCompressedSizeBytes: 2 * 1024 * 1024, // 2MB max after compression
   allowedMimeTypes: ["image/jpeg", "image/png", "image/webp"],
   allowedExtensions: [".jpg", ".jpeg", ".png", ".webp"],
-  maxWidthOrHeight: 1200,
-  quality: 0.85,
+  maxWidthOrHeight: 1600,
+  quality: 0.95,
 } as const;
 
 export const POST_MEDIA_RULES = {
