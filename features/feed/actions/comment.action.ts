@@ -123,9 +123,9 @@ export async function createCommentAction(
       data: {
         id: newComment.id,
         postId: newComment.postId,
-        authorName: isAnon ? `${userRecord.displayName} (Anonymous)` : userRecord.displayName,
-        authorNickname: userRecord.nickname,
-        authorAvatarUrl: userRecord.avatarUrl,
+        authorName: isAnon ? "Anonymous Student" : userRecord.displayName,
+        authorNickname: isAnon ? null : userRecord.nickname,
+        authorAvatarUrl: isAnon ? null : userRecord.avatarUrl,
         department: isAnon ? "Flame" : (userRecord.department || "CITE"),
         studentId: isAnon ? "Hidden ID" : (userRecord.studentId || "00-0000-000000"),
         content: newComment.content,

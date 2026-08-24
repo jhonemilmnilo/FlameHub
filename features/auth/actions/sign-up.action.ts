@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
 import { registerOtpSend } from "@/lib/redis/otp-send-limiter";
 import { checkOtpLockout } from "@/lib/redis/otp-verify-limiter";
+import { redis } from "@/lib/redis/client";
 import { headers } from "next/headers";
 
 type ActionResult<T> =
@@ -21,6 +22,24 @@ export async function signUpAction(rawInput: unknown): Promise<ActionResult<{ em
   try {
     const headerList = await headers();
     clientIp = headerList.get("x-forwarded-for")?.split(",")[0]?.trim() || "127.0.0.1";
+
+    // 🛡️ IP Rate Limiter: Max 10 registration submissions per hour per IP to prevent bulk enumeration
+    try {
+      const ipSignupKey = `ratelimit:signup:${clientIp}`;
+      const signupCount = await redis.incr(ipSignupKey);
+      if (signupCount === 1) {
+        await redis.expire(ipSignupKey, 3600);
+      }
+      if (signupCount > 10) {
+        return {
+          success: false,
+          error: "Too many registration attempts from this network. Please try again later.",
+          code: "RATE_LIMIT_EXCEEDED",
+        };
+      }
+    } catch {
+      // Continue on Redis failure to avoid blocking legitimate users
+    }
 
     // 1. Validate payload via Zod
     const parsed = SignUpSchema.safeParse(rawInput);
@@ -43,33 +62,24 @@ export async function signUpAction(rawInput: unknown): Promise<ActionResult<{ em
     // 2. Pre-check Lockout Gate: Is email currently locked down?
     const lockout = await checkOtpLockout(email);
     if (lockout.isLocked) {
-      const mins = Math.ceil(lockout.remainingSeconds / 60);
       return {
         success: false,
-        error: `Verification is temporarily locked (Tier ${lockout.tier}). Please wait ${mins} minute(s) before trying again.`,
+        error: "Verification is temporarily locked due to multiple failed attempts. Please try again later.",
         code: "SECURITY_LOCKOUT",
       };
     }
 
-    // 3. Check PostgreSQL for verified, active students
+    // 3. Check PostgreSQL for verified, active students (Unified Anti-Enumeration Guard)
     const [existingStudent, existingEmailUser] = await Promise.all([
       prisma.user.findUnique({ where: { studentId } }),
       prisma.user.findUnique({ where: { email } }),
     ]);
 
-    if (existingStudent) {
+    if (existingStudent || existingEmailUser) {
       return {
         success: false,
-        error: "This Student ID is already registered to an active account.",
-        code: "STUDENT_ID_EXISTS",
-      };
-    }
-
-    if (existingEmailUser) {
-      return {
-        success: false,
-        error: "An account with this email address already exists. Please log in.",
-        code: "EMAIL_EXISTS",
+        error: "An account with these credentials already exists. Please log in or use account recovery.",
+        code: "ACCOUNT_EXISTS",
       };
     }
 

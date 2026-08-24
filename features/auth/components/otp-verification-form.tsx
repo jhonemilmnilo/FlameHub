@@ -20,26 +20,21 @@ export function OtpVerificationForm() {
   const [cooldown, setCooldown] = useState(0);
 
   // 🛡️ Progressive Lockout State
-  const [lockout, setLockout] = useState<{ isLocked: boolean; remainingSeconds: number; tier: number }>({
+  const [lockout, setLockout] = useState<{ isLocked: boolean }>({
     isLocked: false,
-    remainingSeconds: 0,
-    tier: 0,
   });
 
   // 6-digit OTP state
   const [otp, setOtp] = useState<string[]>(["", "", "", "", "", ""]);
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
-  // 🔍 Check lockout status and live Redis resend cooldown on page mount
+  // 🔍 Check lockout status on page mount (cooldown is handled locally)
   useEffect(() => {
     if (email) {
       getEmailLockoutStatusAction(email).then((status) => {
         if (status.isLocked) {
           setOtp(["", "", "", "", "", ""]);
-          setLockout(status);
-        }
-        if (status.cooldownRemaining > 0) {
-          setCooldown(status.cooldownRemaining);
+          setLockout({ isLocked: true });
         }
       });
     }
@@ -134,11 +129,7 @@ export function OtpVerificationForm() {
           inputRefs.current[0]?.focus();
 
           if (result.lockout?.isLocked) {
-            setLockout({
-              isLocked: true,
-              remainingSeconds: result.lockout.remainingSeconds,
-              tier: result.lockout.tier,
-            });
+            setLockout({ isLocked: true });
             toast.error(result.error, { duration: 6000 });
           } else {
             toast.error(result.error);

@@ -40,29 +40,23 @@ export async function getEmailLockoutStatusAction(rawEmail: string) {
     // 1. Enforce IP Rate Limiting
     const allowed = await checkStatusQueryRateLimit(clientIp);
     if (!allowed) {
-      return { isLocked: false, remainingSeconds: 0, tier: 0, cooldownRemaining: 0 };
+      return { isLocked: false };
     }
 
     // 2. Validate email structure
     const parsed = EmailQuerySchema.safeParse(rawEmail?.trim().toLowerCase());
     if (!parsed.success) {
-      return { isLocked: false, remainingSeconds: 0, tier: 0, cooldownRemaining: 0 };
+      return { isLocked: false };
     }
 
     const email = parsed.data;
-    const [lockout, sendStatus] = await Promise.all([
-      checkOtpLockout(email),
-      checkActiveOtpSendStatus(email),
-    ]);
+    const lockout = await checkOtpLockout(email);
 
     return {
       isLocked: lockout.isLocked,
-      remainingSeconds: lockout.remainingSeconds,
-      tier: lockout.tier,
-      cooldownRemaining: sendStatus.remainingSeconds,
     };
   } catch {
-    return { isLocked: false, remainingSeconds: 0, tier: 0, cooldownRemaining: 0 };
+    return { isLocked: false };
   }
 }
 
@@ -79,19 +73,20 @@ export async function getLoginLockoutStatusAction(rawEmail: string) {
     // 1. Enforce IP Rate Limiting
     const allowed = await checkStatusQueryRateLimit(clientIp);
     if (!allowed) {
-      return { isLocked: false, remainingSeconds: 0, tier: 0 };
+      return { isLocked: false };
     }
 
     // 2. Validate email structure
     const parsed = EmailQuerySchema.safeParse(rawEmail?.trim().toLowerCase());
     if (!parsed.success) {
-      return { isLocked: false, remainingSeconds: 0, tier: 0 };
+      return { isLocked: false };
     }
 
     const email = parsed.data;
-    return await checkLoginLockout(email);
+    const status = await checkLoginLockout(email);
+    return { isLocked: status.isLocked };
   } catch {
-    return { isLocked: false, remainingSeconds: 0, tier: 0 };
+    return { isLocked: false };
   }
 }
 

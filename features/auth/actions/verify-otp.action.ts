@@ -45,12 +45,15 @@ export async function verifyOtpAction(rawInput: unknown): Promise<ActionResult<{
     // 2. Pre-check: Is this email currently locked down?
     const lockoutStatus = await checkOtpLockout(email);
     if (lockoutStatus.isLocked) {
-      const minutes = Math.ceil(lockoutStatus.remainingSeconds / 60);
       return {
         success: false,
-        error: `Security Lockout (Tier ${lockoutStatus.tier}): Too many incorrect attempts. Please wait ${minutes} minute(s) before trying again.`,
+        error: "Verification temporarily disabled due to multiple failed attempts. Please try again later.",
         code: "SECURITY_LOCKOUT",
-        lockout: lockoutStatus,
+        lockout: {
+          isLocked: true,
+          remainingSeconds: 0,
+          tier: 0,
+        },
       };
     }
 

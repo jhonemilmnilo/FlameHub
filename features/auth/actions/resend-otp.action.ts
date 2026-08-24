@@ -40,7 +40,7 @@ export async function resendOtpAction(rawInput: unknown): Promise<ActionResult<{
     if (!sendStatus.success) {
       return {
         success: false,
-        error: `Please wait ${sendStatus.remainingSeconds}s before requesting a new code.`,
+        error: "A verification code was already sent recently. Please check your inbox or wait before requesting another.",
         code: "RATE_LIMITED",
       };
     }
@@ -52,9 +52,20 @@ export async function resendOtpAction(rawInput: unknown): Promise<ActionResult<{
     });
 
     if (resendError) {
+      console.warn(
+        JSON.stringify({
+          timestamp,
+          level: "warn",
+          event: "OTP_RESEND_SUPABASE_ERROR",
+          email,
+          ip: clientIp,
+          error: resendError.message,
+        })
+      );
+
       return {
         success: false,
-        error: resendError.message || "Failed to resend verification code.",
+        error: "Unable to send verification code. Please try again later.",
         code: "RESEND_FAILED",
       };
     }
