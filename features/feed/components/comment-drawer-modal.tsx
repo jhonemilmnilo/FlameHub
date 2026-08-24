@@ -9,13 +9,17 @@ import {
   MoreHorizontal,
   ChevronDown,
   Ghost,
+  Pencil,
+  Trash2,
+  Link2,
+  Bookmark,
+  EyeOff,
 } from "lucide-react";
 import {
   createCommentAction,
   getPostCommentsAction,
   type CommentFeedItem,
 } from "@/features/feed/actions/comment.action";
-import { toggleLikePostAction } from "@/features/feed/actions/post.liked.action";
 import { type PostFeedItem } from "@/features/feed/actions/post.action";
 import { toast } from "sonner";
 
@@ -24,7 +28,11 @@ interface CommentDrawerModalProps {
   isOpen: boolean;
   onClose: () => void;
   onCommentAdded?: (postId: string) => void;
-  onPostLikeToggled?: (postId: string, isLiked: boolean, likesCount: number) => void;
+  onPostLikeToggled?: (postId: string) => void;
+  onEditPost?: (post: PostFeedItem) => void;
+  onDeletePost?: (post: PostFeedItem) => void;
+  onToggleSavePost?: (post: PostFeedItem) => void;
+  onHidePost?: (postId: string) => void;
 }
 
 function formatRelativeTime(dateString: string): string {
@@ -52,61 +60,38 @@ export function CommentDrawerModal({
   onClose,
   onCommentAdded,
   onPostLikeToggled,
+  onEditPost,
+  onDeletePost,
+  onToggleSavePost,
+  onHidePost,
 }: CommentDrawerModalProps) {
   const [comments, setComments] = useState<CommentFeedItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [newCommentText, setNewCommentText] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [likedCommentIds, setLikedCommentIds] = useState<Record<string, boolean>>({});
-  const [isPostLiked, setIsPostLiked] = useState(Boolean(post?.isLiked));
-  const [postLikesCount, setPostLikesCount] = useState(post?.likesCount || 0);
+  const isPostLiked = Boolean(post?.isLiked);
+  const postLikesCount = post?.likesCount ?? 0;
   const [isLikingPost, setIsLikingPost] = useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
   const commentsEndRef = useRef<HTMLDivElement>(null);
 
-  // Sync post likes count only when modal opens or post ID changes
+  // Click outside menu listener
   useEffect(() => {
-    if (isOpen && post) {
-      setIsPostLiked(Boolean(post.isLiked));
-      setPostLikesCount(post.likesCount || 0);
-    }
-  }, [isOpen, post?.id]);
-
-  const handleTogglePostLike = async () => {
-    if (!post || isLikingPost) return;
-
-    const previousIsLiked = isPostLiked;
-    const previousLikesCount = postLikesCount;
-
-    const nextIsLiked = !previousIsLiked;
-    const nextLikesCount = nextIsLiked ? previousLikesCount + 1 : Math.max(0, previousLikesCount - 1);
-
-    // 1. Optimistic instant UI update
-    setIsPostLiked(nextIsLiked);
-    setPostLikesCount(nextLikesCount);
-    onPostLikeToggled?.(post.id, nextIsLiked, nextLikesCount);
-
-    setIsLikingPost(true);
-    try {
-      const res = await toggleLikePostAction(post.id);
-      if (res.success && res.data) {
-        setIsPostLiked(res.data.isLiked);
-        setPostLikesCount(res.data.likesCount);
-        onPostLikeToggled?.(post.id, res.data.isLiked, res.data.likesCount);
-      } else {
-        // Rollback on server rejection
-        setIsPostLiked(previousIsLiked);
-        setPostLikesCount(previousLikesCount);
-        onPostLikeToggled?.(post.id, previousIsLiked, previousLikesCount);
-        toast.error(res.error || "Unable to update like.");
+    if (!isMenuOpen) return;
+    const handleOutsideClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest("[data-comment-post-menu]")) {
+        setIsMenuOpen(false);
       }
-    } catch {
-      // Rollback on network failure
-      setIsPostLiked(previousIsLiked);
-      setPostLikesCount(previousLikesCount);
-      onPostLikeToggled?.(post.id, previousIsLiked, previousLikesCount);
-    } finally {
-      setIsLikingPost(false);
-    }
+    };
+    window.addEventListener("click", handleOutsideClick);
+    return () => window.removeEventListener("click", handleOutsideClick);
+  }, [isMenuOpen]);
+
+  const handleTogglePostLike = () => {
+    if (!post) return;
+    onPostLikeToggled?.(post.id);
   };
 
   // Fetch comments ONLY when the modal opens or the active post ID changes
@@ -260,8 +245,116 @@ export function CommentDrawerModal({
                 </div>
               </div>
 
-              <div className="text-white/40 pr-8">
-                <MoreHorizontal className="w-5 h-5" />
+              {/* 3-Dots More Options Menu */}
+              <div className="relative pr-8" data-comment-post-menu>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsMenuOpen((prev) => !prev);
+                  }}
+                  className="p-1.5 rounded-lg text-white/50 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+                  title="More options"
+                >
+                  <MoreHorizontal className="w-5 h-5" />
+                </button>
+
+                {isMenuOpen && (
+                  <div
+                    style={{ borderRadius: "10px" }}
+                    onClick={(e) => e.stopPropagation()}
+                    className="absolute right-8 top-full mt-1 w-48 bg-[#002f1f] border border-[#005a3c] rounded-[10px] shadow-2xl p-1.5 z-30 animate-in fade-in zoom-in-95 duration-150 backdrop-blur-md"
+                  >
+                    {/* Author Only Actions */}
+                    {post.isAuthor && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsMenuOpen(false);
+                            onEditPost?.(post);
+                          }}
+                          style={{ borderRadius: "10px" }}
+                          className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-[#8CC497] hover:text-white hover:bg-[#004e34] rounded-[10px] transition-colors text-left cursor-pointer"
+                        >
+                          <Pencil className="w-4 h-4 text-[#8CC497]" />
+                          <span>Edit Post</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsMenuOpen(false);
+                            onDeletePost?.(post);
+                          }}
+                          style={{ borderRadius: "10px" }}
+                          className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-rose-400 hover:text-rose-200 hover:bg-rose-950/40 rounded-[10px] transition-colors text-left cursor-pointer"
+                        >
+                          <Trash2 className="w-4 h-4 text-rose-400" />
+                          <span>Delete Post</span>
+                        </button>
+
+                        <div className="my-1 border-t border-[#005a3c]/60" />
+                      </>
+                    )}
+
+                    {/* Non-Author Actions: Save & Hide */}
+                    {!post.isAuthor && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsMenuOpen(false);
+                            onToggleSavePost?.(post);
+                          }}
+                          style={{ borderRadius: "10px" }}
+                          className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-emerald-100 hover:text-white hover:bg-[#004e34] rounded-[10px] transition-colors text-left cursor-pointer"
+                        >
+                          <Bookmark
+                            className={`w-4 h-4 transition-colors ${
+                              post.isSaved
+                                ? "fill-emerald-400 text-emerald-400"
+                                : "text-[#8CC497]"
+                            }`}
+                          />
+                          <span>{post.isSaved ? "Unsave Post" : "Save Post"}</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsMenuOpen(false);
+                            onHidePost?.(post.id);
+                          }}
+                          style={{ borderRadius: "10px" }}
+                          className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-amber-200 hover:text-amber-100 hover:bg-amber-950/40 rounded-[10px] transition-colors text-left cursor-pointer"
+                        >
+                          <EyeOff className="w-4 h-4 text-amber-300" />
+                          <span>Hide Post</span>
+                        </button>
+
+                        <div className="my-1 border-t border-[#005a3c]/60" />
+                      </>
+                    )}
+
+                    {/* Universal Copy Link Option */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsMenuOpen(false);
+                        if (navigator.clipboard) {
+                          navigator.clipboard.writeText(window.location.href);
+                          toast.success("Post link copied to clipboard!");
+                        }
+                      }}
+                      style={{ borderRadius: "10px" }}
+                      className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-emerald-100 hover:text-white hover:bg-[#004e34] rounded-[10px] transition-colors text-left cursor-pointer"
+                    >
+                      <Link2 className="w-4 h-4 text-[#8CC497]" />
+                      <span>Copy Link</span>
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
 

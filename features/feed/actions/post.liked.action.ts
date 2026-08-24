@@ -3,15 +3,21 @@
 import { createClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
 
+import { redis } from "@/lib/redis/client";
+
 type ActionResult<T> =
   | { success: true; data: T; error?: never }
   | { success: false; error: string; code?: string; data?: never };
 
+export type LikeTargetAction = "LIKE" | "UNLIKE";
+
 /**
- * 🔒 Toggle Like/Unlike on a Post (Atomic Transaction with Exact Relational Count Synchronization)
+ * 🔒 Explicit & Idempotent Set Like State on a Post
+ * Uses Redis Fast-Path Deduplication + Atomic Postgres Upsert/Delete with Zero Count Lock
  */
-export async function toggleLikePostAction(
-  postId: string
+export async function setPostLikeAction(
+  postId: string,
+  targetAction: LikeTargetAction
 ): Promise<ActionResult<{ isLiked: boolean; likesCount: number }>> {
   try {
     const supabase = await createClient();
@@ -35,104 +41,153 @@ export async function toggleLikePostAction(
       };
     }
 
-    // 1. Ensure user record exists in Postgres
-    let userRecord = await prisma.user.findUnique({
-      where: { id: authUser.id },
-    });
-
-    if (!userRecord) {
-      const meta = authUser.user_metadata || {};
-      const firstName = meta.first_name || "";
-      const lastName = meta.last_name || "";
-      const displayName = meta.display_name || `${firstName} ${lastName}`.trim() || "Student";
-      const studentId = meta.student_id || "00-0000-000000";
-      const department = meta.department || "CITE";
-
-      userRecord = await prisma.user.create({
-        data: {
-          id: authUser.id,
-          email: authUser.email,
-          displayName,
-          firstName,
-          lastName,
-          studentId,
-          department,
-          isEmailVerified: true,
-        },
-      });
-    }
-
-    // 2. Check if post exists and is not deleted
-    const targetPost = await prisma.post.findFirst({
-      where: { id: postId, isDeleted: false },
-    });
-
-    if (!targetPost) {
+    if (targetAction !== "LIKE" && targetAction !== "UNLIKE") {
       return {
         success: false,
-        error: "Post not found or has been deleted.",
-        code: "NOT_FOUND",
+        error: "Invalid like action. Must be LIKE or UNLIKE.",
+        code: "VALIDATION_ERROR",
       };
     }
 
-    // 3. Check existing like status
+    const userId = authUser.id;
+    const isLikeIntent = targetAction === "LIKE";
+
+    // ⚡ Redis Fast-Path Layer: Cache set for instant deduplication (fail-open if Redis error)
+    const redisKey = `post:likes:${postId}`;
+    try {
+      if (isLikeIntent) {
+        await redis.sadd(redisKey, userId);
+      } else {
+        await redis.srem(redisKey, userId);
+      }
+    } catch (redisErr) {
+      console.warn("REDIS_SET_LIKE_WARNING (proceeding with DB):", redisErr);
+    }
+
+    // 💾 Postgres Atomic Execution (Single Source of Truth)
+    const result = await prisma.$transaction(
+      async (tx) => {
+        // 1. Check existing record
+        const existingLike = await tx.likedPost.findUnique({
+          where: {
+            userId_postId: {
+              userId,
+              postId,
+            },
+          },
+          select: { id: true },
+        });
+
+        const currentPost = await tx.post.findUnique({
+          where: { id: postId },
+          select: { likesCount: true },
+        });
+
+        if (!currentPost) {
+          throw new Error("Post not found");
+        }
+
+        let updatedLikesCount = currentPost.likesCount;
+
+        if (isLikeIntent) {
+          if (!existingLike) {
+            // Create like and increment count atomically
+            await tx.likedPost.create({
+              data: {
+                userId,
+                postId,
+              },
+            });
+            const updated = await tx.post.update({
+              where: { id: postId },
+              data: { likesCount: { increment: 1 } },
+              select: { likesCount: true },
+            });
+            updatedLikesCount = updated.likesCount;
+          }
+        } else {
+          if (existingLike) {
+            // Delete like and decrement count safely
+            await tx.likedPost.delete({
+              where: { id: existingLike.id },
+            });
+            const updated = await tx.post.update({
+              where: { id: postId },
+              data: { likesCount: { decrement: 1 } },
+              select: { likesCount: true },
+            });
+            // Ensure no negative values
+            updatedLikesCount = Math.max(0, updated.likesCount);
+            if (updated.likesCount < 0) {
+              await tx.post.update({
+                where: { id: postId },
+                data: { likesCount: 0 },
+              });
+            }
+          }
+        }
+
+        return {
+          isLiked: isLikeIntent,
+          likesCount: updatedLikesCount,
+        };
+      },
+      {
+        maxWait: 5000,
+        timeout: 10000,
+      }
+    );
+
+    return {
+      success: true,
+      data: result,
+    };
+  } catch (error) {
+    console.error("SET_POST_LIKE_ERROR:", error);
+    return {
+      success: false,
+      error: "Failed to update like status.",
+      code: "INTERNAL_ERROR",
+    };
+  }
+}
+
+/**
+ * 🔒 Backwards compatible toggle helper using explicit action
+ */
+export async function toggleLikePostAction(
+  postId: string
+): Promise<ActionResult<{ isLiked: boolean; likesCount: number }>> {
+  try {
+    const supabase = await createClient();
+    const {
+      data: { user: authUser },
+    } = await supabase.auth.getUser();
+
+    if (!authUser) {
+      return {
+        success: false,
+        error: "You must be logged in to like posts.",
+        code: "UNAUTHORIZED",
+      };
+    }
+
     const existingLike = await prisma.likedPost.findUnique({
       where: {
         userId_postId: {
           userId: authUser.id,
-          postId: postId,
+          postId,
         },
       },
+      select: { id: true },
     });
 
-    let nextIsLiked = false;
-
-    // 4. Atomic Transaction: Perform Insert/Delete AND Sync exact COUNT(*)
-    const actualLikesCount = await prisma.$transaction(async (tx) => {
-      if (existingLike) {
-        // UNLIKE: Remove the row
-        await tx.likedPost.delete({
-          where: { id: existingLike.id },
-        });
-        nextIsLiked = false;
-      } else {
-        // LIKE: Insert row (enforces unique composite constraint)
-        await tx.likedPost.create({
-          data: {
-            userId: authUser.id,
-            postId: postId,
-          },
-        });
-        nextIsLiked = true;
-      }
-
-      // 🛡️ EXACT RELATIONAL COUNT: Count real remaining rows in LikedPosts
-      const realCount = await tx.likedPost.count({
-        where: { postId: postId },
-      });
-
-      // Update the cached counter to match reality 100%
-      await tx.post.update({
-        where: { id: postId },
-        data: {
-          likesCount: realCount,
-        },
-      });
-
-      return realCount;
-    });
-
-    return {
-      success: true,
-      data: {
-        isLiked: nextIsLiked,
-        likesCount: actualLikesCount,
-      },
-    };
+    const targetAction: LikeTargetAction = existingLike ? "UNLIKE" : "LIKE";
+    return setPostLikeAction(postId, targetAction);
   } catch {
     return {
       success: false,
-      error: "Failed to update like status.",
+      error: "Failed to toggle like.",
       code: "INTERNAL_ERROR",
     };
   }

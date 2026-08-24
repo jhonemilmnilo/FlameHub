@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import {
   Home,
@@ -41,7 +41,11 @@ import {
   repostPostAction,
   type PostFeedItem,
 } from "@/features/feed/actions/post.action";
-import { toggleLikePostAction } from "@/features/feed/actions/post.liked.action";
+import {
+  toggleLikePostAction,
+  setPostLikeAction,
+  type LikeTargetAction,
+} from "@/features/feed/actions/post.liked.action";
 import { toggleSavePostAction } from "@/features/feed/actions/post.saved.action";
 import { hidePostAction } from "@/features/feed/actions/post.hide.action";
 import { createCommentAction } from "@/features/feed/actions/comment.action";
@@ -341,16 +345,50 @@ export function HomeFeedDashboard({
     };
   }, [handleLoadMore]);
 
+  // ⚡ Debounce buffer and sequence-intent tracker for rapid like/unlike spamming per postId
+  const likeDebounceTimersRef = useRef<Record<string, NodeJS.Timeout>>({});
+  const pendingLikeIntentsRef = useRef<
+    Map<
+      string,
+      {
+        targetAction: LikeTargetAction;
+        timestamp: number;
+        originalIsLiked: boolean;
+        originalLikesCount: number;
+      }
+    >
+  >(new Map());
+
   const handleToggleLike = async (postId: string) => {
-    // ⚡ Optimistic UI Update (Instant visual feedback)
     const targetPost = posts.find((p) => p.id === postId);
     if (!targetPost) return;
 
     const previousIsLiked = targetPost.isLiked;
     const previousLikesCount = targetPost.likesCount;
     const nextIsLiked = !previousIsLiked;
-    const nextLikesCount = nextIsLiked ? previousLikesCount + 1 : Math.max(0, previousLikesCount - 1);
+    const nextLikesCount = nextIsLiked
+      ? previousLikesCount + 1
+      : Math.max(0, previousLikesCount - 1);
+    const targetAction: LikeTargetAction = nextIsLiked ? "LIKE" : "UNLIKE";
+    const currentIntentTimestamp = Date.now();
 
+    // Preserve the true original baseline before spam began
+    const existingIntent = pendingLikeIntentsRef.current.get(postId);
+    const baseOriginalIsLiked = existingIntent
+      ? existingIntent.originalIsLiked
+      : previousIsLiked;
+    const baseOriginalLikesCount = existingIntent
+      ? existingIntent.originalLikesCount
+      : previousLikesCount;
+
+    pendingLikeIntentsRef.current.set(postId, {
+      targetAction,
+      timestamp: currentIntentTimestamp,
+      originalIsLiked: baseOriginalIsLiked,
+      originalLikesCount: baseOriginalLikesCount,
+    });
+
+    // 1. Instant 0ms Optimistic UI toggle across post cards & open modal
     setPosts((prev) =>
       prev.map((post) =>
         post.id === postId
@@ -363,51 +401,120 @@ export function HomeFeedDashboard({
       )
     );
 
-    // 🔒 Sync to Database with Rollback on failure
-    try {
-      const res = await toggleLikePostAction(postId);
-      if (!res.success) {
-        // Rollback on server error
-        setPosts((prev) =>
-          prev.map((post) =>
-            post.id === postId
+    setActiveDiscussionPost((prev) =>
+      prev && prev.id === postId
+        ? {
+            ...prev,
+            isLiked: nextIsLiked,
+            likesCount: nextLikesCount,
+          }
+        : prev
+    );
+
+    // 2. Clear existing debounce timer for this specific post
+    if (likeDebounceTimersRef.current[postId]) {
+      clearTimeout(likeDebounceTimersRef.current[postId]);
+    }
+
+    // 3. Buffer server call: Wait 350ms after the last click before writing to DB
+    likeDebounceTimersRef.current[postId] = setTimeout(async () => {
+      delete likeDebounceTimersRef.current[postId];
+
+      const intent = pendingLikeIntentsRef.current.get(postId);
+      if (!intent || intent.timestamp !== currentIntentTimestamp) {
+        // Another newer click occurred; ignore this dispatched batch
+        return;
+      }
+
+      try {
+        const res = await setPostLikeAction(postId, intent.targetAction);
+
+        // Check if user clicked again while the network request was in-flight
+        const latestIntent = pendingLikeIntentsRef.current.get(postId);
+        if (latestIntent && latestIntent.timestamp !== currentIntentTimestamp) {
+          // Stale response: Discard to prevent UI snapback
+          return;
+        }
+
+        // Clean up intent tracking
+        pendingLikeIntentsRef.current.delete(postId);
+
+        if (!res.success) {
+          // Rollback to original baseline state on server error
+          setPosts((prev) =>
+            prev.map((post) =>
+              post.id === postId
+                ? {
+                    ...post,
+                    isLiked: baseOriginalIsLiked,
+                    likesCount: baseOriginalLikesCount,
+                  }
+                : post
+            )
+          );
+          setActiveDiscussionPost((prev) =>
+            prev && prev.id === postId
               ? {
-                  ...post,
-                  isLiked: previousIsLiked,
-                  likesCount: previousLikesCount,
+                  ...prev,
+                  isLiked: baseOriginalIsLiked,
+                  likesCount: baseOriginalLikesCount,
                 }
-              : post
-          )
-        );
-        toast.error(res.error || "Failed to update like.");
-      } else if (res.data) {
-        // 🛡️ Sync to exact server-verified count and like state
-        setPosts((prev) =>
-          prev.map((post) =>
-            post.id === postId
+              : prev
+          );
+          toast.error(res.error || "Failed to update like.");
+        } else if (res.data) {
+          // 🛡️ Sync to exact server-verified count and like state
+          setPosts((prev) =>
+            prev.map((post) =>
+              post.id === postId
+                ? {
+                    ...post,
+                    isLiked: res.data.isLiked,
+                    likesCount: res.data.likesCount,
+                  }
+                : post
+            )
+          );
+          setActiveDiscussionPost((prev) =>
+            prev && prev.id === postId
               ? {
-                  ...post,
+                  ...prev,
                   isLiked: res.data.isLiked,
                   likesCount: res.data.likesCount,
                 }
+              : prev
+          );
+        }
+      } catch {
+        // Rollback on network failure
+        const latestIntent = pendingLikeIntentsRef.current.get(postId);
+        if (latestIntent && latestIntent.timestamp !== currentIntentTimestamp) {
+          return;
+        }
+        pendingLikeIntentsRef.current.delete(postId);
+
+        setPosts((prev) =>
+          prev.map((post) =>
+            post.id === postId
+              ? {
+                  ...post,
+                  isLiked: baseOriginalIsLiked,
+                  likesCount: baseOriginalLikesCount,
+                }
               : post
           )
         );
-      }
-    } catch {
-      // Rollback on network failure
-      setPosts((prev) =>
-        prev.map((post) =>
-          post.id === postId
+        setActiveDiscussionPost((prev) =>
+          prev && prev.id === postId
             ? {
-                ...post,
-                isLiked: previousIsLiked,
-                likesCount: previousLikesCount,
+                ...prev,
+                isLiked: baseOriginalIsLiked,
+                likesCount: baseOriginalLikesCount,
               }
-            : post
-        )
-      );
-    }
+            : prev
+        );
+      }
+    }, 350);
   };
 
   const handleToggleSave = async (post: PostFeedItem) => {
@@ -1512,6 +1619,7 @@ export function HomeFeedDashboard({
       {/* 💬 COMMENT THREAD & DISCUSSION DRAWER */}
       {/* ========================================================================= */}
       <CommentDrawerModal
+        key={activeDiscussionPost?.id || "empty-modal"}
         post={activeDiscussionPost}
         isOpen={Boolean(activeDiscussionPost)}
         onClose={() => setActiveDiscussionPost(null)}
@@ -1522,15 +1630,24 @@ export function HomeFeedDashboard({
             )
           );
         }}
-        onPostLikeToggled={(postId, isLiked, likesCount) => {
-          setPosts((prev) =>
-            prev.map((p) =>
-              p.id === postId ? { ...p, isLiked, likesCount } : p
-            )
-          );
-          setActiveDiscussionPost((prev) =>
-            prev && prev.id === postId ? { ...prev, isLiked, likesCount } : prev
-          );
+        onPostLikeToggled={(postId) => {
+          handleToggleLike(postId);
+        }}
+        onEditPost={(p) => {
+          setActiveDiscussionPost(null);
+          handleOpenEdit(p);
+        }}
+        onDeletePost={(p) => {
+          setActiveDiscussionPost(null);
+          handleOpenDelete(p);
+        }}
+        onToggleSavePost={(p) => {
+          handleToggleSave(p);
+        }}
+        onHidePost={(postId) => {
+          setActiveDiscussionPost(null);
+          setPosts((prev) => prev.filter((p) => p.id !== postId));
+          toast.success("Post hidden from your feed");
         }}
       />
 
