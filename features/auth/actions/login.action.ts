@@ -53,38 +53,19 @@ export async function loginAction(rawInput: unknown): Promise<ActionResult<{ red
     // 2. Pre-check: 5-Tier Brute-Force lockout status
     const lockout = await checkLoginLockout(email);
     if (lockout.isLocked) {
-      const minutes = Math.ceil(lockout.remainingSeconds / 60);
-      const timeStr = minutes >= 60 ? `${Math.ceil(minutes / 60)} hour(s)` : `${minutes} minute(s)`;
       return {
         success: false,
-        error: `Account Locked (Tier ${lockout.tier}): Access temporarily disabled. Please wait ${timeStr} before trying again.`,
+        error: "Access temporarily disabled due to multiple failed attempts. Please try again later.",
         code: "SECURITY_LOCKOUT",
         lockout: {
           isLocked: true,
-          remainingSeconds: lockout.remainingSeconds,
-          tier: lockout.tier,
+          remainingSeconds: 0,
+          tier: 0,
         },
       };
     }
 
-    // 3. Database User Verification: Check if email is registered in our database
-    const dbUser = await prisma.user.findUnique({
-      where: { email: email.toLowerCase().trim() },
-      select: { id: true, email: true, isEmailVerified: true },
-    });
-
-    if (!dbUser) {
-      return {
-        success: false,
-        error: "No account found with this email address. Please sign up to create an account.",
-        code: "USER_NOT_FOUND",
-        fieldErrors: {
-          email: ["This email is not registered yet."],
-        },
-      };
-    }
-
-    // 4. Authenticate with Supabase Server Client (Sets secure HttpOnly session cookie on success)
+    // 3. Authenticate directly via Supabase Auth without leaking user existence
     const supabase = await createClient();
     const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
       email,
@@ -92,7 +73,8 @@ export async function loginAction(rawInput: unknown): Promise<ActionResult<{ red
     });
 
     if (authError || !authData.user) {
-      const penalty = await recordFailedLoginAttempt(email);
+      // 🔒 Anti-Enumeration & Compound Rate Limiter: Track failed attempts against email and client IP
+      const penalty = await recordFailedLoginAttempt(email, clientIp);
 
       console.warn(
         JSON.stringify({
@@ -107,7 +89,7 @@ export async function loginAction(rawInput: unknown): Promise<ActionResult<{ red
         })
       );
 
-      // Handle unconfirmed email error specifically (directs them to verify from sign-up)
+      // Handle unconfirmed email specifically (Supabase standard response for unverified users)
       if (authError?.message?.toLowerCase().includes("email not confirmed")) {
         return {
           success: false,
@@ -119,23 +101,37 @@ export async function loginAction(rawInput: unknown): Promise<ActionResult<{ red
       }
 
       if (penalty.isLocked) {
-        const mins = Math.ceil(penalty.remainingSeconds / 60);
-        const timeStr = mins >= 60 ? `${Math.ceil(mins / 60)} hour(s)` : `${mins} minute(s)`;
         return {
           success: false,
-          error: `Account Locked (Tier ${penalty.tier}): 5 incorrect password attempts. Login is disabled for ${timeStr}.`,
+          error: "Access temporarily disabled due to multiple failed attempts. Please try again later.",
           code: "SECURITY_LOCKOUT",
           lockout: {
             isLocked: true,
-            remainingSeconds: penalty.remainingSeconds,
-            tier: penalty.tier,
+            remainingSeconds: 0,
+            tier: 0,
           },
         };
       }
 
       return {
         success: false,
-        error: `Invalid email or password. (${penalty.remainingAttemptsInTier} attempt(s) remaining before lockdown).`,
+        error: "Invalid email or password.",
+        code: "INVALID_CREDENTIALS",
+      };
+    }
+
+    // 4. Verify user record exists in Postgres DB
+    const dbUser = await prisma.user.findUnique({
+      where: { email: email.toLowerCase().trim() },
+      select: { id: true, isEmailVerified: true },
+    });
+
+    if (!dbUser) {
+      // In the rare scenario user exists in Supabase Auth but not in our DB
+      await supabase.auth.signOut();
+      return {
+        success: false,
+        error: "Invalid email or password.",
         code: "INVALID_CREDENTIALS",
       };
     }

@@ -53,33 +53,8 @@ export function OtpVerificationForm() {
     }
   }, [cooldown]);
 
-  // 🔒 Live countdown timer for Security Lockout
-  useEffect(() => {
-    if (lockout.isLocked && lockout.remainingSeconds > 0) {
-      const lockTimer = setInterval(() => {
-        setLockout((prev) => {
-          if (prev.remainingSeconds <= 1) {
-            clearInterval(lockTimer);
-            return { isLocked: false, remainingSeconds: 0, tier: 0 };
-          }
-          return { ...prev, remainingSeconds: prev.remainingSeconds - 1 };
-        });
-      }, 1000);
-      return () => clearInterval(lockTimer);
-    }
-  }, [lockout.isLocked, lockout.remainingSeconds]);
-
-  // Format seconds into HH:MM:SS or MM:SS
-  const formatTime = (totalSec: number) => {
-    const hours = Math.floor(totalSec / 3600);
-    const mins = Math.floor((totalSec % 3600) / 60);
-    const secs = totalSec % 60;
-
-    if (hours > 0) {
-      return `${hours.toString().padStart(2, "0")}:${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
-    }
-    return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
-  };
+  // 🔒 Remove precise countdown interval timer to prevent reconnaissance stopwatch attacks
+  // Cooldown for Resend Code remains for legitimate UX
 
   // Handle single digit input + auto-focus forward
   const handleChange = (index: number, value: string) => {
@@ -133,7 +108,7 @@ export function OtpVerificationForm() {
   const handleVerify = (e: React.FormEvent) => {
     e.preventDefault();
     if (lockout.isLocked) {
-      toast.error(`Verification is locked for ${formatTime(lockout.remainingSeconds)}.`);
+      toast.error("Verification temporarily disabled due to multiple failed attempts. Please try again later.");
       return;
     }
 
@@ -278,7 +253,7 @@ export function OtpVerificationForm() {
                   <span>Verifying...</span>
                 </>
               ) : lockout.isLocked ? (
-                `LOCKED (${formatTime(lockout.remainingSeconds)})`
+                "TEMPORARILY LOCKED"
               ) : (
                 "VERIFY & CONTINUE"
               )}

@@ -21,14 +21,8 @@ export function LoginForm() {
   });
 
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
-  const [lockout, setLockout] = useState<{
-    isLocked: boolean;
-    remainingSeconds: number;
-    tier: number;
-  }>({
+  const [lockout, setLockout] = useState<{ isLocked: boolean }>({
     isLocked: false,
-    remainingSeconds: 0,
-    tier: 0,
   });
 
   // Check live lockout status whenever email changes (debounced)
@@ -39,7 +33,9 @@ export function LoginForm() {
       try {
         const status = await getLoginLockoutStatusAction(formData.email);
         if (status.isLocked) {
-          setLockout(status);
+          setLockout({ isLocked: true });
+        } else {
+          setLockout({ isLocked: false });
         }
       } catch {
         // Ignore network errors
@@ -48,33 +44,6 @@ export function LoginForm() {
 
     return () => clearTimeout(timer);
   }, [formData.email]);
-
-  // Live countdown timer for active lockout
-  useEffect(() => {
-    if (!lockout.isLocked || lockout.remainingSeconds <= 0) return;
-
-    const interval = setInterval(() => {
-      setLockout((prev) => {
-        if (prev.remainingSeconds <= 1) {
-          return { isLocked: false, remainingSeconds: 0, tier: 0 };
-        }
-        return { ...prev, remainingSeconds: prev.remainingSeconds - 1 };
-      });
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, [lockout.isLocked, lockout.remainingSeconds]);
-
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    if (mins >= 60) {
-      const hrs = Math.floor(mins / 60);
-      const remMins = mins % 60;
-      return `${hrs}h ${remMins}m ${secs.toString().padStart(2, "0")}s`;
-    }
-    return `${mins}:${secs.toString().padStart(2, "0")}`;
-  };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -93,7 +62,7 @@ export function LoginForm() {
     e.preventDefault();
 
     if (lockout.isLocked) {
-      toast.error(`Login is locked for ${formatTime(lockout.remainingSeconds)}. Please wait.`);
+      toast.error("Access temporarily disabled due to multiple failed attempts. Please try again later.");
       return;
     }
 
@@ -110,7 +79,6 @@ export function LoginForm() {
 
     if (Object.keys(errors).length > 0) {
       setFieldErrors(errors);
-      toast.error("Please fill in all required fields.");
       return;
     }
 
@@ -129,11 +97,7 @@ export function LoginForm() {
           }
 
           if (result.lockout?.isLocked) {
-            setLockout({
-              isLocked: true,
-              remainingSeconds: result.lockout.remainingSeconds,
-              tier: result.lockout.tier,
-            });
+            setLockout({ isLocked: true });
             toast.error(result.error, { duration: 6000 });
             return;
           }
@@ -266,7 +230,7 @@ export function LoginForm() {
                     <span>Logging in...</span>
                   </>
                 ) : lockout.isLocked ? (
-                  `Locked (${formatTime(lockout.remainingSeconds)})`
+                  "TEMPORARILY LOCKED"
                 ) : (
                   "LOG IN"
                 )}

@@ -80,22 +80,21 @@ export async function verifyOtpAction(rawInput: unknown): Promise<ActionResult<{
       );
 
       if (penalty.isLocked) {
-        const lockMins = Math.ceil(penalty.remainingSeconds / 60);
         return {
           success: false,
-          error: `Account Locked (Tier ${penalty.tier}): 3 incorrect attempts. Verification is disabled for ${lockMins} minutes.`,
+          error: "Verification temporarily disabled due to multiple failed attempts. Please try again later.",
           code: "SECURITY_LOCKOUT",
           lockout: {
             isLocked: true,
-            remainingSeconds: penalty.remainingSeconds,
-            tier: penalty.tier,
+            remainingSeconds: 0,
+            tier: 0,
           },
         };
       }
 
       return {
         success: false,
-        error: `Invalid verification code. (${penalty.remainingAttemptsInTier} attempt(s) remaining before lockout).`,
+        error: "Invalid or expired verification code. Please check and try again.",
         code: "INVALID_OTP",
       };
     }

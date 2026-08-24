@@ -44,18 +44,41 @@ export async function checkLoginLockout(email: string): Promise<LoginLockoutStat
 }
 
 export async function recordFailedLoginAttempt(
-  email: string
+  email: string,
+  clientIp: string = "127.0.0.1"
 ): Promise<{ isLocked: boolean; remainingSeconds: number; remainingAttemptsInTier: number; tier: number }> {
   const normalizedEmail = email.toLowerCase().trim();
   const failsKey = `login:fails:${normalizedEmail}`;
   const lockoutKey = `login:lockout:${normalizedEmail}`;
   const tierKey = `login:tier:${normalizedEmail}`;
+  const ipFailsKey = `login:ip_fails:${clientIp}`;
 
   try {
-    // 1. Increment total failed attempts
-    const fails = await redis.incr(failsKey);
+    // 1. Increment total failed attempts per Email and per IP
+    const [fails, ipFails] = await Promise.all([
+      redis.incr(failsKey),
+      redis.incr(ipFailsKey),
+    ]);
+
     if (fails === 1) {
       await redis.expire(failsKey, 86400 * 3); // 72 hours rolling window
+    }
+    if (ipFails === 1) {
+      await redis.expire(ipFailsKey, 3600); // 1 hour rolling window per IP
+    }
+
+    // 🚨 Anomaly Detection: Single IP attacking multiple accounts or excessive failed attempts
+    if (ipFails > 20) {
+      console.warn(
+        JSON.stringify({
+          timestamp: new Date().toISOString(),
+          level: "security",
+          event: "SUSPICIOUS_BRUTE_FORCE_IP_ACTIVITY",
+          ip: clientIp,
+          ipFailedCount: ipFails,
+          targetedEmail: normalizedEmail,
+        })
+      );
     }
 
     // 2. Compute current tier based on attempt ranges
