@@ -21,29 +21,6 @@ export function LoginForm() {
   });
 
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
-  const [lockout, setLockout] = useState<{ isLocked: boolean }>({
-    isLocked: false,
-  });
-
-  // Check live lockout status whenever email changes (debounced)
-  useEffect(() => {
-    if (!formData.email || !formData.email.includes("@")) return;
-
-    const timer = setTimeout(async () => {
-      try {
-        const status = await getLoginLockoutStatusAction(formData.email);
-        if (status.isLocked) {
-          setLockout({ isLocked: true });
-        } else {
-          setLockout({ isLocked: false });
-        }
-      } catch {
-        // Ignore network errors
-      }
-    }, 600);
-
-    return () => clearTimeout(timer);
-  }, [formData.email]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -60,11 +37,6 @@ export function LoginForm() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-
-    if (lockout.isLocked) {
-      toast.error("Access temporarily disabled due to multiple failed attempts. Please try again later.");
-      return;
-    }
 
     const errors: Record<string, string[]> = {};
     if (!formData.email.trim()) {
@@ -94,12 +66,6 @@ export function LoginForm() {
 
           if (result.fieldErrors) {
             setFieldErrors(result.fieldErrors);
-          }
-
-          if (result.lockout?.isLocked) {
-            setLockout({ isLocked: true });
-            toast.error(result.error, { duration: 6000 });
-            return;
           }
 
           if (result.requiresVerification && result.email) {
@@ -149,7 +115,7 @@ export function LoginForm() {
               <input
                 type="email"
                 name="email"
-                disabled={lockout.isLocked || isPending}
+                disabled={isPending}
                 autoComplete="email"
                 spellCheck="false"
                 placeholder="student@phinmaed.com"
@@ -177,7 +143,7 @@ export function LoginForm() {
                 <input
                   type={showPassword ? "text" : "password"}
                   name="password"
-                  disabled={lockout.isLocked || isPending}
+                  disabled={isPending}
                   autoComplete="current-password"
                   placeholder="••••••••"
                   value={formData.password}
@@ -190,7 +156,7 @@ export function LoginForm() {
                 />
                 <button
                   type="button"
-                  disabled={lockout.isLocked || isPending}
+                  disabled={isPending}
                   onClick={() => setShowPassword((prev) => !prev)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-emerald-300/70 hover:text-white transition-colors cursor-pointer p-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
                   aria-label={showPassword ? "Hide password" : "Show password"}
@@ -217,11 +183,11 @@ export function LoginForm() {
               />
             </div>
 
-            {/* Submit Action Button with Live Countdown during lockout */}
+            {/* Submit Action Button */}
             <div className="pt-2 flex flex-col items-center">
               <button
                 type="submit"
-                disabled={isPending || lockout.isLocked}
+                disabled={isPending}
                 className="w-full py-2.5 sm:py-3 px-6 rounded-full bg-white hover:bg-emerald-50 text-[#006241] font-black text-sm sm:text-base tracking-wider uppercase transition-all duration-200 transform hover:scale-[1.01] active:scale-[0.99] shadow-md shadow-black/20 flex items-center justify-center cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 {isPending ? (
@@ -229,8 +195,6 @@ export function LoginForm() {
                     <Loader2 className="w-4 h-4 mr-2 animate-spin text-[#006241]" />
                     <span>Logging in...</span>
                   </>
-                ) : lockout.isLocked ? (
-                  "TEMPORARILY LOCKED"
                 ) : (
                   "LOG IN"
                 )}

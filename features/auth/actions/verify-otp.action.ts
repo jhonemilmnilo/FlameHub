@@ -14,7 +14,7 @@ type ActionResult<T> =
       error: string;
       code?: string;
       fieldErrors?: Record<string, string[]>;
-      lockout?: { isLocked: boolean; remainingSeconds: number; tier: number };
+      lockout?: { isLocked: boolean };
       data?: never;
     };
 
@@ -49,11 +49,7 @@ export async function verifyOtpAction(rawInput: unknown): Promise<ActionResult<{
         success: false,
         error: "Verification temporarily disabled due to multiple failed attempts. Please try again later.",
         code: "SECURITY_LOCKOUT",
-        lockout: {
-          isLocked: true,
-          remainingSeconds: 0,
-          tier: 0,
-        },
+        lockout: { isLocked: true },
       };
     }
 
@@ -87,11 +83,7 @@ export async function verifyOtpAction(rawInput: unknown): Promise<ActionResult<{
           success: false,
           error: "Verification temporarily disabled due to multiple failed attempts. Please try again later.",
           code: "SECURITY_LOCKOUT",
-          lockout: {
-            isLocked: true,
-            remainingSeconds: 0,
-            tier: 0,
-          },
+          lockout: { isLocked: true },
         };
       }
 

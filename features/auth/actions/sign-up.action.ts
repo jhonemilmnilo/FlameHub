@@ -15,7 +15,7 @@ type ActionResult<T> =
 /**
  * 🔒 Server Action: Sign Up with Smart Orphan Account Recycling & Active OTP Guard
  */
-export async function signUpAction(rawInput: unknown): Promise<ActionResult<{ email: string; isAlreadyActive?: boolean; remainingSeconds?: number }>> {
+export async function signUpAction(rawInput: unknown): Promise<ActionResult<{ email: string; isAlreadyActive?: boolean }>> {
   const timestamp = new Date().toISOString();
   let clientIp = "127.0.0.1";
 
@@ -93,7 +93,6 @@ export async function signUpAction(rawInput: unknown): Promise<ActionResult<{ em
         data: {
           email,
           isAlreadyActive: true,
-          remainingSeconds: otpSendStatus.remainingSeconds,
         },
       };
     }
@@ -159,7 +158,7 @@ export async function signUpAction(rawInput: unknown): Promise<ActionResult<{ em
 
       return {
         success: false,
-        error: authError?.message || "Failed to initialize account.",
+        error: "Unable to process registration. Please try again later.",
         code: "AUTH_ERROR",
       };
     }

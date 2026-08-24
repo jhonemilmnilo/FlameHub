@@ -53,8 +53,6 @@ export function OtpVerificationForm() {
 
   // Handle single digit input + auto-focus forward
   const handleChange = (index: number, value: string) => {
-    if (lockout.isLocked) return;
-
     const sanitized = value.replace(/[^0-9]/g, "");
 
     if (sanitized.length === 0) {
@@ -76,7 +74,6 @@ export function OtpVerificationForm() {
 
   // Handle backspace key + auto-focus backwards
   const handleKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (lockout.isLocked) return;
     if (e.key === "Backspace" && !otp[index] && index > 0) {
       inputRefs.current[index - 1]?.focus();
     }
@@ -84,7 +81,6 @@ export function OtpVerificationForm() {
 
   // Handle pasting full 6-digit code
   const handlePaste = (e: React.ClipboardEvent) => {
-    if (lockout.isLocked) return;
     e.preventDefault();
     const pastedData = e.clipboardData.getData("text").replace(/[^0-9]/g, "").slice(0, 6);
 
@@ -213,7 +209,7 @@ export function OtpVerificationForm() {
                 ref={(el) => {
                   inputRefs.current[idx] = el;
                 }}
-                disabled={lockout.isLocked || isPending}
+                disabled={isPending}
                 type="text"
                 inputMode="numeric"
                 pattern="[0-9]*"
@@ -221,12 +217,8 @@ export function OtpVerificationForm() {
                 value={digit}
                 onChange={(e) => handleChange(idx, e.target.value)}
                 onKeyDown={(e) => handleKeyDown(idx, e)}
-                className={`w-11 h-14 sm:w-13 sm:h-16 text-center text-xl sm:text-2xl font-bold rounded-lg text-white transition-all selection:bg-transparent ${
-                  lockout.isLocked
-                    ? "bg-[#002f1f] border-emerald-900/40 text-white/20 cursor-not-allowed"
-                    : "bg-[#00462e] border border-[#22c55e]/50 focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-transparent"
-                }`}
-                autoFocus={idx === 0 && !lockout.isLocked}
+                className="w-11 h-14 sm:w-13 sm:h-16 text-center text-xl sm:text-2xl font-bold rounded-lg text-white transition-all selection:bg-transparent bg-[#00462e] border border-[#22c55e]/50 focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
+                autoFocus={idx === 0}
               />
             ))}
           </div>
@@ -235,7 +227,7 @@ export function OtpVerificationForm() {
           <div className="flex flex-col items-center pt-2">
             <button
               type="submit"
-              disabled={isPending || otp.join("").length < 6 || lockout.isLocked}
+              disabled={isPending || otp.join("").length < 6}
               className="w-52 sm:w-60 py-3 px-6 rounded-full bg-white hover:bg-emerald-50 text-[#006241] font-black text-sm sm:text-base tracking-wider uppercase transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98] shadow-lg shadow-black/30 flex items-center justify-center cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
             >
               {isPending ? (
@@ -243,8 +235,6 @@ export function OtpVerificationForm() {
                   <Loader2 className="w-4 h-4 mr-2 animate-spin text-[#006241]" />
                   <span>Verifying...</span>
                 </>
-              ) : lockout.isLocked ? (
-                "TEMPORARILY LOCKED"
               ) : (
                 "VERIFY & CONTINUE"
               )}
@@ -262,7 +252,7 @@ export function OtpVerificationForm() {
                   <button
                     type="button"
                     onClick={handleResend}
-                    disabled={isResending || lockout.isLocked}
+                  disabled={isResending}
                     className="text-emerald-300 hover:text-white font-semibold underline underline-offset-2 transition-colors cursor-pointer inline-flex items-center gap-1 disabled:opacity-40 disabled:cursor-not-allowed"
                   >
                     {isResending ? (

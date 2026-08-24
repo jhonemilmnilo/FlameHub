@@ -1,5 +1,8 @@
 import type { NextConfig } from "next";
 
+const isDev = process.env.NODE_ENV === "development";
+
+
 /**
  * 🛡️ Fortress-Grade HTTP Security Headers (Anti-Clickjacking, Anti-XSS, Anti-MIME Sniffing)
  */
@@ -35,11 +38,15 @@ const securityHeaders = [
     value: "camera=(), microphone=(), geolocation=(), payment=()",
   },
   // 7. Content-Security-Policy (CSP): Whitelist only trusted scripts, styles, fonts, and API endpoints
+  //    🔑 'unsafe-eval' is ONLY allowed in development — React/Turbopack requires it for hot-reload
+  //    and source map reconstruction. It is NEVER included in production builds.
   {
     key: "Content-Security-Policy",
     value: [
       "default-src 'self'",
-      "script-src 'self' 'unsafe-inline'",
+      isDev
+        ? "script-src 'self' 'unsafe-inline' 'unsafe-eval'"
+        : "script-src 'self' 'unsafe-inline'",
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       "font-src 'self' https://fonts.gstatic.com data:",
       "img-src 'self' blob: data: https:",
@@ -48,6 +55,7 @@ const securityHeaders = [
     ].join("; "),
   },
 ];
+
 
 const nextConfig: NextConfig = {
   images: {

@@ -15,7 +15,7 @@ type ActionResult<T> =
       fieldErrors?: Record<string, string[]>;
       requiresVerification?: boolean;
       email?: string;
-      lockout?: { isLocked: boolean; remainingSeconds: number; tier: number };
+      lockout?: { isLocked: boolean };
       data?: never;
     };
 
@@ -57,11 +57,7 @@ export async function loginAction(rawInput: unknown): Promise<ActionResult<{ red
         success: false,
         error: "Access temporarily disabled due to multiple failed attempts. Please try again later.",
         code: "SECURITY_LOCKOUT",
-        lockout: {
-          isLocked: true,
-          remainingSeconds: 0,
-          tier: 0,
-        },
+        lockout: { isLocked: true },
       };
     }
 
@@ -105,11 +101,7 @@ export async function loginAction(rawInput: unknown): Promise<ActionResult<{ red
           success: false,
           error: "Access temporarily disabled due to multiple failed attempts. Please try again later.",
           code: "SECURITY_LOCKOUT",
-          lockout: {
-            isLocked: true,
-            remainingSeconds: 0,
-            tier: 0,
-          },
+          lockout: { isLocked: true },
         };
       }
 
