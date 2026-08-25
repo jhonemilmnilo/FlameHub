@@ -19,22 +19,31 @@ export function OtpVerificationForm() {
   const [isResending, setIsResending] = useState(false);
   const [cooldown, setCooldown] = useState(0);
 
-  // 🛡️ Progressive Lockout State
-  const [lockout, setLockout] = useState<{ isLocked: boolean }>({
+  // 🛡️ Progressive Lockout & Daily Limit State
+  const [lockout, setLockout] = useState<{ isLocked: boolean; isDailyLimitReached: boolean }>({
     isLocked: false,
+    isDailyLimitReached: false,
   });
 
   // 6-digit OTP state
   const [otp, setOtp] = useState<string[]>(["", "", "", "", "", ""]);
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
-  // 🔍 Check lockout status on page mount (cooldown is handled locally)
+  // 🔍 Check lockout status & live Redis cooldown on page mount
   useEffect(() => {
     if (email) {
       getEmailLockoutStatusAction(email).then((status) => {
-        if (status.isLocked) {
-          setOtp(["", "", "", "", "", ""]);
-          setLockout({ isLocked: true });
+        if (status.isLocked || status.isDailyLimitReached) {
+          if (status.isLocked) {
+            setOtp(["", "", "", "", "", ""]);
+          }
+          setLockout({
+            isLocked: Boolean(status.isLocked),
+            isDailyLimitReached: Boolean(status.isDailyLimitReached),
+          });
+        }
+        if (status.remainingCooldownSeconds && status.remainingCooldownSeconds > 0) {
+          setCooldown(status.remainingCooldownSeconds);
         }
       });
     }
@@ -125,7 +134,7 @@ export function OtpVerificationForm() {
           inputRefs.current[0]?.focus();
 
           if (result.lockout?.isLocked) {
-            setLockout({ isLocked: true });
+            setLockout((prev) => ({ ...prev, isLocked: true }));
             toast.error(result.error, { duration: 6000 });
           } else {
             toast.error(result.error);
@@ -147,10 +156,15 @@ export function OtpVerificationForm() {
     });
   };
 
-  const handleResend = async () => {
+  const handleResend = async (e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+
     if (cooldown > 0 || isResending || lockout.isLocked) return;
     if (!email) {
-      toast.error("Email address missing.");
+      toast.error("Email address missing. Please go back to registration.");
       return;
     }
 
@@ -158,12 +172,15 @@ export function OtpVerificationForm() {
     try {
       const result = await resendOtpAction({ email });
       if (!result.success) {
+        if (result.code === "DAILY_LIMIT_REACHED") {
+          setLockout((prev) => ({ ...prev, isDailyLimitReached: true }));
+        }
         toast.error(result.error);
         return;
       }
 
       toast.success(`A new 6-digit code has been sent to ${email}`);
-      setCooldown(120);
+      setCooldown(result.data.remainingSeconds || 120);
     } catch {
       toast.error("Failed to resend code. Please try again.");
     } finally {

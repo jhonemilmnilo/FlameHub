@@ -50,13 +50,18 @@ export async function getEmailLockoutStatusAction(rawEmail: string) {
     }
 
     const email = parsed.data;
-    const lockout = await checkOtpLockout(email);
+    const [lockout, sendStatus] = await Promise.all([
+      checkOtpLockout(email),
+      checkActiveOtpSendStatus(email),
+    ]);
 
     return {
       isLocked: lockout.isLocked,
+      remainingCooldownSeconds: sendStatus.remainingSeconds,
+      isDailyLimitReached: sendStatus.isDailyLimitReached,
     };
   } catch {
-    return { isLocked: false };
+    return { isLocked: false, remainingCooldownSeconds: 0, isDailyLimitReached: false };
   }
 }
 

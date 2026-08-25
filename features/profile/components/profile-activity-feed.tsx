@@ -282,12 +282,13 @@ export function ProfileActivityFeed({
 
   // ⚡ Debounce buffer and sequence-intent tracker for rapid like/unlike spamming per postId
   const likeDebounceTimersRef = useRef<Record<string, NodeJS.Timeout>>({});
+  const likeIntentSequenceRef = useRef<number>(0);
   const pendingLikeIntentsRef = useRef<
     Map<
       string,
       {
         targetAction: LikeTargetAction;
-        timestamp: number;
+        sequenceId: number;
         originalIsLiked: boolean;
         originalLikesCount: number;
       }
@@ -295,7 +296,7 @@ export function ProfileActivityFeed({
   >(new Map());
 
   const handleToggleLike = React.useCallback(async (postId: string) => {
-    const targetPost = posts.find((p) => p.id === postId);
+    const targetPost = postsRef.current.find((p) => p.id === postId);
     if (!targetPost) return;
 
     const previousIsLiked = targetPost.isLiked;
@@ -305,7 +306,9 @@ export function ProfileActivityFeed({
       ? previousLikesCount + 1
       : Math.max(0, previousLikesCount - 1);
     const targetAction: LikeTargetAction = nextIsLiked ? "LIKE" : "UNLIKE";
-    const currentIntentTimestamp = Date.now();
+    
+    // Monotonic sequence ID: deterministic, pure, and immune to clock skew
+    const currentIntentSequence = ++likeIntentSequenceRef.current;
 
     // Preserve original baseline before rapid clicks began
     const existingIntent = pendingLikeIntentsRef.current.get(postId);
@@ -318,7 +321,7 @@ export function ProfileActivityFeed({
 
     pendingLikeIntentsRef.current.set(postId, {
       targetAction,
-      timestamp: currentIntentTimestamp,
+      sequenceId: currentIntentSequence,
       originalIsLiked: baseOriginalIsLiked,
       originalLikesCount: baseOriginalLikesCount,
     });
@@ -356,7 +359,7 @@ export function ProfileActivityFeed({
       delete likeDebounceTimersRef.current[postId];
 
       const intent = pendingLikeIntentsRef.current.get(postId);
-      if (!intent || intent.timestamp !== currentIntentTimestamp) {
+      if (!intent || intent.sequenceId !== currentIntentSequence) {
         return;
       }
 
@@ -364,7 +367,7 @@ export function ProfileActivityFeed({
         const res = await setPostLikeAction(postId, intent.targetAction);
 
         const latestIntent = pendingLikeIntentsRef.current.get(postId);
-        if (latestIntent && latestIntent.timestamp !== currentIntentTimestamp) {
+        if (latestIntent && latestIntent.sequenceId !== currentIntentSequence) {
           return;
         }
 
@@ -412,7 +415,7 @@ export function ProfileActivityFeed({
         }
       } catch {
         const latestIntent = pendingLikeIntentsRef.current.get(postId);
-        if (latestIntent && latestIntent.timestamp !== currentIntentTimestamp) {
+        if (latestIntent && latestIntent.sequenceId !== currentIntentSequence) {
           return;
         }
         pendingLikeIntentsRef.current.delete(postId);
@@ -439,7 +442,7 @@ export function ProfileActivityFeed({
         );
       }
     }, 350);
-  }, [posts]);
+  }, []);
 
   const handleToggleSave = async (post: PostFeedItem) => {
     setActiveMenuPostId(null);

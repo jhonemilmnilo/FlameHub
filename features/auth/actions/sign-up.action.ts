@@ -83,8 +83,24 @@ export async function signUpAction(rawInput: unknown): Promise<ActionResult<{ em
       };
     }
 
-    // 4. Active OTP Send Gate: Check 120s lease (5-second threshold)
+    // 4. Active OTP Send Gate: Check 120s lease (5-second threshold) and daily quota
     const otpSendStatus = await registerOtpSend(email, 120);
+
+    if (!otpSendStatus.success) {
+      if (otpSendStatus.isDailyLimitReached) {
+        return {
+          success: false,
+          error: "You have reached the maximum daily limit for verification requests on this account. Please try again in 24 hours.",
+          code: "DAILY_LIMIT_REACHED",
+        };
+      }
+
+      return {
+        success: false,
+        error: "Unable to process registration at this time. Please try again later.",
+        code: "RATE_LIMITED",
+      };
+    }
 
     // If an OTP is still active (> 5s remaining), do not dispatch new email; guide user to verify
     if (otpSendStatus.isAlreadyActive) {

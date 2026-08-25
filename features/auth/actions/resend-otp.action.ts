@@ -35,12 +35,20 @@ export async function resendOtpAction(rawInput: unknown): Promise<ActionResult<{
 
     const { email } = parsed.data;
 
-    // 2. Active OTP Send Gate (Cannot resend if an active OTP is already running)
-    const sendStatus = await registerOtpSend(email, 120);
+    // 2. Active OTP Send Gate (Renew lease and send fresh OTP email)
+    const sendStatus = await registerOtpSend(email, 120, true);
     if (!sendStatus.success) {
+      if (sendStatus.isDailyLimitReached) {
+        return {
+          success: false,
+          error: "You have reached the maximum daily limit for verification requests on this account. Please try again in 24 hours.",
+          code: "DAILY_LIMIT_REACHED",
+        };
+      }
+
       return {
         success: false,
-        error: "A verification code was already sent recently. Please check your inbox or wait before requesting another.",
+        error: "Unable to process resend request. Please wait a moment and try again.",
         code: "RATE_LIMITED",
       };
     }

@@ -347,12 +347,13 @@ export function HomeFeedDashboard({
 
   // ⚡ Debounce buffer and sequence-intent tracker for rapid like/unlike spamming per postId
   const likeDebounceTimersRef = useRef<Record<string, NodeJS.Timeout>>({});
+  const likeIntentSequenceRef = useRef<number>(0);
   const pendingLikeIntentsRef = useRef<
     Map<
       string,
       {
         targetAction: LikeTargetAction;
-        timestamp: number;
+        sequenceId: number;
         originalIsLiked: boolean;
         originalLikesCount: number;
       }
@@ -360,7 +361,7 @@ export function HomeFeedDashboard({
   >(new Map());
 
   const handleToggleLike = React.useCallback(async (postId: string) => {
-    const targetPost = posts.find((p) => p.id === postId);
+    const targetPost = postsRef.current.find((p) => p.id === postId);
     if (!targetPost) return;
 
     const previousIsLiked = targetPost.isLiked;
@@ -370,7 +371,9 @@ export function HomeFeedDashboard({
       ? previousLikesCount + 1
       : Math.max(0, previousLikesCount - 1);
     const targetAction: LikeTargetAction = nextIsLiked ? "LIKE" : "UNLIKE";
-    const currentIntentTimestamp = Date.now();
+    
+    // Monotonic sequence ID: deterministic, pure, and immune to clock skew
+    const currentIntentSequence = ++likeIntentSequenceRef.current;
 
     // Preserve the true original baseline before spam began
     const existingIntent = pendingLikeIntentsRef.current.get(postId);
@@ -383,12 +386,12 @@ export function HomeFeedDashboard({
 
     pendingLikeIntentsRef.current.set(postId, {
       targetAction,
-      timestamp: currentIntentTimestamp,
+      sequenceId: currentIntentSequence,
       originalIsLiked: baseOriginalIsLiked,
       originalLikesCount: baseOriginalLikesCount,
     });
 
-    // 1. Instant 0ms Optimistic UI toggle across post cards & open modal
+    // 1. Instant 0ms Optimistic UI toggle for both feed card and open discussion modal
     setPosts((prev) =>
       prev.map((post) =>
         post.id === postId
@@ -411,7 +414,7 @@ export function HomeFeedDashboard({
         : prev
     );
 
-    // 2. Clear existing debounce timer for this specific post
+    // 2. Clear any existing debounce timer for this specific post
     if (likeDebounceTimersRef.current[postId]) {
       clearTimeout(likeDebounceTimersRef.current[postId]);
     }
@@ -420,27 +423,25 @@ export function HomeFeedDashboard({
     likeDebounceTimersRef.current[postId] = setTimeout(async () => {
       delete likeDebounceTimersRef.current[postId];
 
+      // Check if this execution is still the latest registered intent for this post
       const intent = pendingLikeIntentsRef.current.get(postId);
-      if (!intent || intent.timestamp !== currentIntentTimestamp) {
-        // Another newer click occurred; ignore this dispatched batch
+      if (!intent || intent.sequenceId !== currentIntentSequence) {
         return;
       }
 
       try {
         const res = await setPostLikeAction(postId, intent.targetAction);
 
-        // Check if user clicked again while the network request was in-flight
+        // Discard result if user started clicking again while network request was in flight
         const latestIntent = pendingLikeIntentsRef.current.get(postId);
-        if (latestIntent && latestIntent.timestamp !== currentIntentTimestamp) {
-          // Stale response: Discard to prevent UI snapback
+        if (latestIntent && latestIntent.sequenceId !== currentIntentSequence) {
           return;
         }
 
-        // Clean up intent tracking
         pendingLikeIntentsRef.current.delete(postId);
 
         if (!res.success) {
-          // Rollback to original baseline state on server error
+          // Rollback to true pre-spam baseline
           setPosts((prev) =>
             prev.map((post) =>
               post.id === postId
@@ -461,9 +462,9 @@ export function HomeFeedDashboard({
                 }
               : prev
           );
-          toast.error(res.error || "Failed to update like.");
+          toast.error(res.error || "Failed to update like status.");
         } else if (res.data) {
-          // 🛡️ Sync to exact server-verified count and like state
+          // Sync with database truth
           setPosts((prev) =>
             prev.map((post) =>
               post.id === postId
@@ -486,9 +487,8 @@ export function HomeFeedDashboard({
           );
         }
       } catch {
-        // Rollback on network failure
         const latestIntent = pendingLikeIntentsRef.current.get(postId);
-        if (latestIntent && latestIntent.timestamp !== currentIntentTimestamp) {
+        if (latestIntent && latestIntent.sequenceId !== currentIntentSequence) {
           return;
         }
         pendingLikeIntentsRef.current.delete(postId);
@@ -515,7 +515,7 @@ export function HomeFeedDashboard({
         );
       }
     }, 350);
-  }, [posts]);
+  }, []);
 
   const handleToggleSave = async (post: PostFeedItem) => {
     setActiveMenuPostId(null);
