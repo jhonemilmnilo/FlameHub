@@ -214,23 +214,35 @@ export function HomeFeedDashboard({
       );
     }
 
+    // Helper to calculate effective timestamp (whichever is newest: creation or repost)
+    const getEffectiveTime = (p: PostFeedItem) => {
+      const createdTime = new Date(p.createdAt).getTime();
+      const repostedTime = p.repostedAt ? new Date(p.repostedAt).getTime() : 0;
+      return Math.max(createdTime, repostedTime);
+    };
+
     // 3. Sort / Category Filter
     if (sortBy === "Saved") {
       result = result.filter((p) => p.isSaved);
+      result.sort((a, b) => getEffectiveTime(b) - getEffectiveTime(a));
     } else if (sortBy === "Controversial") {
       // ⚡ Controversial Score = Combined high activity (Likes + Comments engagement balance)
       result.sort((a, b) => {
         const scoreA = a.likesCount + a.commentsCount * 2;
         const scoreB = b.likesCount + b.commentsCount * 2;
         if (scoreB !== scoreA) return scoreB - scoreA;
-        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+        return getEffectiveTime(b) - getEffectiveTime(a);
       });
     } else if (sortBy === "Most Liked") {
-      result.sort((a, b) => b.likesCount - a.likesCount);
-    } else if (sortBy === "Latest") {
-      result.sort(
-        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      );
+      result.sort((a, b) => {
+        if (b.likesCount !== a.likesCount) return b.likesCount - a.likesCount;
+        return getEffectiveTime(b) - getEffectiveTime(a);
+      });
+    } else if (sortBy === "Latest" || sortBy === "ALL") {
+      // ⚡ Sort strictly by whichever is most recent: latest post or latest repost
+      result.sort((a, b) => getEffectiveTime(b) - getEffectiveTime(a));
+    } else {
+      result.sort((a, b) => getEffectiveTime(b) - getEffectiveTime(a));
     }
 
     return result;

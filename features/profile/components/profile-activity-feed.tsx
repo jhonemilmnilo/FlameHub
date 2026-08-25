@@ -268,13 +268,22 @@ export function ProfileActivityFeed({
       );
     }
 
+    // Helper to calculate effective timestamp (whichever is newest: creation or repost)
+    const getEffectiveTime = (p: PostFeedItem) => {
+      const createdTime = new Date(p.createdAt).getTime();
+      const repostedTime = p.repostedAt ? new Date(p.repostedAt).getTime() : 0;
+      return Math.max(createdTime, repostedTime);
+    };
+
     if (sortBy === "Most Liked") {
-      result.sort((a, b) => b.likesCount - a.likesCount);
+      result.sort((a, b) => {
+        if (b.likesCount !== a.likesCount) return b.likesCount - a.likesCount;
+        return getEffectiveTime(b) - getEffectiveTime(a);
+      });
     } else if (sortBy === "Latest") {
-      result.sort(
-        (a, b) =>
-          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      );
+      result.sort((a, b) => getEffectiveTime(b) - getEffectiveTime(a));
+    } else {
+      result.sort((a, b) => getEffectiveTime(b) - getEffectiveTime(a));
     }
 
     return result;

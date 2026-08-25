@@ -2,7 +2,7 @@
 
 import { ResendOtpSchema } from "../schemas";
 import { createClient } from "@/lib/supabase/server";
-import { registerOtpSend } from "@/lib/redis/otp-send-limiter";
+import { registerOtpSend, rollbackOtpSend } from "@/lib/redis/otp-send-limiter";
 import { headers } from "next/headers";
 
 type ActionResult<T> =
@@ -14,10 +14,13 @@ type ActionResult<T> =
  * - Strict Active OTP Gate: Max 1 OTP send per 120 seconds per Email
  * - Tracks total cumulative OTPs sent in Redis (24h)
  * - Triggers Supabase resend verification email
+ * - Automatically rolls back reservation on mailer failure
  */
 export async function resendOtpAction(rawInput: unknown): Promise<ActionResult<{ success: true; remainingSeconds: number }>> {
   const timestamp = new Date().toISOString();
   let clientIp = "127.0.0.1";
+  let targetEmail: string | null = null;
+  let didReserveOtp = false;
 
   try {
     const headerList = await headers();
@@ -34,6 +37,7 @@ export async function resendOtpAction(rawInput: unknown): Promise<ActionResult<{
     }
 
     const { email } = parsed.data;
+    targetEmail = email;
 
     // 2. Active OTP Send Gate (Renew lease and send fresh OTP email)
     const sendStatus = await registerOtpSend(email, 120, true);
@@ -53,6 +57,8 @@ export async function resendOtpAction(rawInput: unknown): Promise<ActionResult<{
       };
     }
 
+    didReserveOtp = true;
+
     const supabase = await createClient();
     const { error: resendError } = await supabase.auth.resend({
       type: "signup",
@@ -60,11 +66,14 @@ export async function resendOtpAction(rawInput: unknown): Promise<ActionResult<{
     });
 
     if (resendError) {
+      // 🔄 Compensating Rollback: Refund daily attempt & remove cooldown
+      await rollbackOtpSend(email);
+
       console.warn(
         JSON.stringify({
           timestamp,
           level: "warn",
-          event: "OTP_RESEND_SUPABASE_ERROR",
+          event: "OTP_RESEND_SUPABASE_ERROR_ROLLED_BACK",
           email,
           ip: clientIp,
           error: resendError.message,
@@ -93,12 +102,16 @@ export async function resendOtpAction(rawInput: unknown): Promise<ActionResult<{
       data: { success: true, remainingSeconds: sendStatus.remainingSeconds },
     };
   } catch (err: unknown) {
+    if (didReserveOtp && targetEmail) {
+      await rollbackOtpSend(targetEmail);
+    }
+
     const errorMsg = err instanceof Error ? err.message : "Internal Server Error";
     console.error(
       JSON.stringify({
         timestamp,
         level: "error",
-        event: "RESEND_OTP_EXCEPTION",
+        event: "RESEND_OTP_EXCEPTION_ROLLED_BACK",
         ip: clientIp,
         error: errorMsg,
       })

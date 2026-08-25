@@ -139,3 +139,30 @@ export async function clearActiveOtpSend(email: string): Promise<void> {
     console.error("CLEAR_ACTIVE_OTP_SEND_ERROR:", error);
   }
 }
+
+/**
+ * 🔄 Compensating Transaction: Rollback OTP Send
+ * Called when Supabase / Mailer fails to dispatch an email.
+ * - Deletes the 120s cooldown lease (`otp:active:{email}`)
+ * - Decrements/refunds the daily send counter (`otp:sent_count:{email}`)
+ */
+export async function rollbackOtpSend(email: string): Promise<void> {
+  const normalizedEmail = email.toLowerCase().trim();
+  const activeKey = `otp:active:${normalizedEmail}`;
+  const countKey = `otp:sent_count:${normalizedEmail}`;
+
+  try {
+    const pipeline = redis.pipeline();
+    pipeline.del(activeKey);
+    pipeline.decr(countKey);
+    const results = await pipeline.exec();
+
+    // If counter dropped <= 0, ensure it doesn't linger negatively
+    const newCount = results[1] as number;
+    if (newCount <= 0) {
+      await redis.del(countKey);
+    }
+  } catch (error) {
+    console.error("ROLLBACK_OTP_SEND_ERROR:", error);
+  }
+}

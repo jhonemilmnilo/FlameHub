@@ -3,7 +3,7 @@
 import { SignUpSchema } from "../schemas";
 import { createClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
-import { registerOtpSend } from "@/lib/redis/otp-send-limiter";
+import { registerOtpSend, rollbackOtpSend } from "@/lib/redis/otp-send-limiter";
 import { checkOtpLockout } from "@/lib/redis/otp-verify-limiter";
 import { redis } from "@/lib/redis/client";
 import { headers } from "next/headers";
@@ -18,6 +18,8 @@ type ActionResult<T> =
 export async function signUpAction(rawInput: unknown): Promise<ActionResult<{ email: string; isAlreadyActive?: boolean }>> {
   const timestamp = new Date().toISOString();
   let clientIp = "127.0.0.1";
+  let targetEmail: string | null = null;
+  let didReserveOtp = false;
 
   try {
     const headerList = await headers();
@@ -53,6 +55,7 @@ export async function signUpAction(rawInput: unknown): Promise<ActionResult<{ em
     }
 
     const { email, password, firstName, lastName, studentId, department, bio, honeypot } = parsed.data;
+    targetEmail = email;
 
     // Reject bot honeypot
     if (honeypot && honeypot.length > 0) {
@@ -113,6 +116,8 @@ export async function signUpAction(rawInput: unknown): Promise<ActionResult<{ em
       };
     }
 
+    didReserveOtp = true;
+
     // 5. Supabase Auth Registration & OTP Dispatch
     const displayName = `${firstName} ${lastName}`.trim();
     const username = `${firstName.toLowerCase().replace(/[^a-z0-9]/g, "")}_${studentId.replace(/[^a-z0-9]/g, "")}`;
@@ -162,11 +167,14 @@ export async function signUpAction(rawInput: unknown): Promise<ActionResult<{ em
     }
 
     if (authError || !authData?.user) {
+      // 🔄 Compensating Rollback: Refund daily attempt & remove cooldown
+      await rollbackOtpSend(email);
+
       console.error(
         JSON.stringify({
           timestamp,
           level: "error",
-          event: "SUPABASE_SIGNUP_FAILED",
+          event: "SUPABASE_SIGNUP_FAILED_ROLLED_BACK",
           ip: clientIp,
           error: authError?.message,
         })
@@ -195,12 +203,16 @@ export async function signUpAction(rawInput: unknown): Promise<ActionResult<{ em
       data: { email },
     };
   } catch (err: unknown) {
+    if (didReserveOtp && targetEmail) {
+      await rollbackOtpSend(targetEmail);
+    }
+
     const errorMsg = err instanceof Error ? err.message : "Internal Server Error";
     console.error(
       JSON.stringify({
         timestamp,
         level: "error",
-        event: "SIGNUP_ACTION_EXCEPTION",
+        event: "SIGNUP_ACTION_EXCEPTION_ROLLED_BACK",
         ip: clientIp,
         error: errorMsg,
       })

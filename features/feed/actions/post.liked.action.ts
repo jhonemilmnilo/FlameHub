@@ -57,6 +57,7 @@ export async function setPostLikeAction(
     try {
       if (isLikeIntent) {
         await redis.sadd(redisKey, userId);
+        await redis.expire(redisKey, 86400); // 24-hour rolling TTL to prevent Redis memory bloat
       } else {
         await redis.srem(redisKey, userId);
       }

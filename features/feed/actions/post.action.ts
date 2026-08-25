@@ -125,18 +125,21 @@ export async function getFeedPostsAction(options?: {
             }
           : undefined,
       },
-      orderBy: [
-        {
-          repostedAt: { sort: "desc", nulls: "last" },
-        },
-        {
-          createdAt: "desc",
-        },
-      ],
+      // Order initially by createdAt descending to pull relevant candidate posts
+      orderBy: {
+        createdAt: "desc",
+      },
     });
 
-    const hasMore = rawPosts.length > limit;
-    const postsToReturn = hasMore ? rawPosts.slice(0, limit) : rawPosts;
+    // ⚡ Sort posts by Unified Effective Activity Timestamp: max(createdAt, repostedAt)
+    const sortedPosts = [...rawPosts].sort((a, b) => {
+      const timeA = Math.max(a.createdAt.getTime(), a.repostedAt ? a.repostedAt.getTime() : 0);
+      const timeB = Math.max(b.createdAt.getTime(), b.repostedAt ? b.repostedAt.getTime() : 0);
+      return timeB - timeA;
+    });
+
+    const hasMore = sortedPosts.length > limit;
+    const postsToReturn = hasMore ? sortedPosts.slice(0, limit) : sortedPosts;
     const nextCursor = hasMore && postsToReturn.length > 0 ? postsToReturn[postsToReturn.length - 1].id : null;
 
     const formattedPosts: PostFeedItem[] = postsToReturn.map((p) => {
