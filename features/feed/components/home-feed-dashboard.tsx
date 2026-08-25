@@ -1364,7 +1364,10 @@ export function HomeFeedDashboard({
                         <div className="flex items-center gap-2.5">
                           <button
                             type="button"
-                            onClick={() => setActiveLikersPostId(post.id)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setActiveLikersPostId(post.id);
+                            }}
                             className="hover:text-[#8CC497] hover:underline cursor-pointer transition-colors"
                             title="See who liked this post"
                           >
@@ -1373,7 +1376,10 @@ export function HomeFeedDashboard({
                           <span className="text-[#8CC497]/40">•</span>
                           <button
                             type="button"
-                            onClick={() => setActiveDiscussionPost(post)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setActiveDiscussionPost(post);
+                            }}
                             className="hover:text-[#8CC497] hover:underline cursor-pointer transition-colors"
                           >
                             {post.commentsCount} {post.commentsCount === 1 ? "comment" : "comments"}
@@ -1397,7 +1403,10 @@ export function HomeFeedDashboard({
                       </div>
 
                       {/* 💬 Comment Input Box matching profile */}
-                      <div className="relative flex items-center pt-0.5">
+                      <div
+                        onClick={(e) => e.stopPropagation()}
+                        className="relative flex items-center pt-0.5"
+                      >
                         <input
                           type="text"
                           placeholder="Write a comment..."

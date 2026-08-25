@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import Image from "next/image";
-import { X, Heart, Search } from "lucide-react";
+import { X, Heart, Search, Loader2 } from "lucide-react";
 import Link from "next/link";
 import {
   getPostLikersAction,
@@ -126,27 +126,13 @@ export function PostLikersModal({
           </div>
         )}
 
-        {/* Likers List or Skeleton Loaders (Compact 5-items max height, clean transparent scrollbar) */}
+        {/* Likers List or Spinner Loader (Compact 5-items max height, clean transparent scrollbar) */}
         <div className="max-h-[270px] overflow-y-auto space-y-2 pr-1.5 [scrollbar-width:thin] [scrollbar-color:rgba(140,196,151,0.4)_transparent] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-button]:hidden [&::-webkit-scrollbar-button]:w-0 [&::-webkit-scrollbar-button]:h-0 [&::-webkit-scrollbar-thumb]:bg-[#8CC497]/40 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-[#8CC497]/70">
           {isLoading ? (
-            /* 💀 Compact Shimmer Skeleton Likers List */
-            <div className="space-y-2 py-1">
-              {[1, 2, 3, 4, 5].map((i) => (
-                <div
-                  key={i}
-                  style={{ borderRadius: "10px" }}
-                  className="p-2.5 rounded-[10px] bg-[#002f1f] border border-[#005a3c]/60 flex items-center justify-between animate-pulse"
-                >
-                  <div className="flex items-center gap-2.5 flex-1">
-                    <div className="w-8 h-8 rounded-full bg-[#8CC497]/30 shrink-0" />
-                    <div className="space-y-1.5 flex-1">
-                      <div className="h-3 bg-white/20 rounded-md w-2/5" />
-                      <div className="h-2 bg-[#8CC497]/20 rounded-md w-1/3" />
-                    </div>
-                  </div>
-                  <div className="w-3.5 h-3.5 rounded-full bg-rose-500/20" />
-                </div>
-              ))}
+            /* 🌀 Centered Spinner Loader */
+            <div className="py-12 flex flex-col items-center justify-center gap-2.5 text-[#8CC497]">
+              <Loader2 className="w-7 h-7 animate-spin text-[#8CC497]" />
+              <span className="text-xs font-medium text-emerald-200/70">Loading likes...</span>
             </div>
           ) : likers.length === 0 ? (
             <div

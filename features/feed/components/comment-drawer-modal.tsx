@@ -14,6 +14,7 @@ import {
   Link2,
   Bookmark,
   EyeOff,
+  Loader2,
 } from "lucide-react";
 import {
   createCommentAction,
@@ -400,29 +401,10 @@ export function CommentDrawerModal({
           {/* 💬 COMMENTS LIST (Green Nested Bubble Cards with Reaction & Reply) */}
           {/* ========================================================================= */}
           {isLoading ? (
-            <div className="space-y-2.5 py-1">
-              {[1, 2, 3].map((i) => (
-                <div
-                  key={i}
-                  style={{ borderRadius: "10px" }}
-                  className="bg-[#002f1f] border border-[#005a3c]/60 rounded-[10px] px-3.5 py-3 space-y-2.5 animate-pulse"
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2.5 flex-1">
-                      <div className="w-8 h-8 rounded-full bg-[#8CC497]/30 shrink-0" />
-                      <div className="space-y-1.5 flex-1">
-                        <div className="h-3 bg-white/20 rounded-md w-2/5" />
-                        <div className="h-2 bg-[#8CC497]/20 rounded-md w-1/4" />
-                      </div>
-                    </div>
-                    <div className="w-4 h-4 rounded-full bg-white/10" />
-                  </div>
-                  <div className="space-y-1.5 pl-10.5">
-                    <div className="h-2.5 bg-white/15 rounded-md w-5/6" />
-                    <div className="h-2.5 bg-white/10 rounded-md w-3/5" />
-                  </div>
-                </div>
-              ))}
+            /* 🌀 Centered Comments Spinner Loader */
+            <div className="py-14 flex flex-col items-center justify-center gap-3 text-[#8CC497]">
+              <Loader2 className="w-8 h-8 animate-spin text-[#8CC497]" />
+              <span className="text-xs font-medium text-emerald-200/70">Loading discussion...</span>
             </div>
           ) : comments.length === 0 ? (
             <div
