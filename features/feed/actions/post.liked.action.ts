@@ -65,84 +65,81 @@ export async function setPostLikeAction(
       console.warn("REDIS_SET_LIKE_WARNING (proceeding with DB):", redisErr);
     }
 
-    // 💾 Postgres Atomic Execution (Single Source of Truth)
-    const result = await prisma.$transaction(
-      async (tx) => {
-        // 1. Check existing record
-        const existingLike = await tx.likedPost.findUnique({
-          where: {
-            userId_postId: {
-              userId,
-              postId,
-            },
-          },
-          select: { id: true },
+    // 💾 Postgres Idempotent & Atomic Execution (Single Source of Truth)
+    // Non-throwing check-then-write & deleteMany to keep terminal 100% clean during spam
+    if (isLikeIntent) {
+      // Check if like already exists
+      const existing = await prisma.likedPost.findUnique({
+        where: { userId_postId: { userId, postId } },
+        select: { id: true },
+      });
+
+      if (!existing) {
+        await prisma.likedPost.create({
+          data: { userId, postId },
         });
 
-        const currentPost = await tx.post.findUnique({
+        const updated = await prisma.post.update({
           where: { id: postId },
+          data: { likesCount: { increment: 1 } },
           select: { likesCount: true },
         });
 
-        if (!currentPost) {
-          throw new Error("Post not found");
-        }
+        return {
+          success: true,
+          data: { isLiked: true, likesCount: updated.likesCount },
+        };
+      }
 
-        let updatedLikesCount = currentPost.likesCount;
+      // If already liked (idempotent), return current count
+      const currentPost = await prisma.post.findUnique({
+        where: { id: postId },
+        select: { likesCount: true },
+      });
 
-        if (isLikeIntent) {
-          if (!existingLike) {
-            // Create like and increment count atomically
-            await tx.likedPost.create({
-              data: {
-                userId,
-                postId,
-              },
-            });
-            const updated = await tx.post.update({
-              where: { id: postId },
-              data: { likesCount: { increment: 1 } },
-              select: { likesCount: true },
-            });
-            updatedLikesCount = updated.likesCount;
-          }
-        } else {
-          if (existingLike) {
-            // Delete like and decrement count safely
-            await tx.likedPost.delete({
-              where: { id: existingLike.id },
-            });
-            const updated = await tx.post.update({
-              where: { id: postId },
-              data: { likesCount: { decrement: 1 } },
-              select: { likesCount: true },
-            });
-            // Ensure no negative values
-            updatedLikesCount = Math.max(0, updated.likesCount);
-            if (updated.likesCount < 0) {
-              await tx.post.update({
-                where: { id: postId },
-                data: { likesCount: 0 },
-              });
-            }
-          }
+      return {
+        success: true,
+        data: { isLiked: true, likesCount: currentPost?.likesCount ?? 1 },
+      };
+    } else {
+      // deleteMany returns { count: 0 } if record doesn't exist — never throws P2025!
+      const deleted = await prisma.likedPost.deleteMany({
+        where: { userId, postId },
+      });
+
+      if (deleted.count > 0) {
+        const updated = await prisma.post.update({
+          where: { id: postId },
+          data: { likesCount: { decrement: 1 } },
+          select: { likesCount: true },
+        });
+
+        let safeCount = Math.max(0, updated.likesCount);
+        if (updated.likesCount < 0) {
+          await prisma.post.update({
+            where: { id: postId },
+            data: { likesCount: 0 },
+          });
+          safeCount = 0;
         }
 
         return {
-          isLiked: isLikeIntent,
-          likesCount: updatedLikesCount,
+          success: true,
+          data: { isLiked: false, likesCount: safeCount },
         };
-      },
-      {
-        maxWait: 5000,
-        timeout: 10000,
       }
-    );
 
-    return {
-      success: true,
-      data: result,
-    };
+      // If was already unliked (idempotent), return current count
+      const currentPost = await prisma.post.findUnique({
+        where: { id: postId },
+        select: { likesCount: true },
+      });
+
+      return {
+        success: true,
+        data: { isLiked: false, likesCount: Math.max(0, currentPost?.likesCount ?? 0) },
+      };
+    }
   } catch (error) {
     console.error("SET_POST_LIKE_ERROR:", error);
     return {

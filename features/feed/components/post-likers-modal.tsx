@@ -25,9 +25,17 @@ export function PostLikersModal({
   const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
-    if (!isOpen || !postId) return;
+    if (!isOpen || !postId) {
+      setLikers([]);
+      setIsLoading(true);
+      setSearchQuery("");
+      return;
+    }
 
     let isMounted = true;
+    setIsLoading(true);
+    setLikers([]);
+    setSearchQuery("");
 
     async function fetchLikers() {
       try {

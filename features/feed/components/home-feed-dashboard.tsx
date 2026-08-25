@@ -535,6 +535,21 @@ export function HomeFeedDashboard({
     }, 350);
   }, []);
 
+  const handleOpenLikersModal = React.useCallback((postId: string) => {
+    // ⚡ Flush pending like debounce if user just liked/unliked right before opening the modal
+    const existingTimer = likeDebounceTimersRef.current[postId];
+    if (existingTimer) {
+      clearTimeout(existingTimer);
+      delete likeDebounceTimersRef.current[postId];
+      const intent = pendingLikeIntentsRef.current.get(postId);
+      if (intent) {
+        pendingLikeIntentsRef.current.delete(postId);
+        setPostLikeAction(postId, intent.targetAction).catch(() => {});
+      }
+    }
+    setActiveLikersPostId(postId);
+  }, []);
+
   const handleToggleSave = async (post: PostFeedItem) => {
     setActiveMenuPostId(null);
 
@@ -1366,7 +1381,7 @@ export function HomeFeedDashboard({
                             type="button"
                             onClick={(e) => {
                               e.stopPropagation();
-                              setActiveLikersPostId(post.id);
+                              handleOpenLikersModal(post.id);
                             }}
                             className="hover:text-[#8CC497] hover:underline cursor-pointer transition-colors"
                             title="See who liked this post"
@@ -1708,6 +1723,7 @@ export function HomeFeedDashboard({
       {/* 💖 WHO LIKED THIS POST MODAL (With Shimmer Skeletons) */}
       {/* ========================================================================= */}
       <PostLikersModal
+        key={activeLikersPostId || "empty-likers"}
         postId={activeLikersPostId}
         isOpen={Boolean(activeLikersPostId)}
         onClose={() => setActiveLikersPostId(null)}
