@@ -37,7 +37,9 @@ import {
   type LikeTargetAction,
 } from "@/features/feed/actions/post.liked.action";
 import { toggleSavePostAction } from "@/features/feed/actions/post.saved.action";
+import { hidePostAction } from "@/features/feed/actions/post.hide.action";
 import { createCommentAction } from "@/features/feed/actions/comment.action";
+import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 
 function formatRelativeTime(dateString: string): string {
@@ -241,6 +243,7 @@ export function ProfileActivityFeed({
 
   const [deletingPost, setDeletingPost] = useState<PostFeedItem | null>(null);
   const [isSubmittingDelete, setIsSubmittingDelete] = useState(false);
+  const [activeHeartBursts, setActiveHeartBursts] = useState<Record<string, number>>({});
 
   // Close menus on outside click
   React.useEffect(() => {
@@ -336,6 +339,10 @@ export function ProfileActivityFeed({
     });
 
     // 1. Instant 0ms Optimistic UI toggle
+    if (nextIsLiked) {
+      setActiveHeartBursts((prev) => ({ ...prev, [postId]: Date.now() }));
+    }
+
     setPosts((prev) =>
       prev.map((post) =>
         post.id === postId
@@ -481,6 +488,29 @@ export function ProfileActivityFeed({
       setPosts((prev) =>
         prev.map((p) => (p.id === post.id ? { ...p, isSaved: previousIsSaved } : p))
       );
+    }
+  };
+
+  const handleHidePost = async (post: PostFeedItem) => {
+    setActiveMenuPostId(null);
+    if (post.isAuthor) {
+      toast.error("You cannot hide your own post.");
+      return;
+    }
+
+    const originalPosts = posts;
+    setPosts((prev) => prev.filter((p) => p.id !== post.id));
+    toast.success("Post hidden from your feed.");
+
+    try {
+      const res = await hidePostAction(post.id);
+      if (!res.success) {
+        setPosts(originalPosts);
+        toast.error(res.error || "Unable to hide post.");
+      }
+    } catch {
+      setPosts(originalPosts);
+      toast.error("Network error while hiding post.");
     }
   };
 
@@ -686,14 +716,23 @@ export function ProfileActivityFeed({
           <p className="text-sm text-[#8CC497]/70">No activity posts found yet.</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-          {filteredPosts.map((post) => (
-            <article
-              key={post.id}
-              onClick={() => setActiveDiscussionPost(post)}
-              style={{ borderRadius: "10px" }}
-              className="bg-[#003F2A] border border-[#005a3c]/60 rounded-[10px] p-5 flex flex-col justify-between space-y-4 shadow-xl hover:border-[#8CC497]/60 hover:shadow-2xl transition-all cursor-pointer group select-none"
-            >
+        <motion.div layoutScroll className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          <AnimatePresence mode="popLayout" initial={false}>
+            {filteredPosts.map((post) => (
+              <motion.article
+                key={post.id}
+                layout="position"
+                initial={{ opacity: 0, scale: 0.96 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                transition={{
+                  layout: { type: "spring", stiffness: 140, damping: 22, mass: 0.9 },
+                  opacity: { duration: 0.35, ease: "easeOut" },
+                }}
+                onClick={() => setActiveDiscussionPost(post)}
+                style={{ borderRadius: "10px" }}
+                className="bg-[#003F2A] border border-[#005a3c]/60 rounded-[10px] p-5 flex flex-col justify-between space-y-4 shadow-xl hover:border-[#8CC497]/60 hover:shadow-2xl transition-colors cursor-pointer group select-none"
+              >
               {/* Header: Avatar + Author + Dept + Student ID */}
               <div className="flex items-center gap-3.5">
                 <div
@@ -733,32 +772,54 @@ export function ProfileActivityFeed({
               </div>
 
               {/* Body Text */}
-              <p className="text-xs sm:text-sm text-white/90 leading-relaxed min-h-[44px]">
+              <p className="text-xs sm:text-sm text-white/90 leading-relaxed min-h-[48px]">
                 {post.content}
               </p>
 
               {/* Action Strip */}
-              <div className="space-y-3 pt-1">
+              <div className="space-y-3 pt-2">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    {/* Like */}
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleToggleLike(post.id);
-                      }}
-                      className="p-1 -ml-1 text-white hover:scale-110 active:scale-95 transition-transform cursor-pointer"
-                      title="Like"
-                    >
-                      <Heart
-                        className={`w-5 h-5 transition-colors ${
-                          post.isLiked
-                            ? "fill-rose-500 text-rose-500"
-                            : "text-white/80 hover:text-white"
-                        }`}
-                      />
-                    </button>
+                    {/* Like Button with Floating Heart Pop Particle */}
+                    <div className="relative flex items-center justify-center">
+                      <AnimatePresence>
+                        {activeHeartBursts[post.id] && (
+                          <motion.div
+                            key={activeHeartBursts[post.id]}
+                            initial={{ opacity: 0, scale: 0.4, y: 0 }}
+                            animate={{
+                              opacity: [0, 1, 1, 0],
+                              scale: [0.4, 1.4, 1.2, 0.8],
+                              y: -36,
+                              rotate: [0, -10, 10, 0],
+                            }}
+                            exit={{ opacity: 0 }}
+                            transition={{ duration: 0.75, ease: "easeOut" }}
+                            className="absolute pointer-events-none z-30 select-none text-rose-500 drop-shadow-[0_0_10px_rgba(244,63,94,0.8)]"
+                          >
+                            <Heart className="w-5 h-5 fill-rose-500 text-rose-500" />
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleToggleLike(post.id);
+                        }}
+                        className="p-1 -ml-1 text-white hover:scale-110 active:scale-95 transition-transform cursor-pointer"
+                        title="Like"
+                      >
+                        <Heart
+                          className={`w-5 h-5 transition-colors ${
+                            post.isLiked
+                              ? "fill-rose-500 text-rose-500 animate-in zoom-in-75 duration-200"
+                              : "text-white hover:text-rose-400"
+                          }`}
+                        />
+                      </button>
+                    </div>
 
                     {/* Open Comments Drawer */}
                     <button
@@ -767,44 +828,33 @@ export function ProfileActivityFeed({
                         e.stopPropagation();
                         setActiveDiscussionPost(post);
                       }}
-                      className="p-1 text-white/80 hover:text-[#8CC497] hover:scale-110 active:scale-95 transition-all cursor-pointer"
-                      title="Comments"
+                      className="p-1 text-white hover:scale-110 active:scale-95 transition-transform cursor-pointer"
+                      title="Discussion"
                     >
-                      <MessageSquareMore className="w-5 h-5" />
+                      <MessageSquareMore className="w-5 h-5 text-white hover:text-[#8CC497] transition-colors" />
                     </button>
 
-                    {/* Repost Button (For Author) OR Share Button (For Non-Authors) */}
-                    {post.isAuthor ? (
+                    {/* Repost Button (For Author) */}
+                    {post.isAuthor && (
                       <button
                         type="button"
                         onClick={(e) => {
                           e.stopPropagation();
                           handleRepostPost(post);
                         }}
-                        disabled={Boolean(repostingPostId)}
-                        className={`p-1 transition-all cursor-pointer ${
-                          repostingPostId === post.id
-                            ? "animate-spin text-[#8CC497]"
-                            : "text-[#8CC497] hover:text-white hover:scale-110 active:scale-95"
-                        }`}
-                        title="Repost to feed (Once every 24h)"
+                        disabled={repostingPostId === post.id}
+                        className="p-1 text-white hover:scale-110 active:scale-95 transition-transform cursor-pointer group/repost"
+                        title="Repost to top of feed (24h cooldown)"
                       >
-                        <Repeat2 className="w-5 h-5" />
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (navigator.clipboard) {
-                            navigator.clipboard.writeText(window.location.href);
-                            toast.success("Post link copied to clipboard!");
-                          }
-                        }}
-                        className="p-1 text-white/80 hover:text-white hover:scale-110 active:scale-95 transition-transform cursor-pointer"
-                        title="Share"
-                      >
-                        <Share2 className="w-5 h-5" />
+                        <Repeat2
+                          className={`w-5 h-5 transition-colors ${
+                            repostingPostId === post.id
+                              ? "text-emerald-400 animate-spin"
+                              : post.repostedAt
+                              ? "text-emerald-400 group-hover/repost:text-emerald-300"
+                              : "text-white group-hover/repost:text-[#8CC497]"
+                          }`}
+                        />
                       </button>
                     )}
                   </div>
@@ -817,29 +867,36 @@ export function ProfileActivityFeed({
                         e.stopPropagation();
                         setActiveMenuPostId((prev) => (prev === post.id ? null : post.id));
                       }}
-                      className="p-1 text-white/40 hover:text-white transition-colors cursor-pointer"
-                      title="Post options"
+                      className="p-1 -mr-1 text-white/80 hover:text-white hover:scale-110 active:scale-95 transition-transform cursor-pointer"
+                      title="More options"
                     >
                       <MoreHorizontal className="w-5 h-5" />
                     </button>
 
                     {activeMenuPostId === post.id && (
                       <div
+                        onClick={(e) => e.stopPropagation()}
                         style={{ borderRadius: "10px" }}
-                        className="absolute right-0 bottom-full mb-2 w-44 bg-[#002f1f] border border-[#005a3c] rounded-[10px] shadow-2xl p-1.5 z-30 animate-in fade-in zoom-in-95 backdrop-blur-md"
+                        className="absolute right-0 bottom-full mb-2 w-48 bg-[#002f1f] border border-[#005a3c] rounded-[10px] shadow-2xl p-1.5 z-30 animate-in fade-in zoom-in-95 duration-150"
                       >
                         {post.isAuthor && (
                           <>
                             <button
                               type="button"
-                              onClick={() => {
-                                setActiveMenuPostId(null);
-                                setEditingPost(post);
-                                setEditContent(post.content);
-                                setEditIsAnonymous(post.isAnonymous);
-                              }}
+                              onClick={() => handleRepostPost(post)}
+                              disabled={repostingPostId === post.id}
                               style={{ borderRadius: "10px" }}
-                              className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-[#8CC497] hover:text-white hover:bg-[#004e34] rounded-[10px] transition-colors text-left cursor-pointer"
+                              className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-emerald-200 hover:text-white hover:bg-emerald-950/50 rounded-[10px] transition-colors text-left cursor-pointer"
+                            >
+                              <Repeat2 className="w-4 h-4 text-emerald-400" />
+                              <span>Repost Post</span>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => handleOpenEdit(post)}
+                              style={{ borderRadius: "10px" }}
+                              className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-emerald-100 hover:text-white hover:bg-[#004e34] rounded-[10px] transition-colors text-left cursor-pointer"
                             >
                               <Pencil className="w-4 h-4 text-[#8CC497]" />
                               <span>Edit Post</span>
@@ -847,42 +904,57 @@ export function ProfileActivityFeed({
 
                             <button
                               type="button"
-                              onClick={() => {
-                                setActiveMenuPostId(null);
-                                setDeletingPost(post);
-                              }}
+                              onClick={() => handleOpenDelete(post)}
                               style={{ borderRadius: "10px" }}
-                              className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-rose-400 hover:text-rose-200 hover:bg-rose-950/40 rounded-[10px] transition-colors text-left cursor-pointer"
+                              className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-rose-300 hover:text-rose-100 hover:bg-rose-950/40 rounded-[10px] transition-colors text-left cursor-pointer"
                             >
                               <Trash2 className="w-4 h-4 text-rose-400" />
                               <span>Delete Post</span>
                             </button>
+
+                            <div className="my-1 border-t border-[#005a3c]/60" />
                           </>
                         )}
+
+                        {!post.isAuthor && (
+                          <button
+                            type="button"
+                            onClick={() => handleToggleSave(post)}
+                            style={{ borderRadius: "10px" }}
+                            className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-emerald-100 hover:text-white hover:bg-[#004e34] rounded-[10px] transition-colors text-left cursor-pointer"
+                          >
+                            <Bookmark
+                              className={`w-4 h-4 ${
+                                post.isSaved
+                                  ? "fill-[#8CC497] text-[#8CC497]"
+                                  : "text-[#8CC497]"
+                              }`}
+                            />
+                            <span>{post.isSaved ? "Remove Bookmark" : "Bookmark Post"}</span>
+                          </button>
+                        )}
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            navigator.clipboard.writeText(
+                              `${window.location.origin}/?post=${post.id}`
+                            );
+                            setActiveMenuPostId(null);
+                            toast.success("Post link copied to clipboard!");
+                          }}
+                          style={{ borderRadius: "10px" }}
+                          className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-emerald-100 hover:text-white hover:bg-[#004e34] rounded-[10px] transition-colors text-left cursor-pointer"
+                        >
+                          <Link2 className="w-4 h-4 text-[#8CC497]" />
+                          <span>Copy Link</span>
+                        </button>
 
                         {!post.isAuthor && (
                           <>
                             <button
                               type="button"
-                              onClick={() => handleToggleSave(post)}
-                              style={{ borderRadius: "10px" }}
-                              className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-emerald-100 hover:text-white hover:bg-[#004e34] rounded-[10px] transition-colors text-left cursor-pointer"
-                            >
-                              <Bookmark
-                                className={`w-4 h-4 ${
-                                  post.isSaved ? "fill-emerald-400 text-emerald-400" : "text-[#8CC497]"
-                                }`}
-                              />
-                              <span>{post.isSaved ? "Unsave Post" : "Save Post"}</span>
-                            </button>
-
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setActiveMenuPostId(null);
-                                setPosts((prev) => prev.filter((p) => p.id !== post.id));
-                                toast.success("Post hidden from your feed");
-                              }}
+                              onClick={() => handleHidePost(post)}
                               style={{ borderRadius: "10px" }}
                               className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-amber-200 hover:text-amber-100 hover:bg-amber-950/40 rounded-[10px] transition-colors text-left cursor-pointer"
                             >
@@ -891,30 +963,26 @@ export function ProfileActivityFeed({
                             </button>
 
                             <div className="my-1 border-t border-[#005a3c]/60" />
+
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setActiveMenuPostId(null);
+                                toast.success("Report submitted to the moderation team.");
+                              }}
+                              style={{ borderRadius: "10px" }}
+                              className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-rose-300 hover:text-rose-100 hover:bg-rose-950/40 rounded-[10px] transition-colors text-left cursor-pointer"
+                            >
+                              <span>Report Post</span>
+                            </button>
                           </>
                         )}
-
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setActiveMenuPostId(null);
-                            if (navigator.clipboard) {
-                              navigator.clipboard.writeText(window.location.href);
-                              toast.success("Post link copied to clipboard!");
-                            }
-                          }}
-                          style={{ borderRadius: "10px" }}
-                          className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-emerald-100 hover:text-white hover:bg-[#004e34] rounded-[10px] transition-colors text-left cursor-pointer"
-                        >
-                          <Link2 className="w-4 h-4 text-[#8CC497]" />
-                          <span>Copy Link</span>
-                        </button>
                       </div>
                     )}
                   </div>
                 </div>
 
-                {/* Stats (Likes & Comments count beside each other) & Relative timestamp */}
+                {/* Stats (Likes & Comments count) & Relative timestamp */}
                 <div className="flex items-center justify-between text-[11px] text-white/80 font-medium">
                   <div className="flex items-center gap-2.5">
                     <button
@@ -951,7 +1019,7 @@ export function ProfileActivityFeed({
                   </time>
                 </div>
 
-                {/* Comment Input Box matching home feed exactly */}
+                {/* Comment Input Box */}
                 <div className="relative flex items-center pt-0.5">
                   <input
                     type="text"
@@ -977,9 +1045,10 @@ export function ProfileActivityFeed({
                   </button>
                 </div>
               </div>
-            </article>
-          ))}
-        </div>
+              </motion.article>
+            ))}
+          </AnimatePresence>
+        </motion.div>
       )}
 
       {/* 💀 Skeleton Loading Cards during Infinite Scroll */}

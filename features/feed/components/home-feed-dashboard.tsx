@@ -32,6 +32,7 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { motion, AnimatePresence } from "framer-motion";
 
 import {
   createPostAction,
@@ -190,6 +191,7 @@ export function HomeFeedDashboard({
   const [isSubmittingEdit, setIsSubmittingEdit] = useState(false);
   const [deletingPost, setDeletingPost] = useState<PostFeedItem | null>(null);
   const [isSubmittingDelete, setIsSubmittingDelete] = useState(false);
+  const [activeHeartBursts, setActiveHeartBursts] = useState<Record<string, number>>({});
 
   // 🧠 Client-Side Live Filter & Smart Controversial Sort Algorithm
   const filteredAndSortedPosts = React.useMemo(() => {
@@ -404,6 +406,10 @@ export function HomeFeedDashboard({
     });
 
     // 1. Instant 0ms Optimistic UI toggle for both feed card and open discussion modal
+    if (nextIsLiked) {
+      setActiveHeartBursts((prev) => ({ ...prev, [postId]: Date.now() }));
+    }
+
     setPosts((prev) =>
       prev.map((post) =>
         post.id === postId
@@ -1083,7 +1089,6 @@ export function HomeFeedDashboard({
                   setSortBy("ALL");
                   setSearchQuery("");
                 }}
-                style={{ borderRadius: "10px" }}
                 className="inline-flex items-center gap-2 px-6 py-2.5 rounded-[10px] bg-[#003F2A] hover:bg-[#004e34] border border-[#005a3c] text-white font-semibold text-xs transition-all cursor-pointer shadow-sm"
               >
                 Reset Filters
@@ -1092,306 +1097,333 @@ export function HomeFeedDashboard({
           </div>
         ) : (
           <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-              {filteredAndSortedPosts.map((post) => (
-                <article
-                  key={post.id}
-                  onClick={() => setActiveDiscussionPost(post)}
-                  style={{ borderRadius: "10px" }}
-                  className="bg-[#003F2A] border border-[#005a3c]/60 rounded-[10px] p-5 flex flex-col justify-between space-y-4 shadow-xl hover:border-[#8CC497]/60 hover:shadow-2xl transition-all cursor-pointer group select-none"
-                >
-                  {/* Card Header: Avatar + Author info */}
-                  <div className="flex items-center gap-3">
-                    <div
-                      className={`w-11 h-11 rounded-full shrink-0 flex items-center justify-center font-black text-sm relative overflow-hidden shadow-inner ${
-                        post.isAnonymous && !post.isAuthor
-                          ? "bg-purple-950/80 border border-purple-500/40 text-purple-300"
-                          : "bg-[#002f1f] border border-[#8CC497] text-[#8CC497]"
-                      }`}
-                    >
-                      {post.isAnonymous && !post.isAuthor ? (
-                        <Ghost className="w-5 h-5 text-purple-300" />
-                      ) : post.authorAvatarUrl ? (
-                        <Image
-                          src={post.authorAvatarUrl}
-                          alt={post.authorName}
-                          fill
-                          unoptimized
-                          className="object-cover"
-                        />
-                      ) : (
-                        <span>{post.authorName.charAt(0).toUpperCase()}</span>
-                      )}
-                    </div>
-                    <div className="overflow-hidden">
-                      <h3 className="font-bold text-xs sm:text-sm text-white truncate flex items-center gap-1.5 font-heading">
-                        <span>{post.authorName}</span>
-                        {post.authorNickname && (
-                          <span className="text-[#8CC497] font-semibold text-[11px] sm:text-xs">
-                            | @{post.authorNickname}
-                          </span>
-                        )}
-                      </h3>
-                      <p className="text-[11px] text-[#8CC497] font-medium tracking-wide">
-                        {post.isAnonymous && !post.isAuthor ? "Flame" : post.department}
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Card Content Text */}
-                  <p className="text-xs sm:text-sm text-white/90 leading-relaxed min-h-[48px]">
-                    {post.content}
-                  </p>
-
-                  {/* Action Bar (Heart, Comment Icon in middle, Repost/Share, 3-dots) */}
-                  <div className="space-y-3 pt-2">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        {/* Like Button */}
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleToggleLike(post.id);
-                          }}
-                          className="p-1 -ml-1 text-white hover:scale-110 active:scale-95 transition-transform cursor-pointer"
-                          title="Like"
-                        >
-                          <Heart
-                            className={`w-5 h-5 transition-colors ${
-                              post.isLiked
-                                ? "fill-rose-500 text-rose-500"
-                                : "text-white/80 hover:text-white"
-                            }`}
+            <motion.div layoutScroll className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+              <AnimatePresence mode="popLayout" initial={false}>
+                {filteredAndSortedPosts.map((post) => (
+                  <motion.article
+                    key={post.id}
+                    layout="position"
+                    initial={{ opacity: 0, scale: 0.96 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.95 }}
+                    transition={{
+                      layout: { type: "spring", stiffness: 140, damping: 22, mass: 0.9 },
+                      opacity: { duration: 0.35, ease: "easeOut" },
+                    }}
+                    onClick={() => setActiveDiscussionPost(post)}
+                    style={{ borderRadius: "10px" }}
+                    className="bg-[#003F2A] border border-[#005a3c]/60 rounded-[10px] p-5 flex flex-col justify-between space-y-4 shadow-xl hover:border-[#8CC497]/60 hover:shadow-2xl transition-colors cursor-pointer group select-none"
+                  >
+                    {/* Card Header: Avatar + Author info */}
+                    <div className="flex items-center gap-3">
+                      <div
+                        className={`w-11 h-11 rounded-full shrink-0 flex items-center justify-center font-black text-sm relative overflow-hidden shadow-inner ${
+                          post.isAnonymous && !post.isAuthor
+                            ? "bg-purple-950/80 border border-purple-500/40 text-purple-300"
+                            : "bg-[#002f1f] border border-[#8CC497] text-[#8CC497]"
+                        }`}
+                      >
+                        {post.isAnonymous && !post.isAuthor ? (
+                          <Ghost className="w-5 h-5 text-purple-300" />
+                        ) : post.authorAvatarUrl ? (
+                          <Image
+                            src={post.authorAvatarUrl}
+                            alt={post.authorName}
+                            fill
+                            unoptimized
+                            className="object-cover"
                           />
-                        </button>
-
-                        {/* Comment Icon with trigger to open discussion drawer (Placed in the middle) */}
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setActiveDiscussionPost(post);
-                          }}
-                          className="p-1 text-white/80 hover:text-[#8CC497] hover:scale-110 active:scale-95 transition-all cursor-pointer flex items-center gap-1.5"
-                          title="View discussion & comments"
-                        >
-                          <MessageSquareMore className="w-5 h-5" />
-                        </button>
-
-                        {/* Repost Button (For Author) OR Share Button (For Non-Authors) */}
-                        {post.isAuthor ? (
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleRepostPost(post);
-                            }}
-                            disabled={Boolean(repostingPostId)}
-                            className={`p-1 transition-all cursor-pointer ${
-                              repostingPostId === post.id
-                                ? "animate-spin text-[#8CC497]"
-                                : "text-[#8CC497] hover:text-white hover:scale-110 active:scale-95"
-                            }`}
-                            title="Repost to feed (Once every 24h)"
-                          >
-                            <Repeat2 className="w-5 h-5" />
-                          </button>
                         ) : (
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (navigator.clipboard) {
-                                navigator.clipboard.writeText(window.location.href);
-                                toast.success("Post link copied to clipboard!");
-                              }
-                            }}
-                            className="p-1 text-white/80 hover:text-white hover:scale-110 active:scale-95 transition-transform cursor-pointer"
-                            title="Share"
-                          >
-                            <Share2 className="w-5 h-5" />
-                          </button>
+                          <span>{post.authorName.charAt(0).toUpperCase()}</span>
                         )}
                       </div>
+                      <div className="overflow-hidden">
+                        <h3 className="font-bold text-xs sm:text-sm text-white truncate flex items-center gap-1.5 font-heading">
+                          <span>{post.authorName}</span>
+                          {post.authorNickname && (
+                            <span className="text-[#8CC497] font-semibold text-[11px] sm:text-xs">
+                              | @{post.authorNickname}
+                            </span>
+                          )}
+                        </h3>
+                        <p className="text-[11px] text-[#8CC497] font-medium tracking-wide">
+                          {post.isAnonymous && !post.isAuthor ? "Flame" : post.department}
+                        </p>
+                      </div>
+                    </div>
 
-                      {/* 3 Dots Menu with Dropdown Card */}
-                      <div className="relative" data-menu-container>
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setActiveMenuPostId((prev) => (prev === post.id ? null : post.id));
-                          }}
-                          className="p-1.5 rounded-lg text-white/60 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
-                          title="More options"
-                        >
-                          <MoreHorizontal className="w-5 h-5" />
-                        </button>
+                    {/* Card Content Text */}
+                    <p className="text-xs sm:text-sm text-white/90 leading-relaxed min-h-[48px]">
+                      {post.content}
+                    </p>
 
-                        {activeMenuPostId === post.id && (
-                          <div
-                            style={{ borderRadius: "10px" }}
-                            className="absolute right-0 bottom-full mb-2 w-48 bg-[#002f1f] border border-[#005a3c] rounded-[10px] shadow-2xl p-1.5 z-30 animate-in fade-in zoom-in-95 duration-150 backdrop-blur-md"
-                          >
-                            {/* Author Only Actions */}
-                            {post.isAuthor && (
-                              <>
-                                <button
-                                  type="button"
-                                  onClick={() => handleOpenEdit(post)}
-                                  style={{ borderRadius: "10px" }}
-                                  className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-[#8CC497] hover:text-white hover:bg-[#004e34] rounded-[10px] transition-colors text-left cursor-pointer"
+                    {/* Action Bar */}
+                    <div className="space-y-3 pt-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          {/* Like Button with Floating Heart Pop Particle */}
+                          <div className="relative flex items-center justify-center">
+                            <AnimatePresence>
+                              {activeHeartBursts[post.id] && (
+                                <motion.div
+                                  key={activeHeartBursts[post.id]}
+                                  initial={{ opacity: 0, scale: 0.4, y: 0 }}
+                                  animate={{
+                                    opacity: [0, 1, 1, 0],
+                                    scale: [0.4, 1.4, 1.2, 0.8],
+                                    y: -36,
+                                    rotate: [0, -10, 10, 0],
+                                  }}
+                                  exit={{ opacity: 0 }}
+                                  transition={{ duration: 0.75, ease: "easeOut" }}
+                                  className="absolute pointer-events-none z-30 select-none text-rose-500 drop-shadow-[0_0_10px_rgba(244,63,94,0.8)]"
                                 >
-                                  <Pencil className="w-4 h-4 text-[#8CC497]" />
-                                  <span>Edit Post</span>
-                                </button>
-
-                                <button
-                                  type="button"
-                                  onClick={() => handleOpenDelete(post)}
-                                  style={{ borderRadius: "10px" }}
-                                  className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-rose-400 hover:text-rose-200 hover:bg-rose-950/40 rounded-[10px] transition-colors text-left cursor-pointer"
-                                >
-                                  <Trash2 className="w-4 h-4 text-rose-400" />
-                                  <span>Delete Post</span>
-                                </button>
-
-                                <div className="my-1 border-t border-[#005a3c]/60" />
-                              </>
-                            )}
-
-                            {!post.isAuthor && (
-                              <button
-                                type="button"
-                                onClick={() => handleToggleSave(post)}
-                                style={{ borderRadius: "10px" }}
-                                className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-emerald-100 hover:text-white hover:bg-[#004e34] rounded-[10px] transition-colors text-left cursor-pointer"
-                              >
-                                <Bookmark
-                                  className={`w-4 h-4 transition-colors ${
-                                    post.isSaved
-                                      ? "fill-emerald-400 text-emerald-400"
-                                      : "text-[#8CC497]"
-                                  }`}
-                                />
-                                <span>{post.isSaved ? "Unsave Post" : "Save Post"}</span>
-                              </button>
-                            )}
+                                  <Heart className="w-5 h-5 fill-rose-500 text-rose-500" />
+                                </motion.div>
+                              )}
+                            </AnimatePresence>
 
                             <button
                               type="button"
-                              onClick={() => {
-                                setActiveMenuPostId(null);
-                                if (navigator.clipboard) {
-                                  navigator.clipboard.writeText(window.location.href);
-                                  toast.success("Post link copied to clipboard.");
-                                }
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleToggleLike(post.id);
                               }}
-                              style={{ borderRadius: "10px" }}
-                              className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-emerald-100 hover:text-white hover:bg-[#004e34] rounded-[10px] transition-colors text-left cursor-pointer"
+                              className="p-1 -ml-1 text-white hover:scale-110 active:scale-95 transition-transform cursor-pointer"
+                              title="Like"
                             >
-                              <Copy className="w-4 h-4 text-[#8CC497]" />
-                              <span>Copy Link</span>
+                              <Heart
+                                className={`w-5 h-5 transition-colors ${
+                                  post.isLiked
+                                    ? "fill-rose-500 text-rose-500 animate-in zoom-in-75 duration-200"
+                                    : "text-white hover:text-rose-400"
+                                }`}
+                              />
                             </button>
-
-                            {!post.isAuthor && (
-                              <>
-                                <button
-                                  type="button"
-                                  onClick={() => handleHidePost(post)}
-                                  style={{ borderRadius: "10px" }}
-                                  className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-amber-200 hover:text-amber-100 hover:bg-amber-950/40 rounded-[10px] transition-colors text-left cursor-pointer"
-                                >
-                                  <EyeOff className="w-4 h-4 text-amber-400" />
-                                  <span>Hide Post</span>
-                                </button>
-
-                                <div className="my-1 border-t border-[#005a3c]/60" />
-
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setActiveMenuPostId(null);
-                                    toast.success("Report submitted to the moderation team.");
-                                  }}
-                                  style={{ borderRadius: "10px" }}
-                                  className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-rose-300 hover:text-rose-100 hover:bg-rose-950/40 rounded-[10px] transition-colors text-left cursor-pointer"
-                                >
-                                  <Flag className="w-4 h-4 text-rose-400" />
-                                  <span>Report Post</span>
-                                </button>
-                              </>
-                            )}
                           </div>
-                        )}
-                      </div>
-                    </div>
 
-                    {/* Stats (Likes & Comments count) & Relative timestamp */}
-                    <div className="flex items-center justify-between text-[11px] text-white/80 font-medium">
-                      <div className="flex items-center gap-2.5">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setActiveDiscussionPost(post);
+                            }}
+                            className="p-1 text-white hover:scale-110 active:scale-95 transition-transform cursor-pointer"
+                            title="Discussion"
+                          >
+                            <MessageSquareMore className="w-5 h-5 text-white hover:text-[#8CC497] transition-colors" />
+                          </button>
+
+                          {post.isAuthor && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleRepostPost(post);
+                              }}
+                              disabled={repostingPostId === post.id}
+                              className="p-1 text-white hover:scale-110 active:scale-95 transition-transform cursor-pointer group/repost"
+                              title="Repost to top of feed (24h cooldown)"
+                            >
+                              <Repeat2
+                                className={`w-5 h-5 transition-colors ${
+                                  repostingPostId === post.id
+                                    ? "text-emerald-400 animate-spin"
+                                    : post.repostedAt
+                                    ? "text-emerald-400 group-hover/repost:text-emerald-300"
+                                    : "text-white group-hover/repost:text-[#8CC497]"
+                                }`}
+                              />
+                            </button>
+                          )}
+                        </div>
+
+                        <div className="relative" data-menu-container>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setActiveMenuPostId((prev) => (prev === post.id ? null : post.id));
+                            }}
+                            className="p-1 -mr-1 text-white/80 hover:text-white hover:scale-110 active:scale-95 transition-transform cursor-pointer"
+                            title="More options"
+                          >
+                            <MoreHorizontal className="w-5 h-5" />
+                          </button>
+
+                          {activeMenuPostId === post.id && (
+                            <div
+                              onClick={(e) => e.stopPropagation()}
+                              style={{ borderRadius: "10px" }}
+                              className="absolute right-0 bottom-full mb-2 w-48 bg-[#002f1f] border border-[#005a3c] rounded-[10px] shadow-2xl p-1.5 z-30 animate-in fade-in zoom-in-95 duration-150"
+                            >
+                              {post.isAuthor && (
+                                <>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRepostPost(post)}
+                                    disabled={repostingPostId === post.id}
+                                    style={{ borderRadius: "10px" }}
+                                    className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-emerald-200 hover:text-white hover:bg-emerald-950/50 rounded-[10px] transition-colors text-left cursor-pointer"
+                                  >
+                                    <Repeat2 className="w-4 h-4 text-emerald-400" />
+                                    <span>Repost Post</span>
+                                  </button>
+
+                                  <button
+                                    type="button"
+                                    onClick={() => handleOpenEdit(post)}
+                                    style={{ borderRadius: "10px" }}
+                                    className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-emerald-100 hover:text-white hover:bg-[#004e34] rounded-[10px] transition-colors text-left cursor-pointer"
+                                  >
+                                    <Pencil className="w-4 h-4 text-[#8CC497]" />
+                                    <span>Edit Post</span>
+                                  </button>
+
+                                  <button
+                                    type="button"
+                                    onClick={() => handleOpenDelete(post)}
+                                    style={{ borderRadius: "10px" }}
+                                    className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-rose-300 hover:text-rose-100 hover:bg-rose-950/40 rounded-[10px] transition-colors text-left cursor-pointer"
+                                  >
+                                    <Trash2 className="w-4 h-4 text-rose-400" />
+                                    <span>Delete Post</span>
+                                  </button>
+                                </>
+                              )}
+
+                              {!post.isAuthor && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleToggleSave(post)}
+                                  style={{ borderRadius: "10px" }}
+                                  className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-emerald-100 hover:text-white hover:bg-[#004e34] rounded-[10px] transition-colors text-left cursor-pointer"
+                                >
+                                  <Bookmark
+                                    className={`w-4 h-4 ${
+                                      post.isSaved
+                                        ? "fill-[#8CC497] text-[#8CC497]"
+                                        : "text-[#8CC497]"
+                                    }`}
+                                  />
+                                  <span>{post.isSaved ? "Remove Bookmark" : "Bookmark Post"}</span>
+                                </button>
+                              )}
+
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  navigator.clipboard.writeText(
+                                    `${window.location.origin}/?post=${post.id}`
+                                  );
+                                  setActiveMenuPostId(null);
+                                  toast.success("Post link copied to clipboard!");
+                                }}
+                                style={{ borderRadius: "10px" }}
+                                className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-emerald-100 hover:text-white hover:bg-[#004e34] rounded-[10px] transition-colors text-left cursor-pointer"
+                              >
+                                <Copy className="w-4 h-4 text-[#8CC497]" />
+                                <span>Copy Link</span>
+                              </button>
+
+                              {!post.isAuthor && (
+                                <>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleHidePost(post)}
+                                    style={{ borderRadius: "10px" }}
+                                    className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-amber-200 hover:text-amber-100 hover:bg-amber-950/40 rounded-[10px] transition-colors text-left cursor-pointer"
+                                  >
+                                    <EyeOff className="w-4 h-4 text-amber-400" />
+                                    <span>Hide Post</span>
+                                  </button>
+
+                                  <div className="my-1 border-t border-[#005a3c]/60" />
+
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setActiveMenuPostId(null);
+                                      toast.success("Report submitted to the moderation team.");
+                                    }}
+                                    style={{ borderRadius: "10px" }}
+                                    className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-rose-300 hover:text-rose-100 hover:bg-rose-950/40 rounded-[10px] transition-colors text-left cursor-pointer"
+                                  >
+                                    <Flag className="w-4 h-4 text-rose-400" />
+                                    <span>Report Post</span>
+                                  </button>
+                                </>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Stats (Likes & Comments count) & Relative timestamp */}
+                      <div className="flex items-center justify-between text-[11px] text-white/80 font-medium">
+                        <div className="flex items-center gap-2.5">
+                          <button
+                            type="button"
+                            onClick={() => setActiveLikersPostId(post.id)}
+                            className="hover:text-[#8CC497] hover:underline cursor-pointer transition-colors"
+                            title="See who liked this post"
+                          >
+                            {post.likesCount} {post.likesCount === 1 ? "like" : "likes"}
+                          </button>
+                          <span className="text-[#8CC497]/40">•</span>
+                          <button
+                            type="button"
+                            onClick={() => setActiveDiscussionPost(post)}
+                            className="hover:text-[#8CC497] hover:underline cursor-pointer transition-colors"
+                          >
+                            {post.commentsCount} {post.commentsCount === 1 ? "comment" : "comments"}
+                          </button>
+                        </div>
+                        <time
+                          dateTime={post.repostedAt || post.createdAt}
+                          suppressHydrationWarning
+                          className="text-[#8CC497] font-medium text-[11px]"
+                        >
+                          {post.repostedAt ? (
+                            <span className="text-[#8CC497] font-semibold">
+                              Reposted {formatRelativeTime(post.repostedAt)}
+                            </span>
+                          ) : (
+                            <span className="text-[#8CC497]/80">
+                              {formatRelativeTime(post.createdAt)}
+                            </span>
+                          )}
+                        </time>
+                      </div>
+
+                      {/* 💬 Comment Input Box matching profile */}
+                      <div className="relative flex items-center pt-0.5">
+                        <input
+                          type="text"
+                          placeholder="Write a comment..."
+                          value={commentInputs[post.id] || ""}
+                          onChange={(e) => handleCommentChange(post.id, e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") handleSendComment(post.id);
+                          }}
+                          style={{ borderRadius: "10px" }}
+                          className="w-full bg-[#002f1f] border border-[#005a3c] rounded-[10px] pl-4 pr-11 py-2.5 text-xs sm:text-sm text-white placeholder-[#8CC497]/40 focus:outline-none focus:border-[#8CC497] shadow-inner transition-all"
+                        />
                         <button
                           type="button"
-                          onClick={() => setActiveLikersPostId(post.id)}
-                          className="hover:text-[#8CC497] hover:underline cursor-pointer transition-colors"
-                          title="See who liked this post"
+                          onClick={() => handleSendComment(post.id)}
+                          disabled={!commentInputs[post.id]?.trim() || sendingComments[post.id]}
+                          className="absolute right-2 p-1.5 rounded-[10px] text-[#8CC497] hover:text-white disabled:opacity-30 disabled:hover:bg-transparent disabled:cursor-not-allowed transition-all cursor-pointer group"
+                          title={sendingComments[post.id] ? "Sending..." : "Send Comment"}
                         >
-                          {post.likesCount} {post.likesCount === 1 ? "like" : "likes"}
-                        </button>
-                        <span className="text-[#8CC497]/40">•</span>
-                        <button
-                          type="button"
-                          onClick={() => setActiveDiscussionPost(post)}
-                          className="hover:text-[#8CC497] hover:underline cursor-pointer transition-colors"
-                        >
-                          {post.commentsCount} {post.commentsCount === 1 ? "comment" : "comments"}
+                          <Send className="w-4 h-4 text-[#8CC497] group-hover:text-white transition-colors" />
                         </button>
                       </div>
-                      <time
-                        dateTime={post.repostedAt || post.createdAt}
-                        suppressHydrationWarning
-                        className="text-[#8CC497] font-medium text-[11px]"
-                      >
-                        {post.repostedAt ? (
-                          <span className="text-[#8CC497] font-semibold">
-                            Reposted {formatRelativeTime(post.repostedAt)}
-                          </span>
-                        ) : (
-                          <span className="text-[#8CC497]/80">
-                            {formatRelativeTime(post.createdAt)}
-                          </span>
-                        )}
-                      </time>
                     </div>
-
-                    {/* 💬 Comment Input Box matching profile */}
-                    <div className="relative flex items-center pt-0.5">
-                      <input
-                        type="text"
-                        placeholder="Write a comment..."
-                        value={commentInputs[post.id] || ""}
-                        onChange={(e) => handleCommentChange(post.id, e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") handleSendComment(post.id);
-                        }}
-                        style={{ borderRadius: "10px" }}
-                        className="w-full bg-[#002f1f] border border-[#005a3c] rounded-[10px] pl-4 pr-11 py-2.5 text-xs sm:text-sm text-white placeholder-[#8CC497]/40 focus:outline-none focus:border-[#8CC497] shadow-inner transition-all"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => handleSendComment(post.id)}
-                        disabled={!commentInputs[post.id]?.trim() || sendingComments[post.id]}
-                        className="absolute right-2 p-1.5 rounded-[10px] text-[#8CC497] hover:text-white disabled:opacity-30 disabled:hover:bg-transparent disabled:cursor-not-allowed transition-all cursor-pointer group"
-                        title={sendingComments[post.id] ? "Sending..." : "Send Comment"}
-                      >
-                        <Send className="w-4 h-4 text-[#8CC497] group-hover:text-white transition-colors" />
-                      </button>
-                    </div>
-                  </div>
-                </article>
-              ))}
-            </div>
+                  </motion.article>
+                ))}
+              </AnimatePresence>
+            </motion.div>
 
             {/* 💀 Skeleton Loading Cards during Infinite Scroll */}
             {isLoadingMore && (
