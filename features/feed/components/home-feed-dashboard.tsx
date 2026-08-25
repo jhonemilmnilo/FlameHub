@@ -359,7 +359,7 @@ export function HomeFeedDashboard({
     >
   >(new Map());
 
-  const handleToggleLike = async (postId: string) => {
+  const handleToggleLike = React.useCallback(async (postId: string) => {
     const targetPost = posts.find((p) => p.id === postId);
     if (!targetPost) return;
 
@@ -515,7 +515,7 @@ export function HomeFeedDashboard({
         );
       }
     }, 350);
-  };
+  }, [posts]);
 
   const handleToggleSave = async (post: PostFeedItem) => {
     setActiveMenuPostId(null);
