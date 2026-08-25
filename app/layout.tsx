@@ -21,7 +21,11 @@ export const metadata: Metadata = {
   description: "Connect, share, and stay updated with your campus network on FlameHub.",
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default function RootLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
   return (
     <html
       lang="en"
