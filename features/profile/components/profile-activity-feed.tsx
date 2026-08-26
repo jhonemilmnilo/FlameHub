@@ -35,11 +35,14 @@ import {
   toggleLikePostAction,
   setPostLikeAction,
   type LikeTargetAction,
+  type PostLikerItem,
 } from "@/features/feed/actions/post.liked.action";
 import { toggleSavePostAction } from "@/features/feed/actions/post.saved.action";
 import { hidePostAction } from "@/features/feed/actions/post.hide.action";
 import { createCommentAction } from "@/features/feed/actions/comment.action";
 import { motion, AnimatePresence } from "framer-motion";
+import { useQueryClient } from "@tanstack/react-query";
+import { queryKeys } from "@/lib/query/query-keys";
 import { toast } from "sonner";
 
 function formatRelativeTime(dateString: string): string {
@@ -113,6 +116,7 @@ export function ProfileActivityFeed({
   isSelf,
   userName,
 }: ProfileActivityFeedProps) {
+  const queryClient = useQueryClient();
   const [posts, setPosts] = useState<PostFeedItem[]>(initialPosts);
   const [nextCursor, setNextCursor] = useState<string | null>(initialNextCursor);
   const [hasMore, setHasMore] = useState<boolean>(initialHasMore);
@@ -365,6 +369,38 @@ export function ProfileActivityFeed({
         : prev
     );
 
+    // ⚡ Instant Optimistic Update for Post Likers Cache
+    queryClient.setQueryData<PostLikerItem[]>(
+      queryKeys.post.likers(postId),
+      (prevLikers) => {
+        const currentList = prevLikers ? [...prevLikers] : [];
+        if (nextIsLiked) {
+          const alreadyInList = currentList.some(
+            (u) => u.displayName === (userName || "Campus Student")
+          );
+          if (!alreadyInList) {
+            return [
+              {
+                id: `temp-${Date.now()}`,
+                userId: targetUserId || "current-user",
+                displayName: userName || "Campus Student",
+                studentId: "Student",
+                department: "FlameHub",
+                avatarUrl: null,
+                likedAt: new Date().toISOString(),
+              },
+              ...currentList,
+            ];
+          }
+          return currentList;
+        } else {
+          return currentList.filter(
+            (u) => u.displayName !== (userName || "Campus Student")
+          );
+        }
+      }
+    );
+
     // 2. Clear existing debounce timer for this specific post
     if (likeDebounceTimersRef.current[postId]) {
       clearTimeout(likeDebounceTimersRef.current[postId]);
@@ -458,9 +494,11 @@ export function ProfileActivityFeed({
         );
       }
     }, 350);
-  }, []);
+  }, [queryClient, targetUserId, userName]);
 
-  const handleOpenLikersModal = React.useCallback((postId: string) => {
+  const handleOpenLikersModal = React.useCallback(async (postId: string) => {
+    setActiveLikersPostId(postId);
+
     // ⚡ Flush pending like debounce if user just liked/unliked right before opening the modal
     const existingTimer = likeDebounceTimersRef.current[postId];
     if (existingTimer) {
@@ -469,11 +507,15 @@ export function ProfileActivityFeed({
       const intent = pendingLikeIntentsRef.current.get(postId);
       if (intent) {
         pendingLikeIntentsRef.current.delete(postId);
-        setPostLikeAction(postId, intent.targetAction).catch(() => {});
+        try {
+          await setPostLikeAction(postId, intent.targetAction);
+        } catch {
+          // Error handled silently as optimistic UI already reacted
+        }
       }
     }
-    setActiveLikersPostId(postId);
-  }, []);
+    queryClient.invalidateQueries({ queryKey: queryKeys.post.likers(postId) });
+  }, [queryClient]);
 
   const handleToggleSave = async (post: PostFeedItem) => {
     setActiveMenuPostId(null);

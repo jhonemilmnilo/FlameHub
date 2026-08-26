@@ -1,13 +1,10 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import Image from "next/image";
 import { X, Heart, Search, Loader2 } from "lucide-react";
 import Link from "next/link";
-import {
-  getPostLikersAction,
-  type PostLikerItem,
-} from "@/features/feed/actions/post.liked.action";
+import { usePostLikers } from "@/features/feed/hooks/use-post-likers";
 
 interface PostLikersModalProps {
   postId: string | null;
@@ -20,53 +17,23 @@ export function PostLikersModal({
   isOpen,
   onClose,
 }: PostLikersModalProps) {
-  const [likers, setLikers] = useState<PostLikerItem[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
 
-  useEffect(() => {
-    if (!isOpen || !postId) {
-      setLikers([]);
-      setIsLoading(true);
-      setSearchQuery("");
-      return;
-    }
+  // ⚡ TanStack Query Hook — 0ms instant display from cache + automatic SWR revalidation
+  const { data: likersData, isLoading } = usePostLikers(postId, isOpen);
+  const likers = likersData ?? [];
 
-    let isMounted = true;
-    setIsLoading(true);
-    setLikers([]);
+  const handleClose = useCallback(() => {
     setSearchQuery("");
-
-    async function fetchLikers() {
-      try {
-        const res = await getPostLikersAction(postId!);
-        if (isMounted) {
-          if (res.success && res.data) {
-            setLikers(res.data);
-          } else {
-            setLikers([]);
-          }
-        }
-      } catch {
-        if (isMounted) setLikers([]);
-      } finally {
-        if (isMounted) setIsLoading(false);
-      }
-    }
-
-    fetchLikers();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [isOpen, postId]);
+    onClose();
+  }, [onClose]);
 
   // Lock background scroll and listen for Escape key when open
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = "hidden";
       const handleKeyDown = (e: KeyboardEvent) => {
-        if (e.key === "Escape") onClose();
+        if (e.key === "Escape") handleClose();
       };
       window.addEventListener("keydown", handleKeyDown);
       return () => {
@@ -76,7 +43,7 @@ export function PostLikersModal({
     } else {
       document.body.style.overflow = "unset";
     }
-  }, [isOpen, onClose]);
+  }, [isOpen, handleClose]);
 
   if (!isOpen || !postId) return null;
 
@@ -89,7 +56,7 @@ export function PostLikersModal({
 
   return (
     <div
-      onClick={onClose}
+      onClick={handleClose}
       className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4 animate-fadeIn select-none"
     >
       <div
@@ -98,24 +65,24 @@ export function PostLikersModal({
         className="w-full max-w-md bg-[#003F2A] border border-[#005a3c] rounded-[10px] p-5 md:p-6 shadow-2xl space-y-4 max-h-[85vh] flex flex-col"
       >
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-[#005a3c]/70 pb-3">
-          <div className="flex items-center gap-2 text-white">
+        <div className="flex items-center justify-between border-b border-[#005a3c] pb-3">
+          <div className="flex items-center gap-2">
             <Heart className="w-5 h-5 fill-rose-500 text-rose-500" />
-            <h3 className="font-extrabold text-base sm:text-lg font-heading tracking-tight">
-              Likes
+            <h3 className="font-bold text-sm sm:text-base text-white tracking-wide font-heading">
+              Liked by Students
             </h3>
-            {!isLoading && (
-              <span className="text-xs px-2 py-0.5 rounded-full bg-[#002f1f] text-[#8CC497] border border-[#005a3c]">
-                {likers.length}
-              </span>
-            )}
+            <span className="text-xs bg-[#002f1f] text-[#8CC497] border border-[#005a3c] px-2 py-0.5 rounded-full font-mono">
+              {isLoading ? "..." : likers.length}
+            </span>
           </div>
           <button
             type="button"
-            onClick={onClose}
-            className="p-1 rounded-lg text-white/60 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+            onClick={handleClose}
+            style={{ borderRadius: "10px" }}
+            className="p-1.5 text-emerald-200/70 hover:text-white hover:bg-[#002f1f] rounded-[10px] transition-colors cursor-pointer"
+            aria-label="Close modal"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4" />
           </button>
         </div>
 
@@ -165,7 +132,7 @@ export function PostLikersModal({
               >
                 <Link
                   href={`/profile/${user.userId}`}
-                  onClick={onClose}
+                  onClick={handleClose}
                   className="flex items-center gap-2.5 flex-1 overflow-hidden"
                 >
                   <div className="w-8 h-8 rounded-full bg-[#003F2A] border border-[#8CC497] overflow-hidden shrink-0 flex items-center justify-center text-[#8CC497] font-black text-xs shadow-inner group-hover:scale-105 transition-transform relative">

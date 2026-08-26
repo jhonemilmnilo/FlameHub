@@ -33,6 +33,8 @@ import {
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { motion, AnimatePresence } from "framer-motion";
+import { useQueryClient } from "@tanstack/react-query";
+import { queryKeys } from "@/lib/query/query-keys";
 
 import {
   createPostAction,
@@ -46,6 +48,7 @@ import {
   toggleLikePostAction,
   setPostLikeAction,
   type LikeTargetAction,
+  type PostLikerItem,
 } from "@/features/feed/actions/post.liked.action";
 import { toggleSavePostAction } from "@/features/feed/actions/post.saved.action";
 import { hidePostAction } from "@/features/feed/actions/post.hide.action";
@@ -132,6 +135,7 @@ export function HomeFeedDashboard({
   initialHasMore = false,
 }: HomeFeedDashboardProps) {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [posts, setPosts] = useState<PostFeedItem[]>(initialPosts);
   const [nextCursor, setNextCursor] = useState<string | null>(initialNextCursor);
   const [hasMore, setHasMore] = useState<boolean>(initialHasMore);
@@ -432,6 +436,40 @@ export function HomeFeedDashboard({
         : prev
     );
 
+    // ⚡ Instant Optimistic Update for Post Likers Cache
+    queryClient.setQueryData<PostLikerItem[]>(
+      queryKeys.post.likers(postId),
+      (prevLikers) => {
+        const currentList = prevLikers ? [...prevLikers] : [];
+        if (nextIsLiked) {
+          const alreadyInList = currentList.some(
+            (u) => u.displayName === (currentUser?.name || "Campus Student") || u.studentId === (currentUser?.studentId || "Student")
+          );
+          if (!alreadyInList) {
+            return [
+              {
+                id: `temp-${Date.now()}`,
+                userId: "current-user",
+                displayName: currentUser?.name || "Campus Student",
+                studentId: currentUser?.studentId || "Student",
+                department: "FlameHub",
+                avatarUrl: currentUser?.avatarUrl || null,
+                likedAt: new Date().toISOString(),
+              },
+              ...currentList,
+            ];
+          }
+          return currentList;
+        } else {
+          return currentList.filter(
+            (u) =>
+              u.displayName !== (currentUser?.name || "Campus Student") &&
+              u.studentId !== (currentUser?.studentId || "Student")
+          );
+        }
+      }
+    );
+
     // 2. Clear any existing debounce timer for this specific post
     if (likeDebounceTimersRef.current[postId]) {
       clearTimeout(likeDebounceTimersRef.current[postId]);
@@ -533,9 +571,11 @@ export function HomeFeedDashboard({
         );
       }
     }, 350);
-  }, []);
+  }, [queryClient, currentUser]);
 
-  const handleOpenLikersModal = React.useCallback((postId: string) => {
+  const handleOpenLikersModal = React.useCallback(async (postId: string) => {
+    setActiveLikersPostId(postId);
+
     // ⚡ Flush pending like debounce if user just liked/unliked right before opening the modal
     const existingTimer = likeDebounceTimersRef.current[postId];
     if (existingTimer) {
@@ -544,11 +584,15 @@ export function HomeFeedDashboard({
       const intent = pendingLikeIntentsRef.current.get(postId);
       if (intent) {
         pendingLikeIntentsRef.current.delete(postId);
-        setPostLikeAction(postId, intent.targetAction).catch(() => {});
+        try {
+          await setPostLikeAction(postId, intent.targetAction);
+        } catch {
+          // Error handled silently as optimistic UI already reacted
+        }
       }
     }
-    setActiveLikersPostId(postId);
-  }, []);
+    queryClient.invalidateQueries({ queryKey: queryKeys.post.likers(postId) });
+  }, [queryClient]);
 
   const handleToggleSave = async (post: PostFeedItem) => {
     setActiveMenuPostId(null);

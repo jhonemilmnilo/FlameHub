@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Plus_Jakarta_Sans, Inter } from "next/font/google";
 import "./globals.css";
+import { Toaster } from "sonner";
+import { QueryProvider } from "@/components/providers/query-provider";
 
 const jakarta = Plus_Jakarta_Sans({
   variable: "--font-heading",
@@ -13,8 +15,6 @@ const inter = Inter({
   subsets: ["latin"],
   weight: ["400", "500", "600", "700"],
 });
-
-import { Toaster } from "sonner";
 
 export const metadata: Metadata = {
   title: "FlameHub | University Social Community",
@@ -32,8 +32,10 @@ export default function RootLayout({
       className={`${inter.variable} ${jakarta.variable} font-sans h-full antialiased`}
     >
       <body className="min-h-full flex flex-col font-sans">
-        {children}
-        <Toaster richColors position="top-right" theme="dark" />
+        <QueryProvider>
+          {children}
+          <Toaster richColors position="top-right" theme="dark" />
+        </QueryProvider>
       </body>
     </html>
   );

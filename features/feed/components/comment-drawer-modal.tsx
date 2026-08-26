@@ -22,6 +22,7 @@ import {
   type CommentFeedItem,
 } from "@/features/feed/actions/comment.action";
 import { type PostFeedItem } from "@/features/feed/actions/post.action";
+import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 
 interface CommentDrawerModalProps {
@@ -73,8 +74,9 @@ export function CommentDrawerModal({
   const [likedCommentIds, setLikedCommentIds] = useState<Record<string, boolean>>({});
   const isPostLiked = Boolean(post?.isLiked);
   const postLikesCount = post?.likesCount ?? 0;
-  const [isLikingPost, setIsLikingPost] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [postHeartBurstKey, setPostHeartBurstKey] = useState<number | null>(null);
+  const [commentHeartBursts, setCommentHeartBursts] = useState<Record<string, number>>({});
   const commentsEndRef = useRef<HTMLDivElement>(null);
 
   // Click outside menu listener
@@ -92,6 +94,9 @@ export function CommentDrawerModal({
 
   const handleTogglePostLike = () => {
     if (!post) return;
+    if (!isPostLiked) {
+      setPostHeartBurstKey(Date.now());
+    }
     onPostLikeToggled?.(post.id);
   };
 
@@ -172,10 +177,16 @@ export function CommentDrawerModal({
   };
 
   const handleToggleCommentLike = (commentId: string) => {
-    setLikedCommentIds((prev) => ({
-      ...prev,
-      [commentId]: !prev[commentId],
-    }));
+    setLikedCommentIds((prev) => {
+      const willBeLiked = !prev[commentId];
+      if (willBeLiked) {
+        setCommentHeartBursts((bPrev) => ({ ...bPrev, [commentId]: Date.now() }));
+      }
+      return {
+        ...prev,
+        [commentId]: willBeLiked,
+      };
+    });
   };
 
   if (!isOpen || !post) return null;
@@ -365,22 +376,44 @@ export function CommentDrawerModal({
 
             {/* Post Meta Row (Likes & Comments Count) */}
             <div className="flex items-center justify-between text-xs text-white/80 font-medium pt-1">
-              <button
-                type="button"
-                onClick={handleTogglePostLike}
-                disabled={isLikingPost}
-                className="flex items-center gap-1.5 text-white/90 hover:text-white cursor-pointer transition-all group active:scale-95 select-none"
-                title={isPostLiked ? "Unlike post" : "Like post"}
-              >
-                <Heart
-                  className={`w-4 h-4 transition-all group-hover:scale-110 ${
-                    isPostLiked ? "fill-rose-500 text-rose-500" : "text-white/70 hover:text-white"
-                  }`}
-                />
-                <span className={isPostLiked ? "font-bold text-rose-400" : ""}>
-                  {postLikesCount} {postLikesCount === 1 ? "like" : "likes"}
-                </span>
-              </button>
+              <div className="relative flex items-center">
+                <AnimatePresence>
+                  {postHeartBurstKey && (
+                    <motion.div
+                      key={postHeartBurstKey}
+                      initial={{ opacity: 0, scale: 0.4, y: 0 }}
+                      animate={{
+                        opacity: [0, 1, 1, 0],
+                        scale: [0.4, 1.4, 1.2, 0.8],
+                        y: -30,
+                        rotate: [0, -10, 10, 0],
+                      }}
+                      exit={{ opacity: 0 }}
+                      transition={{ duration: 0.75, ease: "easeOut" }}
+                      className="absolute left-1 pointer-events-none z-30 select-none text-rose-500 drop-shadow-[0_0_10px_rgba(244,63,94,0.8)]"
+                    >
+                      <Heart className="w-5 h-5 fill-rose-500 text-rose-500" />
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
+                <button
+                  type="button"
+                  onClick={handleTogglePostLike}
+                  className="flex items-center gap-1.5 text-white/90 hover:text-white cursor-pointer transition-all group active:scale-95 select-none"
+                  title={isPostLiked ? "Unlike post" : "Like post"}
+                >
+                  <Heart
+                    className={`w-4 h-4 transition-all group-hover:scale-110 ${
+                      isPostLiked ? "fill-rose-500 text-rose-500" : "text-white/70 hover:text-white"
+                    }`}
+                  />
+                  <span className={isPostLiked ? "font-bold text-rose-400" : ""}>
+                    {postLikesCount} {postLikesCount === 1 ? "like" : "likes"}
+                  </span>
+                </button>
+              </div>
+
               <span className="text-white/80">
                 {post.commentsCount} {post.commentsCount === 1 ? "comment" : "comments"}
               </span>
@@ -467,19 +500,41 @@ export function CommentDrawerModal({
                         </div>
                       </div>
 
-                      <button
-                        type="button"
-                        onClick={() => handleToggleCommentLike(comment.id)}
-                        className="p-1 text-white/60 hover:text-white transition-colors cursor-pointer"
-                      >
-                        <Heart
-                          className={`w-4.5 h-4.5 transition-colors ${
-                            isCommentLiked
-                              ? "fill-[#f43f5e] text-[#f43f5e]"
-                              : "text-[#f43f5e]/80 hover:text-[#f43f5e]"
-                          }`}
-                        />
-                      </button>
+                      <div className="relative flex items-center justify-center">
+                        <AnimatePresence>
+                          {commentHeartBursts[comment.id] && (
+                            <motion.div
+                              key={commentHeartBursts[comment.id]}
+                              initial={{ opacity: 0, scale: 0.4, y: 0 }}
+                              animate={{
+                                opacity: [0, 1, 1, 0],
+                                scale: [0.4, 1.3, 1.1, 0.8],
+                                y: -24,
+                                rotate: [0, -10, 10, 0],
+                              }}
+                              exit={{ opacity: 0 }}
+                              transition={{ duration: 0.65, ease: "easeOut" }}
+                              className="absolute pointer-events-none z-30 select-none text-rose-500 drop-shadow-[0_0_8px_rgba(244,63,94,0.8)]"
+                            >
+                              <Heart className="w-4 h-4 fill-rose-500 text-rose-500" />
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+
+                        <button
+                          type="button"
+                          onClick={() => handleToggleCommentLike(comment.id)}
+                          className="p-1 text-white/60 hover:text-white transition-transform active:scale-90 cursor-pointer"
+                        >
+                          <Heart
+                            className={`w-4.5 h-4.5 transition-colors ${
+                              isCommentLiked
+                                ? "fill-[#f43f5e] text-[#f43f5e]"
+                                : "text-[#f43f5e]/80 hover:text-[#f43f5e]"
+                            }`}
+                          />
+                        </button>
+                      </div>
                     </div>
 
                     {/* Compact Comment Body Text */}
