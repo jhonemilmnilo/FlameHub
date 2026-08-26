@@ -169,7 +169,7 @@ export function ProfileActivityFeed({
       const res = await getUserPostsAction({
         targetUserId,
         cursor: currentCursor,
-        limit: 50,
+        limit: 12,
       });
 
       if (res.success && res.data && res.data.posts && res.data.posts.length > 0) {
@@ -268,6 +268,7 @@ export function ProfileActivityFeed({
     return () => window.removeEventListener("click", handleOutsideClick);
   }, []);
 
+  // 🧠 Client-Side Live Filter (Search & Department) with Stable Order Preservation
   const filteredPosts = React.useMemo(() => {
     let result = [...posts];
 
@@ -296,20 +297,10 @@ export function ProfileActivityFeed({
         if (timeDiff !== 0) return timeDiff;
         return b.id.localeCompare(a.id);
       });
-    } else if (sortBy === "Latest") {
-      result.sort((a, b) => {
-        const timeDiff = getEffectiveTime(b) - getEffectiveTime(a);
-        if (timeDiff !== 0) return timeDiff;
-        return b.id.localeCompare(a.id);
-      });
-    } else {
-      result.sort((a, b) => {
-        const timeDiff = getEffectiveTime(b) - getEffectiveTime(a);
-        if (timeDiff !== 0) return timeDiff;
-        return b.id.localeCompare(a.id);
-      });
     }
 
+    // By default ("Latest"), we PRESERVE the exact server-streamed append order
+    // to guarantee 0 jumping when infinite scroll appends new posts.
     return result;
   }, [posts, searchQuery, sortBy]);
 
@@ -1143,15 +1134,15 @@ export function ProfileActivityFeed({
               </motion.article>
             ))}
           </AnimatePresence>
-        </motion.div>
-      )}
 
-      {/* 💀 Skeleton Loading Cards during Infinite Scroll */}
-      {isLoadingMore && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5 pt-2">
-          <PostCardSkeleton />
-          <PostCardSkeleton />
-        </div>
+          {/* 💀 Skeleton Loading Cards seamlessly filling next available grid cells */}
+          {isLoadingMore && (
+            <>
+              <PostCardSkeleton />
+              <PostCardSkeleton />
+            </>
+          )}
+        </motion.div>
       )}
 
       {/* 🎯 Auto Sentinel + Explicit Trigger Fallback */}

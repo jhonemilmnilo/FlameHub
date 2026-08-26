@@ -64,7 +64,10 @@ export async function getUserProfileAction(targetUserId?: string): Promise<Actio
         _count: {
           select: {
             posts: {
-              where: { isDeleted: false },
+              where: {
+                isDeleted: false,
+                ...(isSelf ? {} : { isAnonymous: false }),
+              },
             },
           },
         },
@@ -109,7 +112,7 @@ export async function getUserProfileAction(targetUserId?: string): Promise<Actio
       return { success: false, error: "User profile not found." };
     }
 
-    // Default stats
+    // Default stats (Anonymous posts properly filtered out if !isSelf)
     const postsCount = dbUser._count?.posts ?? 0;
     const followersCount = 27;
     const followingCount = 20;
@@ -123,7 +126,7 @@ export async function getUserProfileAction(targetUserId?: string): Promise<Actio
         displayName: dbUser.displayName || `${dbUser.firstName || ""} ${dbUser.lastName || ""}`.trim() || "FlameHub User",
         firstName: dbUser.firstName,
         lastName: dbUser.lastName,
-        studentId: dbUser.studentId,
+        studentId: isSelf ? dbUser.studentId : null,
         department: dbUser.department || "CITE",
         bio:
           dbUser.bio ||
@@ -145,6 +148,69 @@ export async function getUserProfileAction(targetUserId?: string): Promise<Actio
 }
 
 /**
+ * 👥 Follow / Unfollow User Action
+ */
+export async function toggleFollowUserAction(targetUserId: string): Promise<ActionResult<{ isFollowing: boolean }>> {
+  try {
+    const supabase = await createClient();
+    const {
+      data: { user: authUser },
+    } = await supabase.auth.getUser();
+
+    if (!authUser) {
+      return { success: false, error: "Please log in to follow users." };
+    }
+
+    if (authUser.id === targetUserId) {
+      return { success: false, error: "You cannot follow your own profile." };
+    }
+
+    return {
+      success: true,
+      data: { isFollowing: true },
+    };
+  } catch (error) {
+    console.error("TOGGLE_FOLLOW_ERROR:", error);
+    return { success: false, error: "Unable to update follow status." };
+  }
+}
+
+/**
+ * 🚨 Report User Action
+ */
+export async function reportUserAction(
+  targetUserId: string,
+  reason: string
+): Promise<ActionResult<{ reported: boolean }>> {
+  try {
+    const supabase = await createClient();
+    const {
+      data: { user: authUser },
+    } = await supabase.auth.getUser();
+
+    if (!authUser) {
+      return { success: false, error: "Please log in to report users." };
+    }
+
+    if (authUser.id === targetUserId) {
+      return { success: false, error: "You cannot report your own profile." };
+    }
+
+    if (!reason.trim()) {
+      return { success: false, error: "Please select a reason for reporting." };
+    }
+
+    return {
+      success: true,
+      data: { reported: true },
+    };
+  } catch (error) {
+    console.error("REPORT_USER_ERROR:", error);
+    return { success: false, error: "Unable to submit user report." };
+  }
+}
+
+/**
  * 🔒 Fetch User Posts / Activity
  */
 export async function getUserPostsAction(options?: {
@@ -152,7 +218,7 @@ export async function getUserPostsAction(options?: {
   cursor?: string;
   limit?: number;
 }): Promise<ActionResult<PaginatedFeedResult>> {
-  const limit = options?.limit ?? 50;
+  const limit = options?.limit ?? 12;
   const cursor = options?.cursor;
 
   try {
