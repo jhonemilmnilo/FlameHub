@@ -297,7 +297,7 @@ export async function getUserPostsAction(options?: {
 
     const hasMore = sortedPosts.length > limit;
     const postsToReturn = hasMore ? sortedPosts.slice(0, limit) : sortedPosts;
-    const nextCursor = hasMore && rawPosts.length > limit ? rawPosts[limit - 1].id : null;
+    const nextCursor = hasMore && postsToReturn.length > 0 ? postsToReturn[postsToReturn.length - 1].id : null;
 
     const posts: PostFeedItem[] = postsToReturn.map((p) => {
       const isPostAuthor = currentUserId === p.userId;

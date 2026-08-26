@@ -793,22 +793,18 @@ export function ProfileActivityFeed({
           <p className="text-sm text-[#8CC497]/70">No activity posts found yet.</p>
         </div>
       ) : (
-        <motion.div layoutScroll className="grid grid-cols-1 md:grid-cols-2 gap-5">
-          <AnimatePresence mode="popLayout" initial={false}>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5 items-stretch [grid-auto-flow:dense]">
+          <AnimatePresence initial={false}>
             {filteredPosts.map((post) => (
               <motion.article
                 key={post.id}
-                layout="position"
-                initial={{ opacity: 0, scale: 0.96 }}
-                animate={{ opacity: 1, scale: 1 }}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.95 }}
-                transition={{
-                  layout: { type: "spring", stiffness: 140, damping: 22, mass: 0.9 },
-                  opacity: { duration: 0.35, ease: "easeOut" },
-                }}
+                transition={{ duration: 0.25, ease: "easeOut" }}
                 onClick={() => setActiveDiscussionPost(post)}
                 style={{ borderRadius: "10px" }}
-                className="bg-[#003F2A] border border-[#005a3c]/60 rounded-[10px] p-5 flex flex-col justify-between space-y-4 shadow-xl hover:border-[#8CC497]/60 hover:shadow-2xl transition-colors cursor-pointer group select-none"
+                className="bg-[#003F2A] border border-[#005a3c]/60 rounded-[10px] p-5 flex flex-col justify-between space-y-4 shadow-xl hover:border-[#8CC497]/60 hover:shadow-2xl transition-colors cursor-pointer group select-none h-full"
               >
               {/* Header: Avatar + Author + Dept + Student ID */}
               <div className="flex items-center gap-3.5">
@@ -1135,14 +1131,17 @@ export function ProfileActivityFeed({
             ))}
           </AnimatePresence>
 
-          {/* 💀 Skeleton Loading Cards seamlessly filling next available grid cells */}
+          {/* 💀 Dynamic Skeleton Loading Cards seamlessly filling next available grid cells */}
           {isLoadingMore && (
             <>
-              <PostCardSkeleton />
-              <PostCardSkeleton />
+              {/* If filteredPosts count is odd, render 1 skeleton to complete the current row, plus 2 for next row (total 3).
+                  If even, render 2 skeletons to fill a complete row cleanly. */}
+              {Array.from({ length: filteredPosts.length % 2 !== 0 ? 3 : 2 }).map((_, idx) => (
+                <PostCardSkeleton key={`loading-skeleton-${idx}`} />
+              ))}
             </>
           )}
-        </motion.div>
+        </div>
       )}
 
       {/* 🎯 Auto Sentinel + Explicit Trigger Fallback */}

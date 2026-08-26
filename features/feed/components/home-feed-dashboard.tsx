@@ -1408,16 +1408,16 @@ export function HomeFeedDashboard({
                   </motion.article>
                 ))}
               </AnimatePresence>
-            </motion.div>
 
-            {/* 💀 Skeleton Loading Cards during Infinite Scroll */}
-            {isLoadingMore && (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 pt-2">
-                <PostCardSkeleton />
-                <PostCardSkeleton />
-                <PostCardSkeleton />
-              </div>
-            )}
+              {/* 💀 Skeleton Loading Cards seamlessly filling next available grid cells */}
+              {isLoadingMore && (
+                <>
+                  <PostCardSkeleton />
+                  <PostCardSkeleton />
+                  <PostCardSkeleton />
+                </>
+              )}
+            </motion.div>
 
             {/* 🎯 Facebook-Style Auto Sentinel + Explicit Trigger Fallback */}
             {hasMore && !isLoadingMore && (
