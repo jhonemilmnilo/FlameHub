@@ -33,7 +33,8 @@ export default async function UserProfileByIdPage({ params }: PageProps) {
     redirect("/auth/login");
   }
 
-  const [profileRes, postsRes, followersRes] = await Promise.all([
+  const [currentUserRes, profileRes, postsRes, followersRes] = await Promise.all([
+    getUserProfileAction(authUser.id),
     getUserProfileAction(id),
     getUserPostsAction({ targetUserId: id, limit: 12 }),
     getFollowersAction(),
@@ -44,9 +45,11 @@ export default async function UserProfileByIdPage({ params }: PageProps) {
   }
 
   const postsData = postsRes.success && postsRes.data ? postsRes.data : { posts: [], nextCursor: null, hasMore: false };
+  const currentUser = currentUserRes.success && currentUserRes.data ? currentUserRes.data : null;
 
   return (
     <ProfileDashboard
+      currentUser={currentUser}
       profile={profileRes.data}
       posts={postsData.posts}
       initialNextCursor={postsData.nextCursor}

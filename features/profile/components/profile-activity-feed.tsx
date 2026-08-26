@@ -106,6 +106,12 @@ interface ProfileActivityFeedProps {
   targetUserId?: string;
   isSelf: boolean;
   userName: string;
+  currentSessionUser?: {
+    id?: string;
+    name?: string;
+    studentId?: string;
+    avatarUrl?: string | null;
+  } | null;
 }
 
 export function ProfileActivityFeed({
@@ -115,6 +121,7 @@ export function ProfileActivityFeed({
   targetUserId,
   isSelf,
   userName,
+  currentSessionUser,
 }: ProfileActivityFeedProps) {
   const queryClient = useQueryClient();
   const [posts, setPosts] = useState<PostFeedItem[]>(initialPosts);
@@ -370,23 +377,28 @@ export function ProfileActivityFeed({
     );
 
     // ⚡ Instant Optimistic Update for Post Likers Cache
+    const sessionName = currentSessionUser?.name || userName || "Campus Student";
+    const sessionStudentId = currentSessionUser?.studentId || "Student";
+    const sessionAvatar = currentSessionUser?.avatarUrl || null;
+    const sessionUserId = currentSessionUser?.id || "current-user";
+
     queryClient.setQueryData<PostLikerItem[]>(
       queryKeys.post.likers(postId),
       (prevLikers) => {
         const currentList = prevLikers ? [...prevLikers] : [];
         if (nextIsLiked) {
           const alreadyInList = currentList.some(
-            (u) => u.displayName === (userName || "Campus Student")
+            (u) => u.displayName === sessionName || u.studentId === sessionStudentId
           );
           if (!alreadyInList) {
             return [
               {
                 id: `temp-${Date.now()}`,
-                userId: targetUserId || "current-user",
-                displayName: userName || "Campus Student",
-                studentId: "Student",
+                userId: sessionUserId,
+                displayName: sessionName,
+                studentId: sessionStudentId,
                 department: "FlameHub",
-                avatarUrl: null,
+                avatarUrl: sessionAvatar,
                 likedAt: new Date().toISOString(),
               },
               ...currentList,
@@ -395,7 +407,9 @@ export function ProfileActivityFeed({
           return currentList;
         } else {
           return currentList.filter(
-            (u) => u.displayName !== (userName || "Campus Student")
+            (u) =>
+              u.displayName !== sessionName &&
+              u.studentId !== sessionStudentId
           );
         }
       }
@@ -494,7 +508,7 @@ export function ProfileActivityFeed({
         );
       }
     }, 350);
-  }, [queryClient, targetUserId, userName]);
+  }, [queryClient, userName, currentSessionUser]);
 
   const handleOpenLikersModal = React.useCallback(async (postId: string) => {
     setActiveLikersPostId(postId);
@@ -710,12 +724,17 @@ export function ProfileActivityFeed({
 
     // Check client-side cooldown first
     const now = new Date();
+    const isFirstTimeRepost = !post.repostedAt;
     const lastTimestamp = post.repostedAt ? new Date(post.repostedAt) : new Date(post.createdAt);
     const diffInHours = (now.getTime() - lastTimestamp.getTime()) / (1000 * 60 * 60);
 
     if (diffInHours < 24) {
       const remainingHours = Math.ceil(24 - diffInHours);
-      toast.error(`You can only repost this once every 24 hours. Please wait ${remainingHours}h.`);
+      if (isFirstTimeRepost) {
+        toast.error("This post was recently published. You can repost it after 24 hours.");
+      } else {
+        toast.error(`This post was recently bumped. You can repost it again in ${remainingHours}h.`);
+      }
       return;
     }
 

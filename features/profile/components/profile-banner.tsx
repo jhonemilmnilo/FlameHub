@@ -116,9 +116,15 @@ export function ProfileBanner({
                 </span>
               )}
             </h1>
-            <p className="text-xs sm:text-sm text-[#8CC497] font-medium tracking-wide">
-              {profile.email || `${profile.studentId || "student"}@phinmaed.com`}
-            </p>
+            {profile.isSelf && profile.email ? (
+              <p className="text-xs sm:text-sm text-[#8CC497] font-medium tracking-wide">
+                {profile.email}
+              </p>
+            ) : (
+              <p className="text-xs sm:text-sm text-[#8CC497] font-medium tracking-wide">
+                {profile.department ? `${profile.department} Department` : "PHINMA Education"}
+              </p>
+            )}
           </div>
 
           {/* Social Stats Strip */}

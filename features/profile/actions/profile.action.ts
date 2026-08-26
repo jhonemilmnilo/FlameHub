@@ -118,7 +118,7 @@ export async function getUserProfileAction(targetUserId?: string): Promise<Actio
       success: true,
       data: {
         id: dbUser.id,
-        email: dbUser.email,
+        email: isSelf ? dbUser.email : null,
         nickname: dbUser.nickname,
         displayName: dbUser.displayName || `${dbUser.firstName || ""} ${dbUser.lastName || ""}`.trim() || "FlameHub User",
         firstName: dbUser.firstName,
@@ -168,10 +168,13 @@ export async function getUserPostsAction(options?: {
       return { success: false, error: "User ID is required." };
     }
 
+    const isViewingSelf = currentUserId === userId;
+
     const rawPosts = await prisma.post.findMany({
       where: {
         userId: userId,
         isDeleted: false,
+        ...(isViewingSelf ? {} : { isAnonymous: false }),
       },
       take: limit + 1,
       skip: cursor ? 1 : 0,

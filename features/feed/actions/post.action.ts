@@ -552,15 +552,20 @@ export async function repostPostAction(postId: string): Promise<ActionResult<{ r
 
     // 🔒 3. 24-Hour Cooldown Validation
     const now = new Date();
+    const isFirstTimeRepost = !post.repostedAt;
     const lastTimestamp = post.repostedAt || post.createdAt;
     const diffInMs = now.getTime() - lastTimestamp.getTime();
     const diffInHours = diffInMs / (1000 * 60 * 60);
 
     if (diffInHours < 24) {
       const remainingHours = Math.ceil(24 - diffInHours);
+      const errorMessage = isFirstTimeRepost
+        ? "This post was recently published. You can repost it after 24 hours."
+        : `This post was recently bumped. You can repost it again in ${remainingHours}h.`;
+
       return {
         success: false,
-        error: `You can only repost this once every 24 hours. Please wait ${remainingHours}h.`,
+        error: errorMessage,
         code: "COOLDOWN_ACTIVE",
       };
     }

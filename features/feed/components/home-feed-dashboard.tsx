@@ -838,12 +838,17 @@ export function HomeFeedDashboard({
     if (repostingPostId) return;
 
     const now = new Date();
+    const isFirstTimeRepost = !post.repostedAt;
     const lastTimestamp = post.repostedAt ? new Date(post.repostedAt) : new Date(post.createdAt);
     const diffInHours = (now.getTime() - lastTimestamp.getTime()) / (1000 * 60 * 60);
 
     if (diffInHours < 24) {
       const remainingHours = Math.ceil(24 - diffInHours);
-      toast.error(`You can only repost this once every 24 hours. Please wait ${remainingHours}h.`);
+      if (isFirstTimeRepost) {
+        toast.error("This post was recently published. You can repost it after 24 hours.");
+      } else {
+        toast.error(`This post was recently bumped. You can repost it again in ${remainingHours}h.`);
+      }
       return;
     }
 

@@ -25,6 +25,7 @@ import type { UserProfileData, FollowerItem } from "../actions/profile.action";
 import type { PostFeedItem } from "@/features/feed/actions/post.action";
 
 interface ProfileDashboardProps {
+  currentUser?: UserProfileData | null;
   profile: UserProfileData;
   posts: PostFeedItem[];
   initialNextCursor?: string | null;
@@ -33,6 +34,7 @@ interface ProfileDashboardProps {
 }
 
 export function ProfileDashboard({
+  currentUser,
   profile: initialProfile,
   posts,
   initialNextCursor = null,
@@ -40,6 +42,7 @@ export function ProfileDashboard({
   followers,
 }: ProfileDashboardProps) {
   const router = useRouter();
+  const sessionUser = currentUser || initialProfile;
   const [profile, setProfile] = useState<UserProfileData>(initialProfile);
   const [isSidebarHidden, setIsSidebarHidden] = useState(false);
   const [isEditingBio, setIsEditingBio] = useState(false);
@@ -71,31 +74,31 @@ export function ProfileDashboard({
         }`}
       >
         <div className="space-y-6">
-          {/* User Mini Profile Header */}
+          {/* User Mini Profile Header (Always Current Session User) */}
           <div className="flex items-center justify-between gap-2 select-none pt-2">
             <Link
               href="/profile"
               className="flex items-center gap-3.5 overflow-hidden group hover:opacity-90 transition-opacity"
             >
               <div className="w-12 h-12 rounded-full bg-[#002f1f] border-2 border-[#8CC497] overflow-hidden flex items-center justify-center shrink-0 shadow-md text-[#8CC497] font-black text-lg relative">
-                {profile.avatarUrl ? (
+                {sessionUser.avatarUrl ? (
                   <Image
-                    src={profile.avatarUrl}
-                    alt={profile.displayName}
+                    src={sessionUser.avatarUrl}
+                    alt={sessionUser.displayName}
                     fill
                     unoptimized
                     className="object-cover"
                   />
                 ) : (
-                  <span>{profile.displayName.charAt(0).toUpperCase()}</span>
+                  <span>{sessionUser.displayName.charAt(0).toUpperCase()}</span>
                 )}
               </div>
               <div className="overflow-hidden">
                 <h2 className="font-extrabold text-sm lg:text-base text-white truncate tracking-tight font-heading group-hover:text-[#8CC497] transition-colors">
-                  {profile.displayName}
+                  {sessionUser.displayName}
                 </h2>
                 <p className="text-xs text-[#8CC497] font-medium tracking-wide">
-                  {profile.studentId || "03-2122-034361"}
+                  {sessionUser.studentId || "Student"}
                 </p>
               </div>
             </Link>
@@ -207,6 +210,12 @@ export function ProfileDashboard({
               targetUserId={profile.id}
               isSelf={profile.isSelf}
               userName={profile.displayName}
+              currentSessionUser={{
+                id: sessionUser.id,
+                name: sessionUser.displayName,
+                studentId: sessionUser.studentId || undefined,
+                avatarUrl: sessionUser.avatarUrl,
+              }}
             />
           </div>
           <div className="lg:col-span-4 sticky top-6">
