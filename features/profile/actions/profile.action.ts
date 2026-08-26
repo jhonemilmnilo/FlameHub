@@ -152,7 +152,7 @@ export async function getUserPostsAction(options?: {
   cursor?: string;
   limit?: number;
 }): Promise<ActionResult<PaginatedFeedResult>> {
-  const limit = options?.limit ?? 12;
+  const limit = options?.limit ?? 50;
   const cursor = options?.cursor;
 
   try {
@@ -179,9 +179,10 @@ export async function getUserPostsAction(options?: {
       take: limit + 1,
       skip: cursor ? 1 : 0,
       cursor: cursor ? { id: cursor } : undefined,
-      orderBy: {
-        createdAt: "desc",
-      },
+      orderBy: [
+        { createdAt: "desc" },
+        { id: "desc" },
+      ],
       include: {
         user: {
           select: {
@@ -220,16 +221,17 @@ export async function getUserPostsAction(options?: {
       },
     });
 
-    // ⚡ Sort posts by Unified Effective Activity Timestamp: max(createdAt, repostedAt)
+    // ⚡ Sort posts by Unified Effective Activity Timestamp: max(createdAt, repostedAt) with deterministic ID tiebreaker
     const sortedPosts = [...rawPosts].sort((a, b) => {
       const timeA = Math.max(a.createdAt.getTime(), a.repostedAt ? a.repostedAt.getTime() : 0);
       const timeB = Math.max(b.createdAt.getTime(), b.repostedAt ? b.repostedAt.getTime() : 0);
-      return timeB - timeA;
+      if (timeB !== timeA) return timeB - timeA;
+      return b.id.localeCompare(a.id);
     });
 
     const hasMore = sortedPosts.length > limit;
     const postsToReturn = hasMore ? sortedPosts.slice(0, limit) : sortedPosts;
-    const nextCursor = hasMore && postsToReturn.length > 0 ? postsToReturn[postsToReturn.length - 1].id : null;
+    const nextCursor = hasMore && rawPosts.length > limit ? rawPosts[limit - 1].id : null;
 
     const posts: PostFeedItem[] = postsToReturn.map((p) => {
       const isPostAuthor = currentUserId === p.userId;

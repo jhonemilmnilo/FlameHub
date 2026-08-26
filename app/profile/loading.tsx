@@ -1,39 +1,79 @@
 import React from "react";
+import {
+  Home,
+  Bell,
+  HelpCircle,
+  Info,
+  LogOut,
+  PanelLeftClose,
+} from "lucide-react";
 
+/**
+ * ⚡ Profile Page Loading Skeleton
+ *
+ * Left Sidebar remains active and present in the DOM (Zero Disappearing).
+ * Only the main center profile hero, bio, and post cards shimmer.
+ */
 export default function ProfileLoading() {
   return (
     <div className="min-h-screen bg-[#006241] text-white flex flex-col md:flex-row font-sans selection:bg-[#8CC497]/30 selection:text-white">
-      {/* 🌲 LEFT SIDEBAR SKELETON */}
-      <aside className="bg-[#003F2A] border-b md:border-b-0 md:border-r border-[#005a3c]/60 shrink-0 w-full md:w-64 lg:w-72 p-6 flex flex-col justify-between h-screen hidden md:flex animate-pulse">
+      {/* ========================================================================= */}
+      {/* 🌲 PERSISTENT LEFT SIDEBAR IN PROFILE SKELETON */}
+      {/* ========================================================================= */}
+      <aside className="bg-[#003F2A] border-b md:border-b-0 md:border-r border-[#005a3c]/60 shrink-0 md:sticky md:top-0 md:h-screen w-full md:w-64 lg:w-72 p-6 flex flex-col justify-between hidden md:flex">
         <div className="space-y-6">
-          {/* User Profile Header */}
-          <div className="flex items-center gap-3.5 pt-2">
-            <div className="w-12 h-12 lg:w-14 lg:h-14 rounded-full bg-white/20 shrink-0" />
-            <div className="space-y-2 flex-1">
-              <div className="h-4 bg-white/25 rounded-md w-3/4" />
-              <div className="h-3 bg-[#8CC497]/30 rounded-md w-1/2" />
+          {/* User Profile Header Placeholder */}
+          <div className="flex items-center justify-between gap-2 select-none pt-2 animate-pulse">
+            <div className="flex items-center gap-3.5 overflow-hidden">
+              <div className="w-12 h-12 lg:w-14 lg:h-14 rounded-full bg-[#002f1f] border-2 border-[#8CC497]/40 shrink-0" />
+              <div className="space-y-2 flex-1">
+                <div className="h-4 bg-white/25 rounded-md w-28" />
+                <div className="h-3 bg-[#8CC497]/40 rounded-md w-20" />
+              </div>
+            </div>
+            <div className="p-1.5 rounded-lg text-[#8CC497]/50">
+              <PanelLeftClose className="w-5 h-5" />
             </div>
           </div>
 
           <hr className="border-t border-[#005a3c]/70 my-2" />
 
-          {/* Nav Items */}
-          <div className="space-y-2">
-            <div className="h-11 bg-white/20 rounded-xl w-full" />
-            <div className="h-11 bg-white/10 rounded-xl w-full" />
-            <div className="h-11 bg-white/10 rounded-xl w-full" />
-            <div className="h-11 bg-white/10 rounded-xl w-full" />
-            <div className="h-11 bg-white/10 rounded-xl w-full" />
-          </div>
+          {/* Navigation Links */}
+          <nav className="space-y-2 font-medium">
+            <div className="w-full flex items-center gap-4 px-3.5 py-3 rounded-xl text-emerald-100/70">
+              <Home className="w-5 h-5 text-[#8CC497]/70 shrink-0" />
+              <span className="text-sm lg:text-base font-semibold">Home</span>
+            </div>
+
+            <div className="w-full flex items-center gap-4 px-3.5 py-3 rounded-xl text-emerald-100/70">
+              <Bell className="w-5 h-5 text-[#8CC497]/70 shrink-0" />
+              <span className="text-sm lg:text-base">Notifications</span>
+            </div>
+
+            <div className="w-full flex items-center gap-4 px-3.5 py-3 rounded-xl text-emerald-100/70">
+              <HelpCircle className="w-5 h-5 text-[#8CC497]/70 shrink-0" />
+              <span className="text-sm lg:text-base">Help</span>
+            </div>
+
+            <div className="w-full flex items-center gap-4 px-3.5 py-3 rounded-xl text-emerald-100/70">
+              <Info className="w-5 h-5 text-[#8CC497]/70 shrink-0" />
+              <span className="text-sm lg:text-base">About</span>
+            </div>
+          </nav>
         </div>
 
-        {/* Logout Skeleton */}
+        {/* Log Out Button */}
         <div className="pt-6 border-t border-[#005a3c]/70">
-          <div className="h-11 bg-rose-950/30 rounded-xl w-full" />
+          <div className="w-full flex items-center gap-4 px-3.5 py-3 rounded-xl text-emerald-100/70">
+            <LogOut className="w-5 h-5 text-[#8CC497]/70 shrink-0" />
+            <span className="text-sm lg:text-base font-bold">Log out</span>
+          </div>
         </div>
       </aside>
 
+      {/* ========================================================================= */}
       {/* 🚀 MAIN CONTENT PROFILE SKELETON */}
+      {/* ========================================================================= */}
       <main className="flex-1 p-5 md:p-8 lg:p-10 max-w-[1600px] mx-auto w-full space-y-8 animate-pulse">
         {/* Top Section: Hero Banner (left 70%) & Bio (right 30%) */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">

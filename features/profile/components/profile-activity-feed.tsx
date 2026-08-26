@@ -169,7 +169,7 @@ export function ProfileActivityFeed({
       const res = await getUserPostsAction({
         targetUserId,
         cursor: currentCursor,
-        limit: 12,
+        limit: 50,
       });
 
       if (res.success && res.data && res.data.posts && res.data.posts.length > 0) {
@@ -292,12 +292,22 @@ export function ProfileActivityFeed({
     if (sortBy === "Most Liked") {
       result.sort((a, b) => {
         if (b.likesCount !== a.likesCount) return b.likesCount - a.likesCount;
-        return getEffectiveTime(b) - getEffectiveTime(a);
+        const timeDiff = getEffectiveTime(b) - getEffectiveTime(a);
+        if (timeDiff !== 0) return timeDiff;
+        return b.id.localeCompare(a.id);
       });
     } else if (sortBy === "Latest") {
-      result.sort((a, b) => getEffectiveTime(b) - getEffectiveTime(a));
+      result.sort((a, b) => {
+        const timeDiff = getEffectiveTime(b) - getEffectiveTime(a);
+        if (timeDiff !== 0) return timeDiff;
+        return b.id.localeCompare(a.id);
+      });
     } else {
-      result.sort((a, b) => getEffectiveTime(b) - getEffectiveTime(a));
+      result.sort((a, b) => {
+        const timeDiff = getEffectiveTime(b) - getEffectiveTime(a);
+        if (timeDiff !== 0) return timeDiff;
+        return b.id.localeCompare(a.id);
+      });
     }
 
     return result;

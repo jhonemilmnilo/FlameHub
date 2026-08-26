@@ -57,6 +57,7 @@ import { CommentDrawerModal } from "@/features/feed/components/comment-drawer-mo
 import { PostLikersModal } from "@/features/feed/components/post-likers-modal";
 import { CustomSelect } from "@/components/ui/custom-select";
 import { ConfirmationModal } from "@/components/ui/confirmation-modal";
+import { AppSidebar } from "@/components/layout/app-sidebar";
 import { toast } from "sonner";
 
 function formatRelativeTime(dateString: string): string {
@@ -230,25 +231,41 @@ export function HomeFeedDashboard({
     // 3. Sort / Category Filter
     if (sortBy === "Saved") {
       result = result.filter((p) => p.isSaved);
-      result.sort((a, b) => getEffectiveTime(b) - getEffectiveTime(a));
+      result.sort((a, b) => {
+        const timeDiff = getEffectiveTime(b) - getEffectiveTime(a);
+        if (timeDiff !== 0) return timeDiff;
+        return b.id.localeCompare(a.id);
+      });
     } else if (sortBy === "Controversial") {
       // ⚡ Controversial Score = Combined high activity (Likes + Comments engagement balance)
       result.sort((a, b) => {
         const scoreA = a.likesCount + a.commentsCount * 2;
         const scoreB = b.likesCount + b.commentsCount * 2;
         if (scoreB !== scoreA) return scoreB - scoreA;
-        return getEffectiveTime(b) - getEffectiveTime(a);
+        const timeDiff = getEffectiveTime(b) - getEffectiveTime(a);
+        if (timeDiff !== 0) return timeDiff;
+        return b.id.localeCompare(a.id);
       });
     } else if (sortBy === "Most Liked") {
       result.sort((a, b) => {
         if (b.likesCount !== a.likesCount) return b.likesCount - a.likesCount;
-        return getEffectiveTime(b) - getEffectiveTime(a);
+        const timeDiff = getEffectiveTime(b) - getEffectiveTime(a);
+        if (timeDiff !== 0) return timeDiff;
+        return b.id.localeCompare(a.id);
       });
     } else if (sortBy === "Latest" || sortBy === "ALL") {
       // ⚡ Sort strictly by whichever is most recent: latest post or latest repost
-      result.sort((a, b) => getEffectiveTime(b) - getEffectiveTime(a));
+      result.sort((a, b) => {
+        const timeDiff = getEffectiveTime(b) - getEffectiveTime(a);
+        if (timeDiff !== 0) return timeDiff;
+        return b.id.localeCompare(a.id);
+      });
     } else {
-      result.sort((a, b) => getEffectiveTime(b) - getEffectiveTime(a));
+      result.sort((a, b) => {
+        const timeDiff = getEffectiveTime(b) - getEffectiveTime(a);
+        if (timeDiff !== 0) return timeDiff;
+        return b.id.localeCompare(a.id);
+      });
     }
 
     return result;
@@ -877,126 +894,21 @@ export function HomeFeedDashboard({
   return (
     <div className="min-h-screen bg-[#006241] text-white flex flex-col md:flex-row font-sans selection:bg-[#8CC497]/30 selection:text-white">
       {/* ========================================================================= */}
-      {/* 🌲 LEFT SIDEBAR NAVIGATION */}
-      {/* ========================================================================= */}
-      <aside
-        className={`bg-[#003F2A] border-b md:border-b-0 md:border-r border-[#005a3c]/60 shrink-0 md:sticky md:top-0 md:h-screen flex flex-col justify-between z-30 transition-all duration-300 ease-in-out ${
-          isSidebarHidden
-            ? "w-0 p-0 overflow-hidden opacity-0 border-none pointer-events-none"
-            : "w-full md:w-64 lg:w-72 p-6 overflow-y-auto opacity-100 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
-        }`}
-      >
-        <div className="space-y-6">
-          {/* User Profile Header & Collapse Toggle */}
-          <div className="flex items-center justify-between gap-2 select-none pt-2">
-            <button
-              type="button"
-              onClick={() => router.push("/profile")}
-              className="flex items-center gap-3.5 overflow-hidden text-left cursor-pointer group hover:opacity-90 transition-opacity"
-            >
-              <div className="w-12 h-12 lg:w-14 lg:h-14 rounded-full bg-[#002f1f] border-2 border-[#8CC497] overflow-hidden flex items-center justify-center shrink-0 shadow-md text-[#8CC497] font-black text-lg relative">
-                {currentUser.avatarUrl ? (
-                  <Image
-                    src={currentUser.avatarUrl}
-                    alt={currentUser.name}
-                    fill
-                    unoptimized
-                    className="object-cover"
-                  />
-                ) : (
-                  <span>{currentUser.name ? currentUser.name.charAt(0).toUpperCase() : "U"}</span>
-                )}
-              </div>
-              <div className="overflow-hidden">
-                <h2 className="font-extrabold text-sm lg:text-base text-white truncate tracking-tight font-heading group-hover:text-[#8CC497] transition-colors">
-                  {currentUser.name}
-                </h2>
-                <p className="text-xs text-[#8CC497] font-medium tracking-wide">
-                  {currentUser.studentId}
-                </p>
-              </div>
-            </button>
-
-            {/* Toggle Button to Hide Sidebar */}
-            <button
-              type="button"
-              onClick={() => setIsSidebarHidden(true)}
-              title="Hide Sidebar"
-              className="p-1.5 rounded-lg hover:bg-[#006241] text-[#8CC497] hover:text-white transition-colors cursor-pointer shrink-0"
-            >
-              <PanelLeftClose className="w-5 h-5" />
-            </button>
-          </div>
-
-          {/* ─── Sleek Divider Line between Avatar & Navigation ─── */}
-          <hr className="border-t border-[#005a3c]/70 my-2" />
-
-          {/* Navigation Links */}
-          <nav className="space-y-2 font-medium">
-            <button
-              type="button"
-              onClick={scrollToTop}
-              className="w-full flex items-center gap-4 px-3.5 py-3 rounded-xl text-[#006241] font-extrabold bg-white shadow-md transition-all text-left cursor-pointer active:scale-98"
-            >
-              <Home className="w-5 h-5 text-[#006241] shrink-0" />
-              <span className="text-sm lg:text-base font-bold">Home</span>
-            </button>
-
-            <button
-              type="button"
-              className="w-full flex items-center gap-4 px-3.5 py-3 rounded-xl text-emerald-100 hover:text-white hover:bg-[#006241]/60 transition-all text-left cursor-pointer"
-            >
-              <Bell className="w-5 h-5 text-[#8CC497] shrink-0" />
-              <span className="text-sm lg:text-base">Notifications</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => {
-                const isCurrentlySavedSort = sortBy === "Saved";
-                setSortBy(isCurrentlySavedSort ? "ALL" : "Saved");
-                scrollToTop();
-              }}
-              className={`w-full flex items-center gap-4 px-3.5 py-3 rounded-xl transition-all text-left cursor-pointer ${
-                sortBy === "Saved"
-                  ? "bg-[#006241] text-white font-bold shadow-inner"
-                  : "text-emerald-100 hover:text-white hover:bg-[#006241]/60"
-              }`}
-            >
-              <Bookmark className={`w-5 h-5 shrink-0 ${sortBy === "Saved" ? "text-[#8CC497] fill-[#8CC497]" : "text-[#8CC497]"}`} />
-              <span className="text-sm lg:text-base">Bookmarks</span>
-            </button>
-
-            <button
-              type="button"
-              className="w-full flex items-center gap-4 px-3.5 py-3 rounded-xl text-emerald-100 hover:text-white hover:bg-[#006241]/60 transition-all text-left cursor-pointer"
-            >
-              <HelpCircle className="w-5 h-5 text-[#8CC497] shrink-0" />
-              <span className="text-sm lg:text-base">Help</span>
-            </button>
-
-            <button
-              type="button"
-              className="w-full flex items-center gap-4 px-3.5 py-3 rounded-xl text-emerald-100 hover:text-white hover:bg-[#006241]/60 transition-all text-left cursor-pointer"
-            >
-              <Info className="w-5 h-5 text-[#8CC497] shrink-0" />
-              <span className="text-sm lg:text-base">About</span>
-            </button>
-          </nav>
-        </div>
-
-        {/* Log Out Button */}
-        <div className="pt-6 border-t border-[#005a3c]/70">
-          <button
-            type="button"
-            onClick={handleLogout}
-            className="w-full flex items-center gap-4 px-3.5 py-3 rounded-xl text-emerald-100 hover:text-white hover:bg-rose-950/30 transition-all text-left cursor-pointer"
-          >
-            <LogOut className="w-5 h-5 text-[#8CC497] shrink-0" />
-            <span className="text-sm lg:text-base font-bold">Log out</span>
-          </button>
-        </div>
-      </aside>
+      {/* 🌲 SHARED PERSISTENT APP SIDEBAR */}
+      <AppSidebar
+        currentUser={{
+          name: currentUser.name,
+          studentId: currentUser.studentId,
+          avatarUrl: currentUser.avatarUrl,
+          nickname: currentUser.nickname,
+        }}
+        isSavedActive={sortBy === "Saved"}
+        onSelectSaved={() => {
+          const isCurrentlySaved = sortBy === "Saved";
+          setSortBy(isCurrentlySaved ? "ALL" : "Saved");
+          scrollToTop();
+        }}
+      />
 
       {/* ========================================================================= */}
       {/* 🚀 MAIN CONTENT FEED AREA */}

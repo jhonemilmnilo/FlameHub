@@ -1,27 +1,30 @@
 import React from "react";
+import {
+  Home,
+  Bell,
+  Bookmark,
+  HelpCircle,
+  Info,
+  LogOut,
+  PanelLeftClose,
+} from "lucide-react";
 
 /**
- * ⚡ Root Application Loading Skeleton
+ * ⚡ Root Application Loading Skeleton (Home Feed)
  *
- * 1:1 Pixel-Perfect alignment with `HomeFeedDashboard`:
- * - Layout: `min-h-screen bg-[#006241] flex flex-col md:flex-row`
- * - Sidebar: `w-full md:w-64 lg:w-72 p-6` (sticky)
- * - Main Container: `p-6 md:p-8 lg:p-10 max-w-7xl mx-auto space-y-8`
- * - Welcome Banner Header: "Welcome to Flamehub!" & subtext
- * - Post Composer Box: `rounded-[10px] p-4 md:p-5` with avatar & pill button
- * - Feed Section Title & Filter Toolbar: Filter button + Search input + 2 Select dropdowns
- * - Grid: 3-column post cards `grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5`
+ * Left Sidebar remains active and present in the DOM (Zero Disappearing).
+ * Only the main center feed stream shimmers with loading skeletons.
  */
 export default function RootLoading() {
   return (
     <div className="min-h-screen bg-[#006241] text-white flex flex-col md:flex-row font-sans selection:bg-[#8CC497]/30 selection:text-white">
       {/* ========================================================================= */}
-      {/* 🌲 LEFT SIDEBAR SKELETON (1:1 with HomeFeedDashboard aside) */}
+      {/* 🌲 PERSISTENT LEFT SIDEBAR IN SKELETON */}
       {/* ========================================================================= */}
-      <aside className="bg-[#003F2A] border-b md:border-b-0 md:border-r border-[#005a3c]/60 shrink-0 md:sticky md:top-0 md:h-screen w-full md:w-64 lg:w-72 p-6 flex flex-col justify-between hidden md:flex animate-pulse">
+      <aside className="bg-[#003F2A] border-b md:border-b-0 md:border-r border-[#005a3c]/60 shrink-0 md:sticky md:top-0 md:h-screen w-full md:w-64 lg:w-72 p-6 flex flex-col justify-between hidden md:flex">
         <div className="space-y-6">
-          {/* User Profile Header */}
-          <div className="flex items-center justify-between gap-2 pt-2">
+          {/* User Profile Header Placeholder */}
+          <div className="flex items-center justify-between gap-2 select-none pt-2 animate-pulse">
             <div className="flex items-center gap-3.5 overflow-hidden">
               <div className="w-12 h-12 lg:w-14 lg:h-14 rounded-full bg-[#002f1f] border-2 border-[#8CC497]/40 shrink-0" />
               <div className="space-y-2 flex-1">
@@ -29,35 +32,53 @@ export default function RootLoading() {
                 <div className="h-3 bg-[#8CC497]/40 rounded-md w-20" />
               </div>
             </div>
-            <div className="w-8 h-8 rounded-lg bg-white/10 shrink-0" />
+            <div className="p-1.5 rounded-lg text-[#8CC497]/50">
+              <PanelLeftClose className="w-5 h-5" />
+            </div>
           </div>
 
-          {/* Divider */}
           <hr className="border-t border-[#005a3c]/70 my-2" />
 
           {/* Navigation Links */}
-          <nav className="space-y-2">
-            {/* Active Home Button */}
-            <div className="h-12 bg-white/90 rounded-xl w-full" />
-            {/* Notifications */}
-            <div className="h-12 bg-white/10 rounded-xl w-full" />
-            {/* Bookmarks */}
-            <div className="h-12 bg-white/10 rounded-xl w-full" />
-            {/* Help */}
-            <div className="h-12 bg-white/10 rounded-xl w-full" />
-            {/* About */}
-            <div className="h-12 bg-white/10 rounded-xl w-full" />
+          <nav className="space-y-2 font-medium">
+            <div className="w-full flex items-center gap-4 px-3.5 py-3 rounded-xl text-[#006241] font-extrabold bg-white shadow-md">
+              <Home className="w-5 h-5 text-[#006241] shrink-0" />
+              <span className="text-sm lg:text-base font-bold">Home</span>
+            </div>
+
+            <div className="w-full flex items-center gap-4 px-3.5 py-3 rounded-xl text-emerald-100/70">
+              <Bell className="w-5 h-5 text-[#8CC497]/70 shrink-0" />
+              <span className="text-sm lg:text-base">Notifications</span>
+            </div>
+
+            <div className="w-full flex items-center gap-4 px-3.5 py-3 rounded-xl text-emerald-100/70">
+              <Bookmark className="w-5 h-5 text-[#8CC497]/70 shrink-0" />
+              <span className="text-sm lg:text-base">Bookmarks</span>
+            </div>
+
+            <div className="w-full flex items-center gap-4 px-3.5 py-3 rounded-xl text-emerald-100/70">
+              <HelpCircle className="w-5 h-5 text-[#8CC497]/70 shrink-0" />
+              <span className="text-sm lg:text-base">Help</span>
+            </div>
+
+            <div className="w-full flex items-center gap-4 px-3.5 py-3 rounded-xl text-emerald-100/70">
+              <Info className="w-5 h-5 text-[#8CC497]/70 shrink-0" />
+              <span className="text-sm lg:text-base">About</span>
+            </div>
           </nav>
         </div>
 
         {/* Log Out Button */}
         <div className="pt-6 border-t border-[#005a3c]/70">
-          <div className="h-12 bg-rose-950/30 rounded-xl w-full" />
+          <div className="w-full flex items-center gap-4 px-3.5 py-3 rounded-xl text-emerald-100/70">
+            <LogOut className="w-5 h-5 text-[#8CC497]/70 shrink-0" />
+            <span className="text-sm lg:text-base font-bold">Log out</span>
+          </div>
         </div>
       </aside>
 
       {/* ========================================================================= */}
-      {/* 🚀 MAIN CONTENT FEED AREA SKELETON (1:1 with HomeFeedDashboard main) */}
+      {/* 🚀 MAIN CONTENT FEED AREA SKELETON */}
       {/* ========================================================================= */}
       <main className="flex-1 p-6 md:p-8 lg:p-10 max-w-7xl mx-auto w-full space-y-8 animate-pulse">
         {/* Welcome Banner Header */}
@@ -112,7 +133,7 @@ export default function RootLoading() {
           </div>
         </div>
 
-        {/* 📰 3-Column Post Cards Grid (Exact matching grid layout) */}
+        {/* 📰 3-Column Post Cards Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {[1, 2, 3, 4, 5, 6].map((i) => (
             <div
