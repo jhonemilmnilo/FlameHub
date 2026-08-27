@@ -281,14 +281,17 @@ export async function createPostAction(rawInput: unknown): Promise<ActionResult<
     revalidatePath("/");
 
     const isAnon = newPost.isAnonymous;
+    const authorDisplayName = userRecord.displayName || "Campus Student";
 
     return {
       success: true,
       data: {
         id: newPost.id,
-        authorName: isAnon ? "Anonymous" : userRecord.displayName,
-        department: isAnon ? "Flame" : (deptRecord?.code || userDeptCode),
-        studentId: isAnon ? "Hidden ID" : userRecord.studentId || "00-0000-000000",
+        authorName: isAnon ? `${authorDisplayName} (Anonymous)` : authorDisplayName,
+        authorNickname: userRecord.nickname || null,
+        authorAvatarUrl: userRecord.avatarUrl || null,
+        department: deptRecord?.code || userDeptCode,
+        studentId: userRecord.studentId || "00-0000-000000",
         content: newPost.content,
         isAnonymous: isAnon,
         likesCount: newPost.likesCount,
@@ -321,7 +324,7 @@ export async function editPostAction(rawInput: unknown): Promise<ActionResult<Po
     if (!authUser) {
       return {
         success: false,
-        error: "You must be logged in to edit your post.",
+        error: "You must be logged in to edit a post.",
         code: "UNAUTHORIZED",
       };
     }
@@ -330,7 +333,7 @@ export async function editPostAction(rawInput: unknown): Promise<ActionResult<Po
     if (!parsed.success) {
       return {
         success: false,
-        error: parsed.error.issues[0]?.message || "Invalid edit input.",
+        error: parsed.error.issues[0]?.message || "Invalid post data.",
         code: "VALIDATION_ERROR",
       };
     }
@@ -338,24 +341,20 @@ export async function editPostAction(rawInput: unknown): Promise<ActionResult<Po
     const { postId, content, isAnonymous } = parsed.data;
 
     // 1. Fetch post and strictly verify ownership
-    const post = await prisma.post.findUnique({
+    const existingPost = await prisma.post.findUnique({
       where: { id: postId },
-      include: {
-        user: true,
-        department: true,
-      },
     });
 
-    if (!post || post.isDeleted) {
+    if (!existingPost) {
       return {
         success: false,
-        error: "Post not found or already deleted.",
+        error: "Post not found.",
         code: "NOT_FOUND",
       };
     }
 
     // IDOR Protection: Only the author can edit their own post
-    if (post.userId !== authUser.id) {
+    if (existingPost.userId !== authUser.id) {
       return {
         success: false,
         error: "Forbidden: You are not authorized to edit this post.",
@@ -397,14 +396,17 @@ export async function editPostAction(rawInput: unknown): Promise<ActionResult<Po
     const isAnon = updatedPost.isAnonymous;
     const isLiked = Array.isArray(updatedPost.likedPosts) && updatedPost.likedPosts.length > 0;
     const isSaved = Array.isArray(updatedPost.savedPosts) && updatedPost.savedPosts.length > 0;
+    const authorDisplayName = updatedPost.user?.displayName || "Campus Student";
 
     return {
       success: true,
       data: {
         id: updatedPost.id,
-        authorName: isAnon ? "Anonymous" : updatedPost.user?.displayName || "Campus Student",
-        department: isAnon ? "Flame" : (updatedPost.department?.code || updatedPost.user?.department || "CITE"),
-        studentId: isAnon ? "Hidden ID" : updatedPost.user?.studentId || "00-0000-000000",
+        authorName: isAnon ? `${authorDisplayName} (Anonymous)` : authorDisplayName,
+        authorNickname: updatedPost.user?.nickname || null,
+        authorAvatarUrl: updatedPost.user?.avatarUrl || null,
+        department: updatedPost.department?.code || updatedPost.user?.department || "CITE",
+        studentId: updatedPost.user?.studentId || "00-0000-000000",
         content: updatedPost.content,
         isAnonymous: isAnon,
         likesCount: updatedPost.likesCount,

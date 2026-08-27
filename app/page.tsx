@@ -1,8 +1,9 @@
+import { Suspense } from "react";
 import { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import { LoginForm } from "@/features/auth/components/login-form";
-import { HomeFeedDashboard } from "@/features/feed/components/home-feed-dashboard";
-import { getFeedPostsAction } from "@/features/feed/actions/post.action";
+import { HomeFeedStreamer } from "@/features/feed/components/home-feed-streamer";
+import RootLoading from "./loading";
 
 export const metadata: Metadata = {
   title: "FlameHub | Connect with your campus community",
@@ -38,20 +39,17 @@ export default async function Home() {
     },
   });
 
-  // ⚡ Server-Side Fetch 30 real posts
-  const initialFeedData = await getFeedPostsAction({ limit: 30 });
+  const currentUser = {
+    name: dbUser?.displayName || metaDisplayName || "Campus Student",
+    studentId: dbUser?.studentId || metaStudentId || "00-0000-000000",
+    avatarUrl: dbUser?.avatarUrl || null,
+    nickname: dbUser?.nickname || null,
+  };
 
   return (
-    <HomeFeedDashboard
-      currentUser={{
-        name: dbUser?.displayName || metaDisplayName || "Campus Student",
-        studentId: dbUser?.studentId || metaStudentId || "00-0000-000000",
-        avatarUrl: dbUser?.avatarUrl || null,
-        nickname: dbUser?.nickname || null,
-      }}
-      initialPosts={initialFeedData.posts}
-      initialNextCursor={initialFeedData.nextCursor}
-      initialHasMore={initialFeedData.hasMore}
-    />
+    <Suspense fallback={<RootLoading />}>
+      <HomeFeedStreamer currentUser={currentUser} />
+    </Suspense>
   );
 }
+

@@ -194,6 +194,7 @@ export function HomeFeedDashboard({
   const [editContent, setEditContent] = useState("");
   const [editIsAnonymous, setEditIsAnonymous] = useState(false);
   const [isSubmittingEdit, setIsSubmittingEdit] = useState(false);
+  const [updatingPostId, setUpdatingPostId] = useState<string | null>(null);
   const [deletingPost, setDeletingPost] = useState<PostFeedItem | null>(null);
   const [isSubmittingDelete, setIsSubmittingDelete] = useState(false);
   const [activeHeartBursts, setActiveHeartBursts] = useState<Record<string, number>>({});
@@ -781,19 +782,26 @@ export function HomeFeedDashboard({
     e.preventDefault();
     if (!editingPost || !editContent.trim() || isSubmittingEdit) return;
 
+    const targetPostId = editingPost.id;
+    const targetContent = editContent.trim();
+    const targetIsAnonymous = editIsAnonymous;
+
+    // ⚡ Close modal immediately and activate skeleton shimmer on target card
     setIsSubmittingEdit(true);
+    setEditingPost(null);
+    setUpdatingPostId(targetPostId);
+
     try {
       const res = await editPostAction({
-        postId: editingPost.id,
-        content: editContent.trim(),
-        isAnonymous: editIsAnonymous,
+        postId: targetPostId,
+        content: targetContent,
+        isAnonymous: targetIsAnonymous,
       });
 
       if (res.success && res.data) {
         setPosts((prev) =>
-          prev.map((p) => (p.id === editingPost.id ? res.data : p))
+          prev.map((p) => (p.id === targetPostId ? res.data : p))
         );
-        setEditingPost(null);
         toast.success("Post updated successfully.");
       } else {
         toast.error(res.error || "Unable to update post. Please try again.");
@@ -802,6 +810,7 @@ export function HomeFeedDashboard({
       toast.error("An unexpected error occurred while updating the post.");
     } finally {
       setIsSubmittingEdit(false);
+      setUpdatingPostId(null);
     }
   };
 
@@ -1086,10 +1095,40 @@ export function HomeFeedDashboard({
                       layout: { type: "spring", stiffness: 140, damping: 22, mass: 0.9 },
                       opacity: { duration: 0.35, ease: "easeOut" },
                     }}
-                    onClick={() => setActiveDiscussionPost(post)}
+                    onClick={() => {
+                      if (post.id === updatingPostId) return;
+                      setActiveDiscussionPost(post);
+                    }}
                     style={{ borderRadius: "10px" }}
                     className="bg-[#003F2A] border border-[#005a3c]/60 rounded-[10px] p-5 flex flex-col justify-between space-y-4 shadow-xl hover:border-[#8CC497]/60 hover:shadow-2xl transition-colors cursor-pointer group select-none"
                   >
+                    {post.id === updatingPostId ? (
+                      <div className="animate-pulse space-y-4 flex flex-col justify-between h-full">
+                        <div className="flex items-center gap-3">
+                          <div className="w-11 h-11 rounded-full bg-[#8CC497]/30 shrink-0" />
+                          <div className="space-y-2 flex-1">
+                            <div className="h-3.5 bg-white/20 rounded-md w-3/5" />
+                            <div className="h-2.5 bg-[#8CC497]/20 rounded-md w-2/5" />
+                          </div>
+                        </div>
+                        <div className="space-y-2 py-1">
+                          <div className="h-3 bg-white/15 rounded-md w-full" />
+                          <div className="h-3 bg-white/15 rounded-md w-4/5" />
+                        </div>
+                        <div className="space-y-3 pt-2">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <div className="w-5 h-5 rounded-full bg-white/15" />
+                              <div className="w-5 h-5 rounded-full bg-white/15" />
+                            </div>
+                            <div className="w-5 h-5 rounded-full bg-white/15" />
+                          </div>
+                          <div className="h-2.5 bg-[#8CC497]/20 rounded-md w-1/4" />
+                          <div className="h-8 bg-[#002f1f] rounded-[10px] w-full" />
+                        </div>
+                      </div>
+                    ) : (
+                      <>
                     {/* Card Header: Avatar + Author info */}
                     <div className="flex items-center gap-3">
                       <div
@@ -1405,7 +1444,9 @@ export function HomeFeedDashboard({
                         </button>
                       </div>
                     </div>
-                  </motion.article>
+                  </>
+                  )}
+                </motion.article>
                 ))}
               </AnimatePresence>
 
