@@ -318,11 +318,13 @@ export async function getUserPostsAction(options?: {
         studentId: displayStudentId,
         content: p.content,
         isAnonymous: p.isAnonymous,
+        isEdited: p.isEdited ?? false,
         likesCount: p.likesCount,
         isLiked: Array.isArray(p.likedPosts) && p.likedPosts.length > 0,
         isSaved: Array.isArray(p.savedPosts) && p.savedPosts.length > 0,
         commentsCount: p.commentsCount,
         createdAt: p.createdAt.toISOString(),
+        updatedAt: p.updatedAt ? p.updatedAt.toISOString() : null,
         repostedAt: p.repostedAt ? p.repostedAt.toISOString() : null,
         isAuthor: isPostAuthor,
       };

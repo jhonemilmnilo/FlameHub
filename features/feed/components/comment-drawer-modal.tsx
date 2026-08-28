@@ -251,8 +251,18 @@ export function CommentDrawerModal({
                       </span>
                     )}
                   </h3>
-                  <p className="text-xs text-[#8CC497] font-medium tracking-wide">
-                    {post.isAnonymous && !post.isAuthor ? "Flame" : post.department}
+                  <p className="text-xs text-[#8CC497] font-medium tracking-wide flex items-center gap-1.5">
+                    <span>{post.isAnonymous && !post.isAuthor ? "Flame" : post.department}</span>
+                    <span className="text-[#8CC497]/40">•</span>
+                    <span className="text-[#8CC497]/70">
+                      {post.repostedAt ? `Reposted ${formatRelativeTime(post.repostedAt)}` : formatRelativeTime(post.createdAt)}
+                    </span>
+                    {post.isEdited && (
+                      <>
+                        <span className="text-[#8CC497]/40">•</span>
+                        <span className="text-[10px] text-[#8CC497]/70 font-normal italic">Edited</span>
+                      </>
+                    )}
                   </p>
                 </div>
               </div>
@@ -280,18 +290,20 @@ export function CommentDrawerModal({
                     {/* Author Only Actions */}
                     {post.isAuthor && (
                       <>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setIsMenuOpen(false);
-                            onEditPost?.(post);
-                          }}
-                          style={{ borderRadius: "10px" }}
-                          className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-[#8CC497] hover:text-white hover:bg-[#004e34] rounded-[10px] transition-colors text-left cursor-pointer"
-                        >
-                          <Pencil className="w-4 h-4 text-[#8CC497]" />
-                          <span>Edit Post</span>
-                        </button>
+                        {!post.isEdited && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsMenuOpen(false);
+                              onEditPost?.(post);
+                            }}
+                            style={{ borderRadius: "10px" }}
+                            className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-[#8CC497] hover:text-white hover:bg-[#004e34] rounded-[10px] transition-colors text-left cursor-pointer"
+                          >
+                            <Pencil className="w-4 h-4 text-[#8CC497]" />
+                            <span>Edit Post</span>
+                          </button>
+                        )}
 
                         <button
                           type="button"

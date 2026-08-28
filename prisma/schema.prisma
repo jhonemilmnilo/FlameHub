@@ -94,6 +94,7 @@ model Post {
   likesCount    Int             @default(0)
   commentsCount Int             @default(0)
   isDeleted     Boolean         @default(false)
+  isEdited      Boolean         @default(false)
   deletedAt     DateTime?
   repostedAt    DateTime?
   createdAt     DateTime        @default(now())

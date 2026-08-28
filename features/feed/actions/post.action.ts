@@ -23,11 +23,13 @@ export type PostFeedItem = {
   studentId: string;
   content: string;
   isAnonymous: boolean;
+  isEdited: boolean;
   likesCount: number;
   isLiked: boolean;
   isSaved: boolean;
   commentsCount: number;
   createdAt: string;
+  updatedAt?: string | null;
   repostedAt?: string | null;
   isAuthor: boolean;
 };
@@ -160,11 +162,13 @@ export async function getFeedPostsAction(options?: {
         studentId: isAnon && !isAuthor ? "Hidden ID" : p.user?.studentId || "00-0000-000000",
         content: p.content,
         isAnonymous: isAnon,
+        isEdited: p.isEdited ?? false,
         likesCount: p.likesCount,
         isLiked: isLiked,
         isSaved: isSaved,
         commentsCount: p.commentsCount,
         createdAt: p.createdAt.toISOString(),
+        updatedAt: p.updatedAt ? p.updatedAt.toISOString() : null,
         repostedAt: p.repostedAt ? p.repostedAt.toISOString() : null,
         isAuthor,
       };
@@ -294,11 +298,14 @@ export async function createPostAction(rawInput: unknown): Promise<ActionResult<
         studentId: userRecord.studentId || "00-0000-000000",
         content: newPost.content,
         isAnonymous: isAnon,
+        isEdited: false,
         likesCount: newPost.likesCount,
         isLiked: false,
         isSaved: false,
         commentsCount: newPost.commentsCount,
         createdAt: newPost.createdAt.toISOString(),
+        updatedAt: newPost.updatedAt.toISOString(),
+        repostedAt: null,
         isAuthor: true,
       },
     };
@@ -312,7 +319,7 @@ export async function createPostAction(rawInput: unknown): Promise<ActionResult<
 }
 
 /**
- * 🔒 Edit Post Action with strict IDOR verification
+ * 🔒 Edit Post Action with strict IDOR verification & 1-Time Edit Maximum Rule
  */
 export async function editPostAction(rawInput: unknown): Promise<ActionResult<PostFeedItem>> {
   try {
@@ -340,7 +347,7 @@ export async function editPostAction(rawInput: unknown): Promise<ActionResult<Po
 
     const { postId, content, isAnonymous } = parsed.data;
 
-    // 1. Fetch post and strictly verify ownership
+    // 1. Confirm post exists and belongs to this user
     const existingPost = await prisma.post.findUnique({
       where: { id: postId },
     });
@@ -353,7 +360,6 @@ export async function editPostAction(rawInput: unknown): Promise<ActionResult<Po
       };
     }
 
-    // IDOR Protection: Only the author can edit their own post
     if (existingPost.userId !== authUser.id) {
       return {
         success: false,
@@ -362,11 +368,21 @@ export async function editPostAction(rawInput: unknown): Promise<ActionResult<Po
       };
     }
 
-    // 2. Update post in DB and check current user's liked and saved status
+    // 🔒 1-Time Edit Anti-Spam Guard
+    if (existingPost.isEdited) {
+      return {
+        success: false,
+        error: "This post has already been edited and can no longer be modified.",
+        code: "EDIT_LIMIT_REACHED",
+      };
+    }
+
+    // 2. Perform atomic update setting isEdited to true
     const updatedPost = await prisma.post.update({
       where: { id: postId },
       data: {
         content,
+        isEdited: true,
         ...(isAnonymous !== undefined ? { isAnonymous } : {}),
       },
       include: {
@@ -409,11 +425,14 @@ export async function editPostAction(rawInput: unknown): Promise<ActionResult<Po
         studentId: updatedPost.user?.studentId || "00-0000-000000",
         content: updatedPost.content,
         isAnonymous: isAnon,
+        isEdited: true,
         likesCount: updatedPost.likesCount,
         isLiked,
         isSaved,
         commentsCount: updatedPost.commentsCount,
         createdAt: updatedPost.createdAt.toISOString(),
+        updatedAt: updatedPost.updatedAt.toISOString(),
+        repostedAt: updatedPost.repostedAt ? updatedPost.repostedAt.toISOString() : null,
         isAuthor: true,
       },
     };

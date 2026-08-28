@@ -1274,26 +1274,17 @@ export function HomeFeedDashboard({
                             >
                               {post.isAuthor && (
                                 <>
-                                  <button
-                                    type="button"
-                                    onClick={() => handleRepostPost(post)}
-                                    disabled={repostingPostId === post.id}
-                                    style={{ borderRadius: "10px" }}
-                                    className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-emerald-200 hover:text-white hover:bg-emerald-950/50 rounded-[10px] transition-colors text-left cursor-pointer"
-                                  >
-                                    <Repeat2 className="w-4 h-4 text-emerald-400" />
-                                    <span>Repost Post</span>
-                                  </button>
-
-                                  <button
-                                    type="button"
-                                    onClick={() => handleOpenEdit(post)}
-                                    style={{ borderRadius: "10px" }}
-                                    className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-emerald-100 hover:text-white hover:bg-[#004e34] rounded-[10px] transition-colors text-left cursor-pointer"
-                                  >
-                                    <Pencil className="w-4 h-4 text-[#8CC497]" />
-                                    <span>Edit Post</span>
-                                  </button>
+                                  {!post.isEdited && (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleOpenEdit(post)}
+                                      style={{ borderRadius: "10px" }}
+                                      className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-emerald-100 hover:text-white hover:bg-[#004e34] rounded-[10px] transition-colors text-left cursor-pointer"
+                                    >
+                                      <Pencil className="w-4 h-4 text-[#8CC497]" />
+                                      <span>Edit Post</span>
+                                    </button>
+                                  )}
 
                                   <button
                                     type="button"
@@ -1403,7 +1394,7 @@ export function HomeFeedDashboard({
                         <time
                           dateTime={post.repostedAt || post.createdAt}
                           suppressHydrationWarning
-                          className="text-[#8CC497] font-medium text-[11px]"
+                          className="text-[#8CC497] font-medium text-[11px] flex items-center gap-1"
                         >
                           {post.repostedAt ? (
                             <span className="text-[#8CC497] font-semibold">
@@ -1413,6 +1404,12 @@ export function HomeFeedDashboard({
                             <span className="text-[#8CC497]/80">
                               {formatRelativeTime(post.createdAt)}
                             </span>
+                          )}
+                          {post.isEdited && (
+                            <>
+                              <span className="text-[#8CC497]/40">•</span>
+                              <span className="text-[10px] text-[#8CC497]/70 font-normal italic">Edited</span>
+                            </>
                           )}
                         </time>
                       </div>
@@ -1601,6 +1598,17 @@ export function HomeFeedDashboard({
             </div>
 
             <form onSubmit={handleSaveEditPost} className="space-y-4">
+              {/* ℹ️ 1-Time Edit Maximum Notice */}
+              <div
+                style={{ borderRadius: "10px" }}
+                className="bg-[#002f1f]/90 border border-amber-500/40 p-3 flex items-start gap-2.5 text-xs text-amber-200/90 rounded-[10px]"
+              >
+                <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                <span>
+                  <strong className="text-amber-300 font-bold">1-Time Edit Notice:</strong> Posts can only be edited once. Make sure your revisions and identity settings are final before saving.
+                </span>
+              </div>
+
               <div className="space-y-1.5">
                 <label className="block text-xs font-bold text-white tracking-wide">
                   Post Content

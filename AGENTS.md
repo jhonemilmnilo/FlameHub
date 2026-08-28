@@ -161,6 +161,22 @@ To prevent frontend performance degradation, zombie listeners, and browser memor
 - **Zero Object URL Memory Leaks**:
   - Whenever `URL.createObjectURL(blob)` is generated for image preview, revoke it when cleaning up or replacing files via `URL.revokeObjectURL(url)`.
 
+---
 
+## 7. 📝 Post Editing, 1-Time Edit Maximum & Timestamp Integrity Directives
 
-
+To maintain content transparency, combat spam, and prevent feed jumping:
+- **1-Time Edit Maximum Rule (Instagram Anti-Spam Standard)**:
+  - Posts can only be edited **once** in their lifetime (`isEdited: Boolean @default(false)`).
+  - Once a post is edited (`isEdited === true`), the backend (`editPostAction`) **must reject** subsequent edits with `EDIT_LIMIT_REACHED`.
+  - The UI (3-dots menus on feed, profile, and comment drawer) **must completely hide** the "Edit Post" option when `isEdited === true`.
+  - The Edit Post modal **must display** an amber advisory notice informing the user that edits are final and single-use only.
+- **Timestamp & Repost Integrity**:
+  - **Preserve `repostedAt` on Edit**: Editing a post must **NEVER** wipe out or omit `repostedAt` from the return DTO; doing so causes the post to drop in feed rank and recalculate time incorrectly.
+  - **Clean Relative Timestamp Badging**:
+    - Un-reposted, un-edited: `3d ago`
+    - Un-reposted, edited: `3d ago • Edited`
+    - Reposted, edited: `Reposted 2h ago • Edited`
+  - Driven directly by the dedicated `isEdited` boolean column, NOT variable `@updatedAt` clock differences.
+- **In-Place Stable Card Shimmer Transition**:
+  - When a user saves an edited post, render the `PostCardSkeleton` directly **inside** the stable `<motion.article key={post.id}>` container to guarantee zero key-mismatch jumping or layout physics springs.
