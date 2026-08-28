@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useRef, useCallback } from "react";
-import Image from "next/image";
 import Cropper from "react-easy-crop";
 import type { Point, Area } from "react-easy-crop";
 import { X, Upload, Camera, Loader2, RotateCw, ZoomIn, ZoomOut, Check } from "lucide-react";

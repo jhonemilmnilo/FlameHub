@@ -1,19 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import Image from "next/image";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-import {
-  Home,
-  Bell,
-  HelpCircle,
-  Info,
-  LogOut,
-  PanelLeftClose,
-  PanelLeftOpen,
-} from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
+import { PanelLeftOpen } from "lucide-react";
 import { ProfileBanner } from "./profile-banner";
 import { ProfileBioCard } from "./profile-bio-card";
 import { ProfileFollowersWidget } from "./profile-followers-widget";
@@ -42,7 +30,6 @@ export function ProfileDashboard({
   initialHasMore = false,
   followers,
 }: ProfileDashboardProps) {
-  const router = useRouter();
   const sessionUser = currentUser || initialProfile;
   const [profile, setProfile] = useState<UserProfileData>(initialProfile);
   const [isSidebarHidden, setIsSidebarHidden] = useState(false);
@@ -50,17 +37,6 @@ export function ProfileDashboard({
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [isEditingAvatar, setIsEditingAvatar] = useState(false);
   const [isUpdatingAvatar, setIsUpdatingAvatar] = useState(false);
-
-  const handleLogout = async () => {
-    try {
-      const supabase = createClient();
-      await supabase.auth.signOut();
-      router.refresh();
-      router.push("/");
-    } catch {
-      router.push("/");
-    }
-  };
 
   return (
     <div className="min-h-screen bg-[#006241] text-white flex flex-col md:flex-row font-sans selection:bg-[#8CC497]/30 selection:text-white">

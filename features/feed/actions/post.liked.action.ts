@@ -66,7 +66,6 @@ export async function setPostLikeAction(
     }
 
     // 💾 Postgres Idempotent & Atomic Execution (Single Source of Truth)
-    // Non-throwing check-then-write & deleteMany to keep terminal 100% clean during spam
     if (isLikeIntent) {
       // Check if like already exists
       const existing = await prisma.likedPost.findUnique({
@@ -87,11 +86,11 @@ export async function setPostLikeAction(
 
         return {
           success: true,
-          data: { isLiked: true, likesCount: updated.likesCount },
+          data: { isLiked: true, likesCount: Math.max(1, updated.likesCount) },
         };
       }
 
-      // If already liked (idempotent), return current count
+      // If already liked (idempotent), self-heal and return true isLiked + accurate count
       const currentPost = await prisma.post.findUnique({
         where: { id: postId },
         select: { likesCount: true },
@@ -99,7 +98,7 @@ export async function setPostLikeAction(
 
       return {
         success: true,
-        data: { isLiked: true, likesCount: currentPost?.likesCount ?? 1 },
+        data: { isLiked: true, likesCount: Math.max(1, currentPost?.likesCount ?? 1) },
       };
     } else {
       // deleteMany returns { count: 0 } if record doesn't exist — never throws P2025!

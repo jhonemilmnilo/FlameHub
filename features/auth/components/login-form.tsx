@@ -1,10 +1,9 @@
 "use client";
 
-import React, { useState, useTransition, useEffect } from "react";
+import React, { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { FlameHubLogo } from "@/components/ui/flamehub-logo";
 import { loginAction } from "@/features/auth/actions/login.action";
-import { getLoginLockoutStatusAction } from "@/features/auth/actions/check-lockout.action";
 import { toast } from "sonner";
 import { Loader2, Eye, EyeOff } from "lucide-react";
 import Link from "next/link";

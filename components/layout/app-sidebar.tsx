@@ -48,7 +48,6 @@ export function AppSidebar({
   };
 
   const isHome = pathname === "/";
-  const isProfile = pathname.startsWith("/profile");
 
   return (
     <>

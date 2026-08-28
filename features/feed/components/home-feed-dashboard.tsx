@@ -3,23 +3,15 @@
 import React, { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import {
-  Home,
-  Bell,
-  HelpCircle,
-  Info,
-  LogOut,
   Heart,
   MessageSquareMore,
   MoreHorizontal,
   Send,
   Filter,
   Search,
-  ChevronDown,
   UserCheck,
   Ghost,
-  PanelLeftClose,
   PanelLeftOpen,
-  Share2,
   Flag,
   EyeOff,
   Bookmark,
@@ -30,8 +22,6 @@ import {
   Repeat2,
   X,
 } from "lucide-react";
-import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
 import { motion, AnimatePresence } from "framer-motion";
 import { useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/query/query-keys";
@@ -45,7 +35,6 @@ import {
   type PostFeedItem,
 } from "@/features/feed/actions/post.action";
 import {
-  toggleLikePostAction,
   setPostLikeAction,
   type LikeTargetAction,
   type PostLikerItem,
@@ -135,7 +124,6 @@ export function HomeFeedDashboard({
   initialNextCursor = null,
   initialHasMore = false,
 }: HomeFeedDashboardProps) {
-  const router = useRouter();
   const queryClient = useQueryClient();
   const [posts, setPosts] = useState<PostFeedItem[]>(initialPosts);
   const [nextCursor, setNextCursor] = useState<string | null>(initialNextCursor);
@@ -844,17 +832,6 @@ export function HomeFeedDashboard({
       toast.error("Network error while deleting post. Please try again.");
     } finally {
       setIsSubmittingDelete(false);
-    }
-  };
-
-  const handleLogout = async () => {
-    try {
-      const supabase = createClient();
-      await supabase.auth.signOut();
-      router.refresh();
-      router.push("/");
-    } catch {
-      router.push("/");
     }
   };
 

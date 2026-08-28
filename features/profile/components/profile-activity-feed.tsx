@@ -3,13 +3,10 @@
 import React, { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import {
-  Filter,
-  Search,
   Heart,
   MessageSquareMore,
   MoreHorizontal,
   Send,
-  Share2,
   Bookmark,
   Pencil,
   Trash2,
@@ -21,7 +18,6 @@ import {
   Link2,
   AlertTriangle,
 } from "lucide-react";
-import { CustomSelect } from "@/components/ui/custom-select";
 import { ConfirmationModal } from "@/components/ui/confirmation-modal";
 import { CommentDrawerModal } from "@/features/feed/components/comment-drawer-modal";
 import { PostLikersModal } from "@/features/feed/components/post-likers-modal";
@@ -33,7 +29,6 @@ import {
   type PostFeedItem,
 } from "@/features/feed/actions/post.action";
 import {
-  toggleLikePostAction,
   setPostLikeAction,
   type LikeTargetAction,
   type PostLikerItem,
@@ -231,10 +226,6 @@ export function ProfileActivityFeed({
     return () => window.removeEventListener("scroll", handleScroll);
   }, [handleLoadMore]);
 
-  const [searchQuery, setSearchQuery] = useState("");
-  const [contentType, setContentType] = useState("Post");
-  const [sortBy, setSortBy] = useState("Latest");
-
   // Post Actions
   const [commentInputs, setCommentInputs] = useState<Record<string, string>>({});
   const [sendingComments, setSendingComments] = useState<Record<string, boolean>>({});
@@ -269,41 +260,12 @@ export function ProfileActivityFeed({
     return () => window.removeEventListener("click", handleOutsideClick);
   }, []);
 
-  // 🧠 Client-Side Live Filter (Search & Department) with Stable Order Preservation
+  // 🧠 Client-Side Live Filter with Stable Order Preservation
   const filteredPosts = React.useMemo(() => {
-    let result = [...posts];
-
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase().trim();
-      result = result.filter(
-        (p) =>
-          p.content.toLowerCase().includes(q) ||
-          p.authorName.toLowerCase().includes(q) ||
-          p.department.toLowerCase().includes(q) ||
-          p.studentId.toLowerCase().includes(q)
-      );
-    }
-
-    // Helper to calculate effective timestamp (whichever is newest: creation or repost)
-    const getEffectiveTime = (p: PostFeedItem) => {
-      const createdTime = new Date(p.createdAt).getTime();
-      const repostedTime = p.repostedAt ? new Date(p.repostedAt).getTime() : 0;
-      return Math.max(createdTime, repostedTime);
-    };
-
-    if (sortBy === "Most Liked") {
-      result.sort((a, b) => {
-        if (b.likesCount !== a.likesCount) return b.likesCount - a.likesCount;
-        const timeDiff = getEffectiveTime(b) - getEffectiveTime(a);
-        if (timeDiff !== 0) return timeDiff;
-        return b.id.localeCompare(a.id);
-      });
-    }
-
-    // By default ("Latest"), we PRESERVE the exact server-streamed append order
+    // We PRESERVE the exact server-streamed append order
     // to guarantee 0 jumping when infinite scroll appends new posts.
-    return result;
-  }, [posts, searchQuery, sortBy]);
+    return posts;
+  }, [posts]);
 
   // ⚡ Debounce buffer and sequence-intent tracker for rapid like/unlike spamming per postId
   const likeDebounceTimersRef = useRef<Record<string, NodeJS.Timeout>>({});
