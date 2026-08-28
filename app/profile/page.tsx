@@ -23,10 +23,10 @@ export default async function ProfilePage() {
     redirect("/auth/login");
   }
 
-  // ⚡ Parallel Server-Side Fetching for sub-millisecond initial paint
+  // ⚡ Parallel Server-Side Fetching for sub-millisecond initial paint (20 posts for 2-column grid balance)
   const [profileRes, postsRes, followersRes] = await Promise.all([
     getUserProfileAction(authUser.id),
-    getUserPostsAction({ targetUserId: authUser.id, limit: 12 }),
+    getUserPostsAction({ targetUserId: authUser.id, limit: 20 }),
     getFollowersAction(),
   ]);
 

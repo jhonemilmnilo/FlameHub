@@ -36,7 +36,7 @@ export default async function UserProfileByIdPage({ params }: PageProps) {
   const [currentUserRes, profileRes, postsRes, followersRes] = await Promise.all([
     getUserProfileAction(authUser.id),
     getUserProfileAction(id),
-    getUserPostsAction({ targetUserId: id, limit: 12 }),
+    getUserPostsAction({ targetUserId: id, limit: 20 }),
     getFollowersAction(),
   ]);
 

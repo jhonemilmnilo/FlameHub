@@ -127,17 +127,20 @@ export async function getFeedPostsAction(options?: {
             }
           : undefined,
       },
-      // Order initially by createdAt descending to pull relevant candidate posts
-      orderBy: {
-        createdAt: "desc",
-      },
+      // Order initially by active repost activity then creation date with ID tiebreaker
+      orderBy: [
+        { repostedAt: { sort: "desc", nulls: "last" } },
+        { createdAt: "desc" },
+        { id: "desc" },
+      ],
     });
 
-    // ⚡ Sort posts by Unified Effective Activity Timestamp: max(createdAt, repostedAt)
+    // ⚡ Sort posts by Unified Effective Activity Timestamp: max(createdAt, repostedAt) with deterministic ID tiebreaker
     const sortedPosts = [...rawPosts].sort((a, b) => {
       const timeA = Math.max(a.createdAt.getTime(), a.repostedAt ? a.repostedAt.getTime() : 0);
       const timeB = Math.max(b.createdAt.getTime(), b.repostedAt ? b.repostedAt.getTime() : 0);
-      return timeB - timeA;
+      if (timeB !== timeA) return timeB - timeA;
+      return b.id.localeCompare(a.id);
     });
 
     const hasMore = sortedPosts.length > limit;

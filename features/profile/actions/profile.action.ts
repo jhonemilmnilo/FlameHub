@@ -246,6 +246,7 @@ export async function getUserPostsAction(options?: {
       skip: cursor ? 1 : 0,
       cursor: cursor ? { id: cursor } : undefined,
       orderBy: [
+        { repostedAt: { sort: "desc", nulls: "last" } },
         { createdAt: "desc" },
         { id: "desc" },
       ],

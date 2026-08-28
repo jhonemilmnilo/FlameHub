@@ -165,7 +165,7 @@ export function ProfileActivityFeed({
       const res = await getUserPostsAction({
         targetUserId,
         cursor: currentCursor,
-        limit: 12,
+        limit: 20,
       });
 
       if (res.success && res.data && res.data.posts && res.data.posts.length > 0) {
