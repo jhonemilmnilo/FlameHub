@@ -204,16 +204,44 @@ export function CommentDrawerModal({
       className="fixed inset-0 z-50 bg-black/75 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-200"
     >
       <div
-        className="w-full max-w-xl bg-[#006241] border border-[#007a52] rounded-3xl shadow-[0_25px_60px_-15px_rgba(0,0,0,0.7)] flex flex-col max-h-[90vh] overflow-hidden animate-in zoom-in-95 duration-150 relative"
+        className="w-full max-w-xl bg-[#006241] border border-[#007a52] rounded-3xl shadow-[0_25px_60px_-15px_rgba(0,0,0,0.7)] flex flex-col max-h-[90vh] overflow-hidden animate-in zoom-in-95 duration-150"
       >
         {/* ========================================================================= */}
         {/* 📰 STICKY TOP POST RECAP & HEADER (Fixed & Compact) */}
         {/* ========================================================================= */}
-        <div className="px-5 pt-4 pb-2.5 shrink-0 border-b border-[#007a52]/70 bg-[#006241] space-y-2.5">
+        <div className="px-5 pt-4 pb-2.5 shrink-0 border-b border-[#007a52]/70 bg-[#006241] space-y-2.5 relative overflow-hidden">
+          {/* 🔖 Classic Hanging Bookmark Ribbon (Color: #8CC497 - Exact Same as Feed Card) */}
+          {post.isSaved && (
+            <div
+              className="absolute top-0 right-14 z-20 pointer-events-none drop-shadow-[0_2px_4px_rgba(0,0,0,0.35)]"
+              title="Saved Post"
+            >
+              <svg
+                width="22"
+                height="32"
+                viewBox="0 0 22 32"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+                className="animate-in slide-in-from-top-2 duration-300"
+              >
+                {/* Ribbon Body with V-Forked Tail */}
+                <path
+                  d="M0 0H22V28L11 21L0 28V0Z"
+                  fill="#8CC497"
+                />
+                {/* Mini Bookmark Icon stamped in center */}
+                <path
+                  d="M8 7H14C14.55 7 15 7.45 15 8V16L11 13.5L7 16V8C7 7.45 7.45 7 8 7Z"
+                  fill="#002f1f"
+                />
+              </svg>
+            </div>
+          )}
+
           {/* Top Post Recap Header */}
           <div className="space-y-2.5">
             <div className="flex items-start justify-between gap-3">
-              <div className="flex items-center gap-3.5 min-w-0">
+              <div className="flex items-center gap-3.5 min-w-0 pr-8">
                 {!post.isAuthor && !post.isAnonymous && post.authorId ? (
                   <Link
                     href={`/profile/${post.authorId}`}
@@ -245,6 +273,14 @@ export function CommentDrawerModal({
                       </h3>
                       <p className="text-xs text-[#8CC497] font-medium tracking-wide flex items-center gap-1.5">
                         <span>{post.department}</span>
+                        {post.isSaved && post.savedAt && (
+                          <>
+                            <span className="text-[#8CC497]/40">•</span>
+                            <span className="text-[#8CC497]/80 font-normal">
+                              Saved {formatRelativeTime(post.savedAt)}
+                            </span>
+                          </>
+                        )}
                         <span className="text-[#8CC497]/40">•</span>
                         <span className="text-[#8CC497]/70">
                           {post.repostedAt ? `Reposted ${formatRelativeTime(post.repostedAt)}` : formatRelativeTime(post.createdAt)}
@@ -292,6 +328,14 @@ export function CommentDrawerModal({
                       </h3>
                       <p className="text-xs text-[#8CC497] font-medium tracking-wide flex items-center gap-1.5">
                         <span>{post.isAnonymous && !post.isAuthor ? "Flame" : post.department}</span>
+                        {post.isSaved && post.savedAt && (
+                          <>
+                            <span className="text-[#8CC497]/40">•</span>
+                            <span className="text-[#8CC497]/80 font-normal">
+                              Saved {formatRelativeTime(post.savedAt)}
+                            </span>
+                          </>
+                        )}
                         <span className="text-[#8CC497]/40">•</span>
                         <span className="text-[#8CC497]/70">
                           {post.repostedAt ? `Reposted ${formatRelativeTime(post.repostedAt)}` : formatRelativeTime(post.createdAt)}

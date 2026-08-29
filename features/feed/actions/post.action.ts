@@ -126,6 +126,7 @@ export async function getFeedPostsAction(options?: {
               },
               select: {
                 id: true,
+                savedAt: true,
               },
             }
           : undefined,
@@ -153,7 +154,8 @@ export async function getFeedPostsAction(options?: {
     const formattedPosts: PostFeedItem[] = postsToReturn.map((p) => {
       const isAnon = p.isAnonymous;
       const isLiked = currentUserId ? Array.isArray(p.likedPosts) && p.likedPosts.length > 0 : false;
-      const isSaved = currentUserId ? Array.isArray(p.savedPosts) && p.savedPosts.length > 0 : false;
+      const savedRecord = currentUserId && Array.isArray(p.savedPosts) && p.savedPosts.length > 0 ? p.savedPosts[0] : null;
+      const isSaved = Boolean(savedRecord);
       const isAuthor = currentUserId === p.userId;
 
       // 🛡️ Privacy Guard: If anonymous, ONLY author sees their own avatar & info. Others see Anonymous Ghost state.
@@ -173,6 +175,7 @@ export async function getFeedPostsAction(options?: {
         likesCount: p.likesCount,
         isLiked: isLiked,
         isSaved: isSaved,
+        savedAt: savedRecord?.savedAt ? savedRecord.savedAt.toISOString() : null,
         commentsCount: p.commentsCount,
         createdAt: p.createdAt.toISOString(),
         updatedAt: p.updatedAt ? p.updatedAt.toISOString() : null,

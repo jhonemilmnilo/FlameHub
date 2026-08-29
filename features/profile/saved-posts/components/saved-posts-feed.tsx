@@ -353,10 +353,36 @@ export function SavedPostsFeed({ currentSessionUser }: SavedPostsFeedProps) {
                 transition={{ duration: 0.25, ease: "easeOut" }}
                 onClick={() => setActiveDiscussionPost(post)}
                 style={{ borderRadius: "10px" }}
-                className="bg-[#003F2A] border border-[#005a3c]/60 rounded-[10px] p-5 flex flex-col justify-between space-y-4 shadow-xl hover:border-[#8CC497]/60 hover:shadow-2xl transition-colors cursor-pointer group select-none h-full"
+                className="bg-[#003F2A] border border-[#005a3c]/60 rounded-[10px] p-5 flex flex-col justify-between space-y-4 shadow-xl hover:border-[#8CC497]/60 hover:shadow-2xl transition-colors cursor-pointer group select-none h-full relative"
               >
+                {/* 🔖 Classic Hanging Bookmark Ribbon (Color: #8CC497) */}
+                <div
+                  className="absolute top-0 right-5 z-20 pointer-events-none drop-shadow-[0_2px_4px_rgba(0,0,0,0.35)]"
+                  title="Saved Post"
+                >
+                  <svg
+                    width="22"
+                    height="32"
+                    viewBox="0 0 22 32"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="animate-in slide-in-from-top-2 duration-300"
+                  >
+                    {/* Ribbon Body with V-Forked Tail */}
+                    <path
+                      d="M0 0H22V28L11 21L0 28V0Z"
+                      fill="#8CC497"
+                    />
+                    {/* Mini Bookmark Icon stamped in center */}
+                    <path
+                      d="M8 7H14C14.55 7 15 7.45 15 8V16L11 13.5L7 16V8C7 7.45 7.45 7 8 7Z"
+                      fill="#002f1f"
+                    />
+                  </svg>
+                </div>
+
                 {/* Header: Avatar + Author + Dept + Student ID */}
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 pr-6">
                   {!post.isAuthor && !post.isAnonymous && post.authorId ? (
                     <Link
                       href={`/profile/${post.authorId}`}

@@ -17,7 +17,7 @@ type ActionResult<T> =
  */
 export async function toggleSavePostAction(
   postId: string
-): Promise<ActionResult<{ isSaved: boolean }>> {
+): Promise<ActionResult<{ isSaved: boolean; savedAt: string | null }>> {
   try {
     const supabase = await createClient();
     const {
@@ -114,11 +114,11 @@ export async function toggleSavePostAction(
 
       return {
         success: true,
-        data: { isSaved: false },
+        data: { isSaved: false, savedAt: null },
       };
     } else {
       // SAVE: Add to bookmarks
-      await prisma.savedPost.create({
+      const created = await prisma.savedPost.create({
         data: {
           userId: authUser.id,
           postId: postId,
@@ -127,7 +127,7 @@ export async function toggleSavePostAction(
 
       return {
         success: true,
-        data: { isSaved: true },
+        data: { isSaved: true, savedAt: created.savedAt.toISOString() },
       };
     }
   } catch {
