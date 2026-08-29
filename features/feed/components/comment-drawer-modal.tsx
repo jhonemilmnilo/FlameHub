@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import {
   X,
   Send,
@@ -23,6 +24,7 @@ import {
 } from "@/features/feed/actions/comment.action";
 import { type PostFeedItem } from "@/features/feed/actions/post.action";
 import { motion, AnimatePresence } from "framer-motion";
+import { FlyingPlaneParticle } from "@/components/animations/flying-plane-particle";
 import { toast } from "sonner";
 
 interface CommentDrawerModalProps {
@@ -74,6 +76,9 @@ export function CommentDrawerModal({
   const [likedCommentIds, setLikedCommentIds] = useState<Record<string, boolean>>({});
   const isPostLiked = Boolean(post?.isLiked);
   const postLikesCount = post?.likesCount ?? 0;
+  const [newlyAddedCount, setNewlyAddedCount] = useState(0);
+  const displayCommentsCount = (post?.commentsCount ?? 0) + newlyAddedCount;
+  const [isFlyingPlane, setIsFlyingPlane] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [postHeartBurstKey, setPostHeartBurstKey] = useState<number | null>(null);
   const [commentHeartBursts, setCommentHeartBursts] = useState<Record<string, number>>({});
@@ -150,6 +155,7 @@ export function CommentDrawerModal({
 
     const content = newCommentText.trim();
     setIsSubmitting(true);
+    setIsFlyingPlane(true);
 
     try {
       const res = await createCommentAction({
@@ -161,6 +167,7 @@ export function CommentDrawerModal({
       if (res.success && res.data) {
         setComments((prev) => [...prev, res.data]);
         setNewCommentText("");
+        setNewlyAddedCount((prev) => prev + 1);
         onCommentAdded?.(post.id);
         toast.success("Comment submitted successfully.");
         setTimeout(() => {
@@ -173,6 +180,9 @@ export function CommentDrawerModal({
       toast.error("An unexpected error occurred while posting your comment.");
     } finally {
       setIsSubmitting(false);
+      setTimeout(() => {
+        setIsFlyingPlane(false);
+      }, 600);
     }
   };
 
@@ -220,51 +230,99 @@ export function CommentDrawerModal({
           {/* ========================================================================= */}
           <div className="space-y-3 pt-1">
             <div className="flex items-start justify-between gap-3">
-              <div className="flex items-center gap-3.5">
-                <div
-                  className={`w-11 h-11 sm:w-12 sm:h-12 rounded-full shrink-0 flex items-center justify-center font-black text-sm relative overflow-hidden shadow-inner ${
-                    post.isAnonymous && !post.isAuthor
-                      ? "bg-purple-950/80 border border-purple-500/40 text-purple-300"
-                      : "bg-[#002f1f] border-2 border-[#8CC497] text-[#8CC497]"
-                  }`}
-                >
-                  {post.isAnonymous && !post.isAuthor ? (
-                    <Ghost className="w-5 h-5 text-purple-300" />
-                  ) : post.authorAvatarUrl ? (
-                    <Image
-                      src={post.authorAvatarUrl}
-                      alt={post.authorName}
-                      fill
-                      unoptimized
-                      className="object-cover"
-                    />
-                  ) : (
-                    <span>{post.authorName.charAt(0).toUpperCase()}</span>
-                  )}
-                </div>
-                <div className="overflow-hidden">
-                  <h3 className="font-extrabold text-sm sm:text-base text-white tracking-tight font-heading flex items-center gap-1.5 truncate">
-                    <span>{post.authorName}</span>
-                    {post.authorNickname && (
-                      <span className="text-[#8CC497] font-semibold text-xs sm:text-sm">
-                        | @{post.authorNickname}
-                      </span>
-                    )}
-                  </h3>
-                  <p className="text-xs text-[#8CC497] font-medium tracking-wide flex items-center gap-1.5">
-                    <span>{post.isAnonymous && !post.isAuthor ? "Flame" : post.department}</span>
-                    <span className="text-[#8CC497]/40">•</span>
-                    <span className="text-[#8CC497]/70">
-                      {post.repostedAt ? `Reposted ${formatRelativeTime(post.repostedAt)}` : formatRelativeTime(post.createdAt)}
-                    </span>
-                    {post.isEdited && (
-                      <>
+              <div className="flex items-center gap-3.5 min-w-0">
+                {!post.isAuthor && !post.isAnonymous && post.authorId ? (
+                  <Link
+                    href={`/profile/${post.authorId}`}
+                    onClick={onClose}
+                    className="flex items-center gap-3.5 group/recap min-w-0"
+                    title={`View ${post.authorName}'s profile`}
+                  >
+                    <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-full shrink-0 flex items-center justify-center font-black text-sm relative overflow-hidden shadow-inner bg-[#002f1f] border-2 border-[#8CC497] text-[#8CC497] group-hover/recap:border-white group-hover/recap:scale-105 transition-all">
+                      {post.authorAvatarUrl ? (
+                        <Image
+                          src={post.authorAvatarUrl}
+                          alt={post.authorName}
+                          fill
+                          unoptimized
+                          className="object-cover"
+                        />
+                      ) : (
+                        <span>{post.authorName.charAt(0).toUpperCase()}</span>
+                      )}
+                    </div>
+                    <div className="overflow-hidden">
+                      <h3 className="font-extrabold text-sm sm:text-base text-white tracking-tight font-heading flex items-center gap-1.5 truncate group-hover/recap:text-[#8CC497] group-hover/recap:underline transition-colors">
+                        <span>{post.authorName}</span>
+                        {post.authorNickname && (
+                          <span className="text-[#8CC497] font-semibold text-xs sm:text-sm">
+                            | @{post.authorNickname}
+                          </span>
+                        )}
+                      </h3>
+                      <p className="text-xs text-[#8CC497] font-medium tracking-wide flex items-center gap-1.5">
+                        <span>{post.department}</span>
                         <span className="text-[#8CC497]/40">•</span>
-                        <span className="text-[10px] text-[#8CC497]/70 font-normal italic">Edited</span>
-                      </>
-                    )}
-                  </p>
-                </div>
+                        <span className="text-[#8CC497]/70">
+                          {post.repostedAt ? `Reposted ${formatRelativeTime(post.repostedAt)}` : formatRelativeTime(post.createdAt)}
+                        </span>
+                        {post.isEdited && (
+                          <>
+                            <span className="text-[#8CC497]/40">•</span>
+                            <span className="text-[10px] text-[#8CC497]/70 font-normal italic">Edited</span>
+                          </>
+                        )}
+                      </p>
+                    </div>
+                  </Link>
+                ) : (
+                  <div className="flex items-center gap-3.5 min-w-0 cursor-default select-none">
+                    <div
+                      className={`w-11 h-11 sm:w-12 sm:h-12 rounded-full shrink-0 flex items-center justify-center font-black text-sm relative overflow-hidden shadow-inner ${
+                        post.isAnonymous && !post.isAuthor
+                          ? "bg-purple-950/80 border border-purple-500/40 text-purple-300"
+                          : "bg-[#002f1f] border-2 border-[#8CC497] text-[#8CC497]"
+                      }`}
+                    >
+                      {post.isAnonymous && !post.isAuthor ? (
+                        <Ghost className="w-5 h-5 text-purple-300" />
+                      ) : post.authorAvatarUrl ? (
+                        <Image
+                          src={post.authorAvatarUrl}
+                          alt={post.authorName}
+                          fill
+                          unoptimized
+                          className="object-cover"
+                        />
+                      ) : (
+                        <span>{post.authorName.charAt(0).toUpperCase()}</span>
+                      )}
+                    </div>
+                    <div className="overflow-hidden">
+                      <h3 className="font-extrabold text-sm sm:text-base text-white tracking-tight font-heading flex items-center gap-1.5 truncate">
+                        <span>{post.authorName}</span>
+                        {post.authorNickname && (
+                          <span className="text-[#8CC497] font-semibold text-xs sm:text-sm">
+                            | @{post.authorNickname}
+                          </span>
+                        )}
+                      </h3>
+                      <p className="text-xs text-[#8CC497] font-medium tracking-wide flex items-center gap-1.5">
+                        <span>{post.isAnonymous && !post.isAuthor ? "Flame" : post.department}</span>
+                        <span className="text-[#8CC497]/40">•</span>
+                        <span className="text-[#8CC497]/70">
+                          {post.repostedAt ? `Reposted ${formatRelativeTime(post.repostedAt)}` : formatRelativeTime(post.createdAt)}
+                        </span>
+                        {post.isEdited && (
+                          <>
+                            <span className="text-[#8CC497]/40">•</span>
+                            <span className="text-[10px] text-[#8CC497]/70 font-normal italic">Edited</span>
+                          </>
+                        )}
+                      </p>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* 3-Dots More Options Menu */}
@@ -426,8 +484,8 @@ export function CommentDrawerModal({
                 </button>
               </div>
 
-              <span className="text-white/80">
-                {post.commentsCount} {post.commentsCount === 1 ? "comment" : "comments"}
+              <span className="text-white/80 transition-all font-medium">
+                {displayCommentsCount} {displayCommentsCount === 1 ? "comment" : "comments"}
               </span>
             </div>
 
@@ -475,42 +533,78 @@ export function CommentDrawerModal({
                   >
                     {/* Compact Comment Header with Heart Button */}
                     <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-2.5">
-                        <div
-                          className={`w-8 h-8 rounded-full shrink-0 flex items-center justify-center font-black text-xs relative overflow-hidden shadow-xs ${
-                            comment.isAnonymous && !comment.isAuthor
-                              ? "bg-purple-950/80 border border-purple-500/40 text-purple-300"
-                              : "bg-[#003F2A] border border-[#8CC497] text-[#8CC497]"
-                          }`}
+                      {!comment.isAuthor && !comment.isAnonymous && comment.authorId ? (
+                        <Link
+                          href={`/profile/${comment.authorId}`}
+                          onClick={onClose}
+                          className="flex items-center gap-2.5 group/commenter min-w-0"
+                          title={`View ${comment.authorName}'s profile`}
                         >
-                          {comment.isAnonymous && !comment.isAuthor ? (
-                            <Ghost className="w-4 h-4 text-purple-300" />
-                          ) : comment.authorAvatarUrl ? (
-                            <Image
-                              src={comment.authorAvatarUrl}
-                              alt={comment.authorName}
-                              fill
-                              unoptimized
-                              className="object-cover"
-                            />
-                          ) : (
-                            <span>{comment.authorName.charAt(0).toUpperCase()}</span>
-                          )}
-                        </div>
-                        <div className="overflow-hidden">
-                          <h4 className="font-extrabold text-xs sm:text-[13px] text-white tracking-tight font-heading leading-tight flex items-center gap-1.5 truncate">
-                            <span>{comment.authorName}</span>
-                            {comment.authorNickname && (
-                              <span className="text-[#8CC497] font-semibold text-[11px]">
-                                | @{comment.authorNickname}
-                              </span>
+                          <div className="w-8 h-8 rounded-full shrink-0 flex items-center justify-center font-black text-xs relative overflow-hidden shadow-xs bg-[#003F2A] border border-[#8CC497] text-[#8CC497] group-hover/commenter:border-white group-hover/commenter:scale-105 transition-all">
+                            {comment.authorAvatarUrl ? (
+                              <Image
+                                src={comment.authorAvatarUrl}
+                                alt={comment.authorName}
+                                fill
+                                unoptimized
+                                className="object-cover"
+                              />
+                            ) : (
+                              <span>{comment.authorName.charAt(0).toUpperCase()}</span>
                             )}
-                          </h4>
-                          <p className="text-[10px] text-[#8CC497] font-medium tracking-wide">
-                            {comment.isAnonymous && !comment.isAuthor ? "Flame" : comment.department}
-                          </p>
+                          </div>
+                          <div className="overflow-hidden">
+                            <h4 className="font-extrabold text-xs sm:text-[13px] text-white tracking-tight font-heading leading-tight flex items-center gap-1.5 truncate group-hover/commenter:text-[#8CC497] group-hover/commenter:underline transition-colors">
+                              <span>{comment.authorName}</span>
+                              {comment.authorNickname && (
+                                <span className="text-[#8CC497] font-semibold text-[11px]">
+                                  | @{comment.authorNickname}
+                                </span>
+                              )}
+                            </h4>
+                            <p className="text-[10px] text-[#8CC497] font-medium tracking-wide">
+                              {comment.department}
+                            </p>
+                          </div>
+                        </Link>
+                      ) : (
+                        <div className="flex items-center gap-2.5 min-w-0 cursor-default select-none">
+                          <div
+                            className={`w-8 h-8 rounded-full shrink-0 flex items-center justify-center font-black text-xs relative overflow-hidden shadow-xs ${
+                              comment.isAnonymous && !comment.isAuthor
+                                ? "bg-purple-950/80 border border-purple-500/40 text-purple-300"
+                                : "bg-[#003F2A] border border-[#8CC497] text-[#8CC497]"
+                            }`}
+                          >
+                            {comment.isAnonymous && !comment.isAuthor ? (
+                              <Ghost className="w-4 h-4 text-purple-300" />
+                            ) : comment.authorAvatarUrl ? (
+                              <Image
+                                src={comment.authorAvatarUrl}
+                                alt={comment.authorName}
+                                fill
+                                unoptimized
+                                className="object-cover"
+                              />
+                            ) : (
+                              <span>{comment.authorName.charAt(0).toUpperCase()}</span>
+                            )}
+                          </div>
+                          <div className="overflow-hidden">
+                            <h4 className="font-extrabold text-xs sm:text-[13px] text-white tracking-tight font-heading leading-tight flex items-center gap-1.5 truncate">
+                              <span>{comment.authorName}</span>
+                              {comment.authorNickname && (
+                                <span className="text-[#8CC497] font-semibold text-[11px]">
+                                  | @{comment.authorNickname}
+                                </span>
+                              )}
+                            </h4>
+                            <p className="text-[10px] text-[#8CC497] font-medium tracking-wide">
+                              {comment.isAnonymous && !comment.isAuthor ? "Flame" : comment.department}
+                            </p>
+                          </div>
                         </div>
-                      </div>
+                      )}
 
                       <div className="relative flex items-center justify-center">
                         <AnimatePresence>
@@ -600,7 +694,7 @@ export function CommentDrawerModal({
         {/* ========================================================================= */}
         {/* ✍️ BOTTOM COMMENT COMPOSER (Matching Mockup with Teal/Cyan Border & Send) */}
         {/* ========================================================================= */}
-        <div className="p-4 sm:p-5 border-t border-[#005a3c]/80 bg-[#00472f]/90 shrink-0">
+        <div className="p-4 sm:p-5 border-t border-[#005a3c]/80 bg-[#00472f]/90 shrink-0 relative overflow-hidden">
           <form onSubmit={handleSendComment} className="relative flex items-center">
             <input
               type="text"
@@ -612,17 +706,20 @@ export function CommentDrawerModal({
               className="w-full bg-[#003825] border border-[#2dd4bf]/60 hover:border-[#2dd4bf] focus:border-[#2dd4bf] rounded-full pl-5 pr-14 py-3 text-xs sm:text-sm text-white placeholder-emerald-200/50 focus:outline-none transition-all shadow-sm"
             />
 
+            {/* 🚀 IconScout Lottie Origami Paper Plane Loop-de-loop Motion Particle */}
+            <FlyingPlaneParticle isFlying={isFlyingPlane} color="#2dd4bf" glowColor="rgba(45,212,191,0.95)" />
+
             <button
               type="submit"
               disabled={!newCommentText.trim() || isSubmitting}
-              className="absolute right-2.5 p-2 rounded-full text-[#2dd4bf] hover:text-white hover:bg-white/10 transition-all cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed group"
+              className="absolute right-2.5 p-2 rounded-full text-[#2dd4bf] hover:text-white hover:bg-white/10 transition-all cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed group flex items-center justify-center"
               title="Send comment"
             >
-              <Send
-                className={`w-4 h-4 transition-transform duration-200 ${
-                  isSubmitting ? "rotate-0 scale-110" : "rotate-45 group-hover:scale-110"
-                }`}
-              />
+              {isSubmitting ? (
+                <Loader2 className="w-4 h-4 text-[#2dd4bf] animate-spin" />
+              ) : (
+                <Send className="w-4 h-4 rotate-45 group-hover:scale-110 group-active:scale-90 transition-transform duration-150" />
+              )}
             </button>
           </form>
         </div>

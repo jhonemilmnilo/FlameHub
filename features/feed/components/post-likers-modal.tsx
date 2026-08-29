@@ -10,12 +10,14 @@ interface PostLikersModalProps {
   postId: string | null;
   isOpen: boolean;
   onClose: () => void;
+  currentStudentId?: string | null;
 }
 
 export function PostLikersModal({
   postId,
   isOpen,
   onClose,
+  currentStudentId,
 }: PostLikersModalProps) {
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -124,43 +126,74 @@ export function PostLikersModal({
               No students match &quot;{searchQuery}&quot;
             </div>
           ) : (
-            filteredLikers.map((user) => (
-              <div
-                key={user.id}
-                style={{ borderRadius: "10px" }}
-                className="p-2.5 rounded-[10px] bg-[#002f1f] border border-[#005a3c]/70 hover:border-[#8CC497]/50 flex items-center justify-between gap-2.5 transition-all group"
-              >
-                <Link
-                  href={`/profile/${user.userId}`}
-                  onClick={handleClose}
-                  className="flex items-center gap-2.5 flex-1 overflow-hidden"
-                >
-                  <div className="w-8 h-8 rounded-full bg-[#003F2A] border border-[#8CC497] overflow-hidden shrink-0 flex items-center justify-center text-[#8CC497] font-black text-xs shadow-inner group-hover:scale-105 transition-transform relative">
-                    {user.avatarUrl ? (
-                      <Image
-                        src={user.avatarUrl}
-                        alt={user.displayName}
-                        fill
-                        unoptimized
-                        className="object-cover"
-                      />
-                    ) : (
-                      <span>{user.displayName.charAt(0).toUpperCase()}</span>
-                    )}
-                  </div>
-                  <div className="overflow-hidden">
-                    <h4 className="font-bold text-xs text-white truncate group-hover:text-[#8CC497] transition-colors font-heading">
-                      {user.displayName}
-                    </h4>
-                    <p className="text-[10px] text-[#8CC497] font-medium truncate">
-                      {user.studentId} • <span className="font-semibold">{user.department}</span>
-                    </p>
-                  </div>
-                </Link>
+            filteredLikers.map((user) => {
+              const isSelf = currentStudentId ? user.studentId === currentStudentId : false;
 
-                <Heart className="w-3.5 h-3.5 fill-rose-500 text-rose-500 shrink-0" />
-              </div>
-            ))
+              return (
+                <div
+                  key={user.id}
+                  style={{ borderRadius: "10px" }}
+                  className="p-2.5 rounded-[10px] bg-[#002f1f] border border-[#005a3c]/70 hover:border-[#8CC497]/50 flex items-center justify-between gap-2.5 transition-all group"
+                >
+                  {!isSelf && user.userId && user.userId !== "current-user" ? (
+                    <Link
+                      href={`/profile/${user.userId}`}
+                      onClick={handleClose}
+                      className="flex items-center gap-2.5 flex-1 overflow-hidden group/liker"
+                      title={`View ${user.displayName}'s profile`}
+                    >
+                      <div className="w-8 h-8 rounded-full bg-[#003F2A] border border-[#8CC497] group-hover/liker:border-white overflow-hidden shrink-0 flex items-center justify-center text-[#8CC497] font-black text-xs shadow-inner relative transition-colors">
+                        {user.avatarUrl ? (
+                          <Image
+                            src={user.avatarUrl}
+                            alt={user.displayName}
+                            fill
+                            unoptimized
+                            className="object-cover rounded-full"
+                          />
+                        ) : (
+                          <span>{user.displayName.charAt(0).toUpperCase()}</span>
+                        )}
+                      </div>
+                      <div className="overflow-hidden">
+                        <h4 className="font-bold text-xs text-white truncate group-hover/liker:text-[#8CC497] transition-colors font-heading group-hover/liker:underline">
+                          {user.displayName}
+                        </h4>
+                        <p className="text-[10px] text-[#8CC497] font-medium truncate">
+                          {user.department}
+                        </p>
+                      </div>
+                    </Link>
+                  ) : (
+                    <div className="flex items-center gap-2.5 flex-1 overflow-hidden cursor-default select-none">
+                      <div className="w-8 h-8 rounded-full bg-[#003F2A] border border-[#8CC497] overflow-hidden shrink-0 flex items-center justify-center text-[#8CC497] font-black text-xs shadow-inner relative">
+                        {user.avatarUrl ? (
+                          <Image
+                            src={user.avatarUrl}
+                            alt={user.displayName}
+                            fill
+                            unoptimized
+                            className="object-cover rounded-full"
+                          />
+                        ) : (
+                          <span>{user.displayName.charAt(0).toUpperCase()}</span>
+                        )}
+                      </div>
+                      <div className="overflow-hidden">
+                        <h4 className="font-bold text-xs text-white truncate font-heading">
+                          {user.displayName} {isSelf && <span className="text-[#8CC497] font-normal text-[10px]">(You)</span>}
+                        </h4>
+                        <p className="text-[10px] text-[#8CC497]/80 font-medium truncate">
+                          {user.department}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  <Heart className="w-3.5 h-3.5 fill-rose-500 text-rose-500 shrink-0" />
+                </div>
+              );
+            })
           )}
         </div>
       </div>

@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import {
   Heart,
   MessageSquareMore,
@@ -21,8 +22,10 @@ import {
   AlertTriangle,
   Repeat2,
   X,
+  Loader2,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { FlyingPlaneParticle } from "@/components/animations/flying-plane-particle";
 import { useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/query/query-keys";
 
@@ -1108,40 +1111,78 @@ export function HomeFeedDashboard({
                       <>
                     {/* Card Header: Avatar + Author info */}
                     <div className="flex items-center gap-3">
-                      <div
-                        className={`w-11 h-11 rounded-full shrink-0 flex items-center justify-center font-black text-sm relative overflow-hidden shadow-inner ${
-                          post.isAnonymous && !post.isAuthor
-                            ? "bg-purple-950/80 border border-purple-500/40 text-purple-300"
-                            : "bg-[#002f1f] border border-[#8CC497] text-[#8CC497]"
-                        }`}
-                      >
-                        {post.isAnonymous && !post.isAuthor ? (
-                          <Ghost className="w-5 h-5 text-purple-300" />
-                        ) : post.authorAvatarUrl ? (
-                          <Image
-                            src={post.authorAvatarUrl}
-                            alt={post.authorName}
-                            fill
-                            unoptimized
-                            className="object-cover"
-                          />
-                        ) : (
-                          <span>{post.authorName.charAt(0).toUpperCase()}</span>
-                        )}
-                      </div>
-                      <div className="overflow-hidden">
-                        <h3 className="font-bold text-xs sm:text-sm text-white truncate flex items-center gap-1.5 font-heading">
-                          <span>{post.authorName}</span>
-                          {post.authorNickname && (
-                            <span className="text-[#8CC497] font-semibold text-[11px] sm:text-xs">
-                              | @{post.authorNickname}
-                            </span>
-                          )}
-                        </h3>
-                        <p className="text-[11px] text-[#8CC497] font-medium tracking-wide">
-                          {post.isAnonymous && !post.isAuthor ? "Flame" : post.department}
-                        </p>
-                      </div>
+                      {!post.isAuthor && !post.isAnonymous && post.authorId ? (
+                        <Link
+                          href={`/profile/${post.authorId}`}
+                          onClick={(e) => e.stopPropagation()}
+                          className="flex items-center gap-3 group/author min-w-0"
+                          title={`View ${post.authorName}'s profile`}
+                        >
+                          <div className="w-11 h-11 rounded-full shrink-0 flex items-center justify-center font-black text-sm relative overflow-hidden shadow-inner bg-[#002f1f] border border-[#8CC497] text-[#8CC497] group-hover/author:border-white group-hover/author:scale-105 transition-all">
+                            {post.authorAvatarUrl ? (
+                              <Image
+                                src={post.authorAvatarUrl}
+                                alt={post.authorName}
+                                fill
+                                unoptimized
+                                className="object-cover"
+                              />
+                            ) : (
+                              <span>{post.authorName.charAt(0).toUpperCase()}</span>
+                            )}
+                          </div>
+                          <div className="overflow-hidden">
+                            <h3 className="font-bold text-xs sm:text-sm text-white truncate flex items-center gap-1.5 font-heading group-hover/author:text-[#8CC497] group-hover/author:underline transition-colors">
+                              <span>{post.authorName}</span>
+                              {post.authorNickname && (
+                                <span className="text-[#8CC497] font-semibold text-[11px] sm:text-xs">
+                                  | @{post.authorNickname}
+                                </span>
+                              )}
+                            </h3>
+                            <p className="text-[11px] text-[#8CC497] font-medium tracking-wide">
+                              {post.department}
+                            </p>
+                          </div>
+                        </Link>
+                      ) : (
+                        <div className="flex items-center gap-3 cursor-default min-w-0 select-none">
+                          <div
+                            className={`w-11 h-11 rounded-full shrink-0 flex items-center justify-center font-black text-sm relative overflow-hidden shadow-inner ${
+                              post.isAnonymous && !post.isAuthor
+                                ? "bg-purple-950/80 border border-purple-500/40 text-purple-300"
+                                : "bg-[#002f1f] border border-[#8CC497] text-[#8CC497]"
+                            }`}
+                          >
+                            {post.isAnonymous && !post.isAuthor ? (
+                              <Ghost className="w-5 h-5 text-purple-300" />
+                            ) : post.authorAvatarUrl ? (
+                              <Image
+                                src={post.authorAvatarUrl}
+                                alt={post.authorName}
+                                fill
+                                unoptimized
+                                className="object-cover"
+                              />
+                            ) : (
+                              <span>{post.authorName.charAt(0).toUpperCase()}</span>
+                            )}
+                          </div>
+                          <div className="overflow-hidden">
+                            <h3 className="font-bold text-xs sm:text-sm text-white truncate flex items-center gap-1.5 font-heading">
+                              <span>{post.authorName}</span>
+                              {post.authorNickname && (
+                                <span className="text-[#8CC497] font-semibold text-[11px] sm:text-xs">
+                                  | @{post.authorNickname}
+                                </span>
+                              )}
+                            </h3>
+                            <p className="text-[11px] text-[#8CC497] font-medium tracking-wide">
+                              {post.isAnonymous && !post.isAuthor ? "Flame" : post.department}
+                            </p>
+                          </div>
+                        </div>
+                      )}
                     </div>
 
                     {/* Card Content Text */}
@@ -1407,14 +1448,26 @@ export function HomeFeedDashboard({
                           style={{ borderRadius: "10px" }}
                           className="w-full bg-[#002f1f] border border-[#005a3c] rounded-[10px] pl-4 pr-11 py-2.5 text-xs sm:text-sm text-white placeholder-[#8CC497]/40 focus:outline-none focus:border-[#8CC497] shadow-inner transition-all"
                         />
+
+                        {/* 🚀 IconScout Lottie Origami Paper Plane Loop-de-loop Motion Particle */}
+                        <FlyingPlaneParticle
+                          isFlying={Boolean(sendingComments[post.id])}
+                          color="#8CC497"
+                          glowColor="rgba(140, 196, 151, 0.9)"
+                        />
+
                         <button
                           type="button"
                           onClick={() => handleSendComment(post.id)}
                           disabled={!commentInputs[post.id]?.trim() || sendingComments[post.id]}
-                          className="absolute right-2 p-1.5 rounded-[10px] text-[#8CC497] hover:text-white disabled:opacity-30 disabled:hover:bg-transparent disabled:cursor-not-allowed transition-all cursor-pointer group"
+                          className="absolute right-2 p-1.5 rounded-[10px] text-[#8CC497] hover:text-white disabled:opacity-30 disabled:hover:bg-transparent disabled:cursor-not-allowed transition-all cursor-pointer group flex items-center justify-center"
                           title={sendingComments[post.id] ? "Sending..." : "Send Comment"}
                         >
-                          <Send className="w-4 h-4 text-[#8CC497] group-hover:text-white transition-colors" />
+                          {sendingComments[post.id] ? (
+                            <Loader2 className="w-4 h-4 text-[#8CC497] animate-spin" />
+                          ) : (
+                            <Send className="w-4 h-4 rotate-45 text-[#8CC497] group-hover:text-white group-hover:scale-110 group-active:scale-90 transition-all duration-150" />
+                          )}
                         </button>
                       </div>
                     </div>
@@ -1714,6 +1767,7 @@ export function HomeFeedDashboard({
         postId={activeLikersPostId}
         isOpen={Boolean(activeLikersPostId)}
         onClose={() => setActiveLikersPostId(null)}
+        currentStudentId={currentUser?.studentId}
       />
     </div>
   );

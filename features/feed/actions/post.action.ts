@@ -16,6 +16,7 @@ const CreatePostSchema = z.object({
 
 export type PostFeedItem = {
   id: string;
+  authorId?: string | null;
   authorName: string;
   authorNickname?: string | null;
   authorAvatarUrl?: string | null;
@@ -94,6 +95,7 @@ export async function getFeedPostsAction(options?: {
       include: {
         user: {
           select: {
+            id: true,
             displayName: true,
             nickname: true,
             avatarUrl: true,
@@ -158,6 +160,7 @@ export async function getFeedPostsAction(options?: {
 
       return {
         id: p.id,
+        authorId: isAnon && !isAuthor ? null : p.userId,
         authorName: isAnon ? (isAuthor ? `${p.user?.displayName || "You"} (Anonymous)` : "Anonymous") : p.user?.displayName || "Campus Student",
         authorNickname: canViewIdentity ? p.user?.nickname : null,
         authorAvatarUrl: canViewIdentity ? p.user?.avatarUrl : null,
@@ -294,6 +297,7 @@ export async function createPostAction(rawInput: unknown): Promise<ActionResult<
       success: true,
       data: {
         id: newPost.id,
+        authorId: userRecord.id,
         authorName: isAnon ? `${authorDisplayName} (Anonymous)` : authorDisplayName,
         authorNickname: userRecord.nickname || null,
         authorAvatarUrl: userRecord.avatarUrl || null,
@@ -421,6 +425,7 @@ export async function editPostAction(rawInput: unknown): Promise<ActionResult<Po
       success: true,
       data: {
         id: updatedPost.id,
+        authorId: authUser.id,
         authorName: isAnon ? `${authorDisplayName} (Anonymous)` : authorDisplayName,
         authorNickname: updatedPost.user?.nickname || null,
         authorAvatarUrl: updatedPost.user?.avatarUrl || null,

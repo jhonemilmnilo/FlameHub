@@ -18,6 +18,7 @@ const CreateCommentSchema = z.object({
 export type CommentFeedItem = {
   id: string;
   postId: string;
+  authorId?: string | null;
   authorName: string;
   authorNickname?: string | null;
   authorAvatarUrl?: string | null;
@@ -59,7 +60,7 @@ export async function createCommentAction(
     if (!parsed.success) {
       return {
         success: false,
-        error: parsed.error.issues[0]?.message || "Invalid comment payload.",
+        error: parsed.error.issues[0]?.message || "Invalid comment.",
         code: "VALIDATION_ERROR",
       };
     }
@@ -71,14 +72,13 @@ export async function createCommentAction(
       where: { id: authUser.id },
     });
 
+    const meta = authUser.user_metadata || {};
     if (!userRecord) {
-      const meta = authUser.user_metadata || {};
       const firstName = meta.first_name || "";
       const lastName = meta.last_name || "";
-      const displayName =
-        meta.display_name || `${firstName} ${lastName}`.trim() || "Student";
+      const displayName = meta.display_name || `${firstName} ${lastName}`.trim() || "Student";
       const studentId = meta.student_id || "00-0000-000000";
-      const metaDept = meta.department || "CITE";
+      const department = meta.department || "CITE";
 
       userRecord = await prisma.user.create({
         data: {
@@ -88,20 +88,32 @@ export async function createCommentAction(
           firstName,
           lastName,
           studentId,
-          department: metaDept,
+          department,
           isEmailVerified: true,
         },
       });
     }
 
-    // 2. Perform Atomic Post Comment Creation + Increment Post.commentsCount
+    // 2. Perform atomic comment creation + post commentCount increment
     const [newComment] = await prisma.$transaction([
       prisma.comment.create({
         data: {
-          content,
+          userId: userRecord.id,
           postId,
-          userId: authUser.id,
+          content,
           isAnonymous: Boolean(isAnonymous),
+          likesCount: 0,
+        },
+        include: {
+          user: {
+            select: {
+              displayName: true,
+              nickname: true,
+              avatarUrl: true,
+              studentId: true,
+              department: true,
+            },
+          },
         },
       }),
       prisma.post.update({
@@ -116,6 +128,9 @@ export async function createCommentAction(
 
     revalidatePath("/");
 
+    const authorDisplayName = userRecord.displayName || "Student";
+    const authorNickname = userRecord.nickname || null;
+    const authorAvatarUrl = userRecord.avatarUrl || null;
     const isAnon = newComment.isAnonymous;
 
     return {
@@ -123,9 +138,10 @@ export async function createCommentAction(
       data: {
         id: newComment.id,
         postId: newComment.postId,
-        authorName: isAnon ? "Anonymous Student" : userRecord.displayName,
-        authorNickname: isAnon ? null : userRecord.nickname,
-        authorAvatarUrl: isAnon ? null : userRecord.avatarUrl,
+        authorId: userRecord.id,
+        authorName: isAnon ? `${authorDisplayName} (Anonymous)` : authorDisplayName,
+        authorNickname: authorNickname,
+        authorAvatarUrl: authorAvatarUrl,
         department: isAnon ? "Flame" : (userRecord.department || "CITE"),
         studentId: isAnon ? "Hidden ID" : (userRecord.studentId || "00-0000-000000"),
         content: newComment.content,
@@ -138,14 +154,14 @@ export async function createCommentAction(
   } catch {
     return {
       success: false,
-      error: "Unable to publish your comment. Please try again.",
+      error: "Unable to post comment. Please try again.",
       code: "INTERNAL_ERROR",
     };
   }
 }
 
 /**
- * 🔒 Fetch all comments for a specific post with DevTools-safe data shaping
+ * 🔒 Get Comments for a Post
  */
 export async function getPostCommentsAction(
   postId: string
@@ -166,6 +182,7 @@ export async function getPostCommentsAction(
       include: {
         user: {
           select: {
+            id: true,
             displayName: true,
             nickname: true,
             avatarUrl: true,
@@ -187,6 +204,7 @@ export async function getPostCommentsAction(
       return {
         id: c.id,
         postId: c.postId,
+        authorId: isAnon && !isAuthor ? null : c.userId,
         authorName: isAnon ? (isAuthor ? `${c.user?.displayName || "You"} (Anonymous)` : "Anonymous") : c.user?.displayName || "Student",
         authorNickname: canViewIdentity ? c.user?.nickname : null,
         authorAvatarUrl: canViewIdentity ? c.user?.avatarUrl : null,

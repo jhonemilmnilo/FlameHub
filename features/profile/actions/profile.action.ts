@@ -312,6 +312,7 @@ export async function getUserPostsAction(options?: {
 
       return {
         id: p.id,
+        authorId: p.isAnonymous && !isPostAuthor ? null : p.userId,
         authorName: displayAuthorName,
         authorNickname: canViewIdentity ? p.user.nickname : null,
         authorAvatarUrl: canViewIdentity ? p.user.avatarUrl : null,
