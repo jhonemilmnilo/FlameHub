@@ -24,8 +24,8 @@ import {
   X,
   Loader2,
 } from "lucide-react";
+import { SendHorizontalIcon } from "@animateicons/react/lucide";
 import { motion, AnimatePresence } from "framer-motion";
-import { FlyingPlaneParticle } from "@/components/animations/flying-plane-particle";
 import { useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/query/query-keys";
 
@@ -1449,13 +1449,6 @@ export function HomeFeedDashboard({
                           className="w-full bg-[#002f1f] border border-[#005a3c] rounded-[10px] pl-4 pr-11 py-2.5 text-xs sm:text-sm text-white placeholder-[#8CC497]/40 focus:outline-none focus:border-[#8CC497] shadow-inner transition-all"
                         />
 
-                        {/* 🚀 IconScout Lottie Origami Paper Plane Loop-de-loop Motion Particle */}
-                        <FlyingPlaneParticle
-                          isFlying={Boolean(sendingComments[post.id])}
-                          color="#8CC497"
-                          glowColor="rgba(140, 196, 151, 0.9)"
-                        />
-
                         <button
                           type="button"
                           onClick={() => handleSendComment(post.id)}
@@ -1466,7 +1459,15 @@ export function HomeFeedDashboard({
                           {sendingComments[post.id] ? (
                             <Loader2 className="w-4 h-4 text-[#8CC497] animate-spin" />
                           ) : (
-                            <Send className="w-4 h-4 rotate-45 text-[#8CC497] group-hover:text-white group-hover:scale-110 group-active:scale-90 transition-all duration-150" />
+                            <div className="pointer-events-none flex items-center justify-center">
+                              <SendHorizontalIcon
+                                isAnimated={Boolean(sendingComments[post.id])}
+                                size={16}
+                                duration={1.5}
+                                color="#8CC497"
+                                className="group-hover:scale-110 group-active:scale-90 transition-transform"
+                              />
+                            </div>
                           )}
                         </button>
                       </div>

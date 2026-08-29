@@ -4,8 +4,6 @@ import React, { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import {
-  X,
-  Send,
   Heart,
   MoreHorizontal,
   ChevronDown,
@@ -17,6 +15,7 @@ import {
   EyeOff,
   Loader2,
 } from "lucide-react";
+import { SendHorizontalIcon, type SendHorizontalIconHandle } from "@animateicons/react/lucide";
 import {
   createCommentAction,
   getPostCommentsAction,
@@ -24,7 +23,6 @@ import {
 } from "@/features/feed/actions/comment.action";
 import { type PostFeedItem } from "@/features/feed/actions/post.action";
 import { motion, AnimatePresence } from "framer-motion";
-import { FlyingPlaneParticle } from "@/components/animations/flying-plane-particle";
 import { toast } from "sonner";
 
 interface CommentDrawerModalProps {
@@ -78,7 +76,7 @@ export function CommentDrawerModal({
   const postLikesCount = post?.likesCount ?? 0;
   const [newlyAddedCount, setNewlyAddedCount] = useState(0);
   const displayCommentsCount = (post?.commentsCount ?? 0) + newlyAddedCount;
-  const [isFlyingPlane, setIsFlyingPlane] = useState(false);
+  const sendIconRef = useRef<SendHorizontalIconHandle>(null);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [postHeartBurstKey, setPostHeartBurstKey] = useState<number | null>(null);
   const [commentHeartBursts, setCommentHeartBursts] = useState<Record<string, number>>({});
@@ -155,7 +153,7 @@ export function CommentDrawerModal({
 
     const content = newCommentText.trim();
     setIsSubmitting(true);
-    setIsFlyingPlane(true);
+    sendIconRef.current?.startAnimation();
 
     try {
       const res = await createCommentAction({
@@ -180,9 +178,6 @@ export function CommentDrawerModal({
       toast.error("An unexpected error occurred while posting your comment.");
     } finally {
       setIsSubmitting(false);
-      setTimeout(() => {
-        setIsFlyingPlane(false);
-      }, 600);
     }
   };
 
@@ -209,26 +204,14 @@ export function CommentDrawerModal({
       className="fixed inset-0 z-50 bg-black/75 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-200"
     >
       <div
-        className="w-full max-w-xl bg-[#00472f] border border-[#005a3c] rounded-3xl shadow-[0_25px_60px_-15px_rgba(0,0,0,0.7)] flex flex-col max-h-[90vh] overflow-hidden animate-in zoom-in-95 duration-150 relative"
+        className="w-full max-w-xl bg-[#006241] border border-[#007a52] rounded-3xl shadow-[0_25px_60px_-15px_rgba(0,0,0,0.7)] flex flex-col max-h-[90vh] overflow-hidden animate-in zoom-in-95 duration-150 relative"
       >
-        {/* Close Button Header overlay */}
-        <div className="absolute top-4 right-4 z-20">
-          <button
-            type="button"
-            onClick={onClose}
-            className="p-1.5 rounded-full text-white/50 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
-            title="Close discussion"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-
-        {/* Scrollable Container */}
-        <div className="flex-1 overflow-y-auto p-5 sm:p-7 space-y-5 [scrollbar-width:thin] [scrollbar-color:#005a3c_transparent]">
-          {/* ========================================================================= */}
-          {/* 📰 ORIGINAL POST RECAP (Matching Mockup Top Header) */}
-          {/* ========================================================================= */}
-          <div className="space-y-3 pt-1">
+        {/* ========================================================================= */}
+        {/* 📰 STICKY TOP POST RECAP & HEADER (Fixed & Compact) */}
+        {/* ========================================================================= */}
+        <div className="px-5 pt-4 pb-2.5 shrink-0 border-b border-[#007a52]/70 bg-[#006241] space-y-2.5">
+          {/* Top Post Recap Header */}
+          <div className="space-y-2.5">
             <div className="flex items-start justify-between gap-3">
               <div className="flex items-center gap-3.5 min-w-0">
                 {!post.isAuthor && !post.isAnonymous && post.authorId ? (
@@ -326,7 +309,7 @@ export function CommentDrawerModal({
               </div>
 
               {/* 3-Dots More Options Menu */}
-              <div className="relative pr-8" data-comment-post-menu>
+              <div className="relative" data-comment-post-menu>
                 <button
                   type="button"
                   onClick={(e) => {
@@ -343,7 +326,7 @@ export function CommentDrawerModal({
                   <div
                     style={{ borderRadius: "10px" }}
                     onClick={(e) => e.stopPropagation()}
-                    className="absolute right-8 top-full mt-1 w-48 bg-[#002f1f] border border-[#005a3c] rounded-[10px] shadow-2xl p-1.5 z-30 animate-in fade-in zoom-in-95 duration-150 backdrop-blur-md"
+                    className="absolute right-0 top-full mt-1 w-48 bg-[#002f1f] border border-[#005a3c] rounded-[10px] shadow-2xl p-1.5 z-30 animate-in fade-in zoom-in-95 duration-150 backdrop-blur-md"
                   >
                     {/* Author Only Actions */}
                     {post.isAuthor && (
@@ -370,61 +353,21 @@ export function CommentDrawerModal({
                             onDeletePost?.(post);
                           }}
                           style={{ borderRadius: "10px" }}
-                          className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-rose-400 hover:text-rose-200 hover:bg-rose-950/40 rounded-[10px] transition-colors text-left cursor-pointer"
+                          className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 rounded-[10px] transition-colors text-left cursor-pointer"
                         >
                           <Trash2 className="w-4 h-4 text-rose-400" />
                           <span>Delete Post</span>
                         </button>
-
-                        <div className="my-1 border-t border-[#005a3c]/60" />
+                        <div className="h-px bg-[#005a3c]/60 my-1" />
                       </>
                     )}
 
-                    {/* Non-Author Actions: Save & Hide */}
-                    {!post.isAuthor && (
-                      <>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setIsMenuOpen(false);
-                            onToggleSavePost?.(post);
-                          }}
-                          style={{ borderRadius: "10px" }}
-                          className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-emerald-100 hover:text-white hover:bg-[#004e34] rounded-[10px] transition-colors text-left cursor-pointer"
-                        >
-                          <Bookmark
-                            className={`w-4 h-4 transition-colors ${
-                              post.isSaved
-                                ? "fill-emerald-400 text-emerald-400"
-                                : "text-[#8CC497]"
-                            }`}
-                          />
-                          <span>{post.isSaved ? "Unsave Post" : "Save Post"}</span>
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setIsMenuOpen(false);
-                            onHidePost?.(post.id);
-                          }}
-                          style={{ borderRadius: "10px" }}
-                          className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-amber-200 hover:text-amber-100 hover:bg-amber-950/40 rounded-[10px] transition-colors text-left cursor-pointer"
-                        >
-                          <EyeOff className="w-4 h-4 text-amber-300" />
-                          <span>Hide Post</span>
-                        </button>
-
-                        <div className="my-1 border-t border-[#005a3c]/60" />
-                      </>
-                    )}
-
-                    {/* Universal Copy Link Option */}
+                    {/* Common / Viewer Actions */}
                     <button
                       type="button"
                       onClick={() => {
                         setIsMenuOpen(false);
-                        if (navigator.clipboard) {
+                        if (typeof window !== "undefined" && navigator.clipboard) {
                           navigator.clipboard.writeText(window.location.href);
                           toast.success("Post link copied to clipboard!");
                         }
@@ -433,34 +376,59 @@ export function CommentDrawerModal({
                       className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-emerald-100 hover:text-white hover:bg-[#004e34] rounded-[10px] transition-colors text-left cursor-pointer"
                     >
                       <Link2 className="w-4 h-4 text-[#8CC497]" />
-                      <span>Copy Link</span>
+                      <span>Copy link</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsMenuOpen(false);
+                        onToggleSavePost?.(post);
+                      }}
+                      style={{ borderRadius: "10px" }}
+                      className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-emerald-100 hover:text-white hover:bg-[#004e34] rounded-[10px] transition-colors text-left cursor-pointer"
+                    >
+                      <Bookmark className={`w-4 h-4 ${post.isSaved ? "fill-[#8CC497] text-[#8CC497]" : "text-[#8CC497]"}`} />
+                      <span>{post.isSaved ? "Unsave post" : "Save post"}</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsMenuOpen(false);
+                        onHidePost?.(post.id);
+                      }}
+                      style={{ borderRadius: "10px" }}
+                      className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-amber-300/90 hover:text-amber-200 hover:bg-amber-500/10 rounded-[10px] transition-colors text-left cursor-pointer"
+                    >
+                      <EyeOff className="w-4 h-4 text-amber-400" />
+                      <span>Hide post</span>
                     </button>
                   </div>
                 )}
               </div>
             </div>
 
-            <p className="text-xs sm:text-sm text-white/95 leading-relaxed font-normal">
+            {/* Post Content Body */}
+            <p className="text-xs sm:text-sm text-white/90 leading-relaxed font-sans whitespace-pre-wrap line-clamp-4">
               {post.content}
             </p>
 
-            {/* Post Meta Row (Likes & Comments Count) */}
-            <div className="flex items-center justify-between text-xs text-white/80 font-medium pt-1">
+            {/* Like & Comments Stats Bar with Animated Heart Burst */}
+            <div className="flex items-center justify-between text-xs pt-1">
               <div className="relative flex items-center">
                 <AnimatePresence>
                   {postHeartBurstKey && (
                     <motion.div
                       key={postHeartBurstKey}
-                      initial={{ opacity: 0, scale: 0.4, y: 0 }}
+                      initial={{ opacity: 0, scale: 0.5, y: 0 }}
                       animate={{
                         opacity: [0, 1, 1, 0],
-                        scale: [0.4, 1.4, 1.2, 0.8],
-                        y: -30,
-                        rotate: [0, -10, 10, 0],
+                        scale: [0.5, 1.4, 1.2, 0.9],
+                        y: -28,
+                        rotate: [0, -12, 12, 0],
                       }}
                       exit={{ opacity: 0 }}
-                      transition={{ duration: 0.75, ease: "easeOut" }}
-                      className="absolute left-1 pointer-events-none z-30 select-none text-rose-500 drop-shadow-[0_0_10px_rgba(244,63,94,0.8)]"
+                      transition={{ duration: 0.65, ease: "easeOut" }}
+                      className="absolute pointer-events-none z-30 select-none text-rose-500 drop-shadow-[0_0_10px_rgba(244,63,94,0.85)]"
                     >
                       <Heart className="w-5 h-5 fill-rose-500 text-rose-500" />
                     </motion.div>
@@ -488,21 +456,19 @@ export function CommentDrawerModal({
                 {displayCommentsCount} {displayCommentsCount === 1 ? "comment" : "comments"}
               </span>
             </div>
-
-            <hr className="border-t border-[#005a3c]/80 pt-1" />
           </div>
 
-          {/* ========================================================================= */}
-          {/* 🔽 TOP COMMENTS DROPDOWN LABEL */}
-          {/* ========================================================================= */}
+          {/* Top comments dropdown label */}
           <div className="flex items-center gap-1.5 text-xs font-bold text-white tracking-tight cursor-pointer select-none">
             <span>Top comments</span>
             <ChevronDown className="w-3.5 h-3.5 text-emerald-300" />
           </div>
+        </div>
 
-          {/* ========================================================================= */}
-          {/* 💬 COMMENTS LIST (Green Nested Bubble Cards with Reaction & Reply) */}
-          {/* ========================================================================= */}
+        {/* ========================================================================= */}
+        {/* 💬 SCROLLABLE COMMENTS ONLY SECTION (Dedicated Scroll Container) */}
+        {/* ========================================================================= */}
+        <div className="flex-1 overflow-y-auto p-4 sm:p-5 pt-3 space-y-3 [scrollbar-width:thin] [scrollbar-color:#007a52_transparent]">
           {isLoading ? (
             /* 🌀 Centered Comments Spinner Loader */
             <div className="py-14 flex flex-col items-center justify-center gap-3 text-[#8CC497]">
@@ -692,33 +658,39 @@ export function CommentDrawerModal({
         </div>
 
         {/* ========================================================================= */}
-        {/* ✍️ BOTTOM COMMENT COMPOSER (Matching Mockup with Teal/Cyan Border & Send) */}
+        {/* ✍️ BOTTOM COMMENT COMPOSER (Matching Post Card Input Style) */}
         {/* ========================================================================= */}
-        <div className="p-4 sm:p-5 border-t border-[#005a3c]/80 bg-[#00472f]/90 shrink-0 relative overflow-hidden">
+        <div className="p-4 sm:p-5 border-t border-[#007a52]/80 bg-[#006241] shrink-0 relative overflow-hidden">
           <form onSubmit={handleSendComment} className="relative flex items-center">
             <input
               type="text"
-              placeholder="Add a comment..."
+              placeholder="Write a comment..."
               value={newCommentText}
               maxLength={1000}
               disabled={isSubmitting}
               onChange={(e) => setNewCommentText(e.target.value)}
-              className="w-full bg-[#003825] border border-[#2dd4bf]/60 hover:border-[#2dd4bf] focus:border-[#2dd4bf] rounded-full pl-5 pr-14 py-3 text-xs sm:text-sm text-white placeholder-emerald-200/50 focus:outline-none transition-all shadow-sm"
+              style={{ borderRadius: "10px" }}
+              className="w-full bg-[#002f1f] border border-[#005a3c] rounded-[10px] pl-4.5 pr-12 py-3.5 text-sm text-white placeholder-[#8CC497]/40 focus:outline-none focus:border-[#8CC497] shadow-inner transition-all"
             />
-
-            {/* 🚀 IconScout Lottie Origami Paper Plane Loop-de-loop Motion Particle */}
-            <FlyingPlaneParticle isFlying={isFlyingPlane} color="#2dd4bf" glowColor="rgba(45,212,191,0.95)" />
 
             <button
               type="submit"
               disabled={!newCommentText.trim() || isSubmitting}
-              className="absolute right-2.5 p-2 rounded-full text-[#2dd4bf] hover:text-white hover:bg-white/10 transition-all cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed group flex items-center justify-center"
-              title="Send comment"
+              className="absolute right-2.5 p-2 rounded-[10px] text-[#8CC497] hover:text-white disabled:opacity-30 disabled:hover:bg-transparent disabled:cursor-not-allowed transition-all cursor-pointer group flex items-center justify-center"
+              title={isSubmitting ? "Sending..." : "Send Comment"}
             >
               {isSubmitting ? (
-                <Loader2 className="w-4 h-4 text-[#2dd4bf] animate-spin" />
+                <Loader2 className="w-4 h-4 text-[#8CC497] animate-spin" />
               ) : (
-                <Send className="w-4 h-4 rotate-45 group-hover:scale-110 group-active:scale-90 transition-transform duration-150" />
+                <div className="pointer-events-none flex items-center justify-center">
+                  <SendHorizontalIcon
+                    ref={sendIconRef}
+                    size={18}
+                    duration={1.5}
+                    color="#8CC497"
+                    className="group-hover:scale-110 group-active:scale-90 transition-transform"
+                  />
+                </div>
               )}
             </button>
           </form>
