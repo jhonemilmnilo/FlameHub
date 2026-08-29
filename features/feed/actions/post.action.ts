@@ -32,6 +32,7 @@ export type PostFeedItem = {
   createdAt: string;
   updatedAt?: string | null;
   repostedAt?: string | null;
+  savedAt?: string | null;
   isAuthor: boolean;
 };
 

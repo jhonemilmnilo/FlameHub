@@ -53,7 +53,7 @@ export default function RootLoading() {
 
             <div className="w-full flex items-center gap-4 px-3.5 py-3 rounded-xl text-emerald-100/70">
               <Bookmark className="w-5 h-5 text-[#8CC497]/70 shrink-0" />
-              <span className="text-sm lg:text-base">Bookmarks</span>
+              <span className="text-sm lg:text-base">Saved</span>
             </div>
 
             <div className="w-full flex items-center gap-4 px-3.5 py-3 rounded-xl text-emerald-100/70">

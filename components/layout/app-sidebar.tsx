@@ -144,7 +144,7 @@ export function AppSidebar({
                 if (onSelectSaved) {
                   onSelectSaved();
                 } else {
-                  router.push("/?sort=Saved");
+                  router.push("/profile?tab=saved");
                 }
               }}
               className={`w-full flex items-center gap-4 px-3.5 py-3 rounded-xl transition-all text-left cursor-pointer ${
@@ -154,7 +154,7 @@ export function AppSidebar({
               }`}
             >
               <Bookmark className={`w-5 h-5 shrink-0 ${isSavedActive ? "text-[#8CC497] fill-[#8CC497]" : "text-[#8CC497]"}`} />
-              <span className="text-sm lg:text-base">Bookmarks</span>
+              <span className="text-sm lg:text-base">Saved</span>
             </button>
 
             <button

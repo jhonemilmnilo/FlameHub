@@ -621,9 +621,9 @@ export function HomeFeedDashboard({
     );
 
     if (nextIsSaved) {
-      toast.success("Post saved to your bookmarks.");
+      toast.success("Post saved.");
     } else {
-      toast.success("Post removed from your bookmarks.");
+      toast.success("Post removed from saved.");
     }
 
     try {
@@ -633,7 +633,7 @@ export function HomeFeedDashboard({
         setPosts((prev) =>
           prev.map((p) => (p.id === post.id ? { ...p, isSaved: previousIsSaved } : p))
         );
-        toast.error(res.error || "Unable to update bookmark.");
+        toast.error(res.error || "Unable to update saved post.");
       } else if (res.data) {
         setPosts((prev) =>
           prev.map((p) => (p.id === post.id ? { ...p, isSaved: res.data.isSaved } : p))
@@ -1330,7 +1330,7 @@ export function HomeFeedDashboard({
                                         : "text-[#8CC497]"
                                     }`}
                                   />
-                                  <span>{post.isSaved ? "Remove Bookmark" : "Bookmark Post"}</span>
+                                  <span>{post.isSaved ? "Unsave post" : "Save post"}</span>
                                 </button>
                               )}
 

@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import Image from "next/image";
+import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import {
   Heart,
   MessageSquareMore,
@@ -39,6 +40,7 @@ import { toggleSavePostAction } from "@/features/feed/actions/post.saved.action"
 import { hidePostAction } from "@/features/feed/actions/post.hide.action";
 import { createCommentAction } from "@/features/feed/actions/comment.action";
 import { motion, AnimatePresence } from "framer-motion";
+import { SavedPostsFeed } from "../saved-posts/components/saved-posts-feed";
 import { useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/query/query-keys";
 import { toast } from "sonner";
@@ -227,6 +229,27 @@ export function ProfileActivityFeed({
     window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
   }, [handleLoadMore]);
+
+  // 🔗 Navigation Tabs URL Synchronization (Single Source of Truth - Zero Cascading Renders)
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const pathname = usePathname();
+
+  const urlTab = searchParams.get("tab");
+  const activeTab: "posts" | "saved" | "hidden" =
+    urlTab === "saved" || urlTab === "hidden" ? urlTab : "posts";
+
+  const handleTabChange = (nextTab: "posts" | "saved" | "hidden") => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (nextTab === "posts") {
+      params.delete("tab");
+    } else {
+      params.set("tab", nextTab);
+    }
+    const queryString = params.toString();
+    const targetUrl = queryString ? `${pathname}?${queryString}` : pathname;
+    router.replace(targetUrl, { scroll: false });
+  };
 
   // Post Actions
   const [commentInputs, setCommentInputs] = useState<Record<string, string>>({});
@@ -511,7 +534,7 @@ export function ProfileActivityFeed({
       prev.map((p) => (p.id === post.id ? { ...p, isSaved: nextIsSaved } : p))
     );
 
-    toast.success(nextIsSaved ? "Post saved to your bookmarks." : "Post removed from bookmarks.");
+    toast.success(nextIsSaved ? "Post saved." : "Post removed from saved.");
 
     try {
       const res = await toggleSavePostAction(post.id);
@@ -519,7 +542,7 @@ export function ProfileActivityFeed({
         setPosts((prev) =>
           prev.map((p) => (p.id === post.id ? { ...p, isSaved: previousIsSaved } : p))
         );
-        toast.error(res.error || "Unable to update bookmark.");
+        toast.error(res.error || "Unable to update saved post.");
       }
     } catch {
       setPosts((prev) =>
@@ -736,26 +759,107 @@ export function ProfileActivityFeed({
 
   return (
     <div className="space-y-5">
-      {/* Activity Heading */}
-      <h2 className="text-xl sm:text-2xl font-bold text-white font-heading tracking-tight">
-        Activity
-      </h2>
+      {/* Activity Heading & Tab Switcher Bar */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#005a3c]/60 pb-3">
+        <h2 className="text-xl sm:text-2xl font-bold text-white font-heading tracking-tight">
+          Activity
+        </h2>
 
-      {/* Activity Composer Pill Bar matching screenshot */}
-      {isSelf && (
+        {/* 🔖 Profile Navigation Tabs Bar (Visible for logged-in user profile) */}
+        {isSelf && (
+          <div
+            style={{ borderRadius: "10px" }}
+            className="flex items-center gap-1.5 p-1 bg-[#002f1f] border border-[#005a3c] rounded-[10px] self-start sm:self-auto shadow-inner"
+          >
+            <button
+              type="button"
+              onClick={() => handleTabChange("posts")}
+              style={{ borderRadius: "8px" }}
+              className={`px-4 py-1.5 text-xs font-bold rounded-[8px] transition-all cursor-pointer select-none ${
+                activeTab === "posts"
+                  ? "bg-[#8CC497] text-[#002f1f] shadow-md"
+                  : "text-[#8CC497]/70 hover:text-white hover:bg-[#003F2A]"
+              }`}
+            >
+              <span>Posts</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleTabChange("saved")}
+              style={{ borderRadius: "8px" }}
+              className={`px-4 py-1.5 text-xs font-bold rounded-[8px] transition-all cursor-pointer select-none ${
+                activeTab === "saved"
+                  ? "bg-[#8CC497] text-[#002f1f] shadow-md"
+                  : "text-[#8CC497]/70 hover:text-white hover:bg-[#003F2A]"
+              }`}
+            >
+              <span>Saved</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleTabChange("hidden")}
+              style={{ borderRadius: "8px" }}
+              className={`px-4 py-1.5 text-xs font-bold rounded-[8px] transition-all cursor-pointer select-none ${
+                activeTab === "hidden"
+                  ? "bg-[#8CC497] text-[#002f1f] shadow-md"
+                  : "text-[#8CC497]/70 hover:text-white hover:bg-[#003F2A]"
+              }`}
+            >
+              <span>Hidden</span>
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* ========================================================================= */}
+      {/* 🔖 TAB 2: SAVED POSTS FEED */}
+      {/* ========================================================================= */}
+      {isSelf && activeTab === "saved" && (
+        <SavedPostsFeed currentSessionUser={currentSessionUser} />
+      )}
+
+      {/* ========================================================================= */}
+      {/* 👁️ TAB 3: HIDDEN POSTS FEED PLACEHOLDER */}
+      {/* ========================================================================= */}
+      {isSelf && activeTab === "hidden" && (
         <div
           style={{ borderRadius: "10px" }}
-          className="w-full bg-[#003F2A] border border-[#005a3c]/60 rounded-[10px] p-4 md:p-5 shadow-xl"
+          className="py-14 px-6 text-center space-y-3 bg-[#003F2A]/60 border border-[#005a3c] rounded-[10px] shadow-lg flex flex-col items-center justify-center"
         >
-          <button
-            type="button"
-            onClick={() => setIsComposerOpen(true)}
-            className="w-full text-left bg-[#002f1f]/80 hover:bg-[#002f1f] border border-[#8CC497]/30 hover:border-[#8CC497]/70 rounded-full px-6 py-3.5 text-xs sm:text-sm text-[#8CC497]/80 hover:text-[#8CC497] transition-all cursor-pointer shadow-inner active:scale-[0.99]"
-          >
-            Is there something you need to share?
-          </button>
+          <div className="w-12 h-12 rounded-full bg-[#002f1f] border-2 border-[#8CC497]/40 flex items-center justify-center text-[#8CC497]">
+            <EyeOff className="w-6 h-6" />
+          </div>
+          <div className="space-y-1 max-w-sm">
+            <h3 className="text-base font-bold text-white font-heading">Hidden Posts</h3>
+            <p className="text-xs text-[#8CC497]/80">
+              Posts you hide from your feed will appear here so you can unhide them at any time.
+            </p>
+          </div>
         </div>
       )}
+
+      {/* ========================================================================= */}
+      {/* 📝 TAB 1: AUTHORED POSTS FEED (Default Tab) */}
+      {/* ========================================================================= */}
+      {activeTab === "posts" && (
+        <>
+          {/* Activity Composer Pill Bar matching screenshot */}
+          {isSelf && (
+            <div
+              style={{ borderRadius: "10px" }}
+              className="w-full bg-[#003F2A] border border-[#005a3c]/60 rounded-[10px] p-4 md:p-5 shadow-xl"
+            >
+              <button
+                type="button"
+                onClick={() => setIsComposerOpen(true)}
+                className="w-full text-left bg-[#002f1f]/80 hover:bg-[#002f1f] border border-[#8CC497]/30 hover:border-[#8CC497]/70 rounded-full px-6 py-3.5 text-xs sm:text-sm text-[#8CC497]/80 hover:text-[#8CC497] transition-all cursor-pointer shadow-inner active:scale-[0.99]"
+              >
+                Is there something you need to share?
+              </button>
+            </div>
+          )}
 
       {/* 2-Column Cards Grid matching mockup */}
       {filteredPosts.length === 0 ? (
@@ -997,7 +1101,7 @@ export function ProfileActivityFeed({
                                   : "text-[#8CC497]"
                               }`}
                             />
-                            <span>{post.isSaved ? "Remove Bookmark" : "Bookmark Post"}</span>
+                            <span>{post.isSaved ? "Unsave post" : "Save post"}</span>
                           </button>
                         )}
 
@@ -1187,74 +1291,76 @@ export function ProfileActivityFeed({
         </div>
       )}
 
-      {/* Create Post Modal */}
-      {isComposerOpen && (
-        <div
-          onClick={() => setIsComposerOpen(false)}
-          className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4 animate-fadeIn"
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            style={{ borderRadius: "10px" }}
-            className="w-full max-w-lg bg-[#003F2A] border border-[#005a3c] rounded-[10px] p-6 shadow-2xl space-y-4"
-          >
-            <div className="flex items-center justify-between border-b border-[#005a3c] pb-3">
-              <h3 className="font-extrabold text-base text-white font-heading">
-                Create Post
-              </h3>
-              <button
-                type="button"
-                onClick={() => setIsComposerOpen(false)}
-                className="text-white/60 hover:text-white text-sm font-bold cursor-pointer"
+          {/* Create Post Modal */}
+          {isComposerOpen && (
+            <div
+              onClick={() => setIsComposerOpen(false)}
+              className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4 animate-fadeIn"
+            >
+              <div
+                onClick={(e) => e.stopPropagation()}
+                style={{ borderRadius: "10px" }}
+                className="w-full max-w-lg bg-[#003F2A] border border-[#005a3c] rounded-[10px] p-6 shadow-2xl space-y-4"
               >
-                ✕
-              </button>
-            </div>
+                <div className="flex items-center justify-between border-b border-[#005a3c] pb-3">
+                  <h3 className="font-extrabold text-base text-white font-heading">
+                    Create Post
+                  </h3>
+                  <button
+                    type="button"
+                    onClick={() => setIsComposerOpen(false)}
+                    className="text-white/60 hover:text-white text-sm font-bold cursor-pointer"
+                  >
+                    ✕
+                  </button>
+                </div>
 
-            <form onSubmit={handleCreatePost} className="space-y-4">
-              <textarea
-                rows={4}
-                autoFocus
-                placeholder="Share your campus thoughts..."
-                value={newPostContent}
-                onChange={(e) => setNewPostContent(e.target.value)}
-                className="w-full bg-[#002f1f] border border-[#005a3c] rounded-2xl p-3.5 text-sm text-white placeholder-white/40 focus:outline-none focus:border-[#8CC497] transition-all resize-none"
-              />
+                <form onSubmit={handleCreatePost} className="space-y-4">
+                  <textarea
+                    rows={4}
+                    autoFocus
+                    placeholder="Share your campus thoughts..."
+                    value={newPostContent}
+                    onChange={(e) => setNewPostContent(e.target.value)}
+                    className="w-full bg-[#002f1f] border border-[#005a3c] rounded-2xl p-3.5 text-sm text-white placeholder-white/40 focus:outline-none focus:border-[#8CC497] transition-all resize-none"
+                  />
 
-              <div className="flex items-center justify-between pt-2">
-                <button
-                  type="button"
-                  onClick={() => setIsAnonymous((prev) => !prev)}
-                  className={`flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer ${
-                    isAnonymous
-                      ? "bg-purple-950/80 text-purple-200 border border-purple-400/60"
-                      : "bg-[#002f1f] text-[#8CC497] border border-[#005a3c]"
-                  }`}
-                >
-                  {isAnonymous ? (
-                    <>
-                      <Ghost className="w-4 h-4 text-purple-300" />
-                      <span>Post as Anonymous</span>
-                    </>
-                  ) : (
-                    <>
-                      <UserCheck className="w-4 h-4 text-[#8CC497]" />
-                      <span>Public Identity</span>
-                    </>
-                  )}
-                </button>
+                  <div className="flex items-center justify-between pt-2">
+                    <button
+                      type="button"
+                      onClick={() => setIsAnonymous((prev) => !prev)}
+                      className={`flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer ${
+                        isAnonymous
+                          ? "bg-purple-950/80 text-purple-200 border border-purple-400/60"
+                          : "bg-[#002f1f] text-[#8CC497] border border-[#005a3c]"
+                      }`}
+                    >
+                      {isAnonymous ? (
+                        <>
+                          <Ghost className="w-4 h-4 text-purple-300" />
+                          <span>Post as Anonymous</span>
+                        </>
+                      ) : (
+                        <>
+                          <UserCheck className="w-4 h-4 text-[#8CC497]" />
+                          <span>Public Identity</span>
+                        </>
+                      )}
+                    </button>
 
-                <button
-                  type="submit"
-                  disabled={!newPostContent.trim() || isSubmittingPost}
-                  className="px-6 py-2 rounded-full bg-[#8CC497] hover:bg-[#a1d7ab] text-[#003F2A] font-extrabold text-xs uppercase tracking-wider shadow-md transition-all cursor-pointer disabled:opacity-50"
-                >
-                  {isSubmittingPost ? "POSTING..." : "POST"}
-                </button>
+                    <button
+                      type="submit"
+                      disabled={!newPostContent.trim() || isSubmittingPost}
+                      className="px-6 py-2 rounded-full bg-[#8CC497] hover:bg-[#a1d7ab] text-[#003F2A] font-extrabold text-xs uppercase tracking-wider shadow-md transition-all cursor-pointer disabled:opacity-50"
+                    >
+                      {isSubmittingPost ? "POSTING..." : "POST"}
+                    </button>
+                  </div>
+                </form>
               </div>
-            </form>
-          </div>
-        </div>
+            </div>
+          )}
+        </>
       )}
 
       {/* ========================================================================= */}
