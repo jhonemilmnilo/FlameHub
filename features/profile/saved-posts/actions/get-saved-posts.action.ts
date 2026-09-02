@@ -37,17 +37,12 @@ export async function getSavedPostsAction(
     const limit = Math.min(Math.max(params?.limit || 20, 1), 50);
     const cursor = params?.cursor;
 
-    // 1. Fetch saved posts records
+    // 1. Fetch saved posts records (Include all saved posts for user even if hidden from main feed)
     const savedRecords = await prisma.savedPost.findMany({
       where: {
         userId: authUser.id,
         post: {
           isDeleted: false,
-          hiddenPosts: {
-            none: {
-              userId: authUser.id,
-            },
-          },
         },
       },
       take: limit + 1,

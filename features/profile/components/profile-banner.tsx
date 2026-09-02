@@ -15,6 +15,7 @@ interface ProfileBannerProps {
   isAvatarLoading?: boolean;
   onEditBio?: () => void;
   onEditAvatar?: () => void;
+  onOpenAvatarViewer?: () => void;
 }
 
 export function ProfileBanner({
@@ -22,6 +23,7 @@ export function ProfileBanner({
   isAvatarLoading = false,
   onEditBio,
   onEditAvatar,
+  onOpenAvatarViewer,
 }: ProfileBannerProps) {
   const [isFollowing, setIsFollowing] = useState(false);
   const [followersCount, setFollowersCount] = useState(profile.stats.followersCount);
@@ -46,12 +48,15 @@ export function ProfileBanner({
   }, [profile.createdAt]);
 
   const handleAvatarClick = () => {
-    if (profile.isSelf && !isAvatarLoading) {
-      if (onEditAvatar) {
-        onEditAvatar();
-      } else {
-        toast.info("Avatar customization coming soon!");
-      }
+    if (onOpenAvatarViewer) {
+      onOpenAvatarViewer();
+    }
+  };
+
+  const handleEditAvatarClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (profile.isSelf && !isAvatarLoading && onEditAvatar) {
+      onEditAvatar();
     }
   };
 
@@ -120,7 +125,11 @@ export function ProfileBanner({
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6 lg:gap-8">
           {/* User Portrait / Avatar Box */}
           <div className="relative shrink-0 group">
-            <div className="relative w-28 h-28 sm:w-36 sm:h-36 md:w-44 md:h-44 rounded-full overflow-hidden bg-[#002f1f] border-2 border-[#8CC497] shadow-[0_10px_30px_rgba(0,0,0,0.5),0_0_20px_rgba(140,196,151,0.25)] ring-1 ring-white/20 transition-all duration-300 group-hover:border-white">
+            <div
+              onClick={handleAvatarClick}
+              className="relative w-28 h-28 sm:w-36 sm:h-36 md:w-44 md:h-44 rounded-full overflow-hidden bg-[#002f1f] border-2 border-[#8CC497] shadow-[0_10px_30px_rgba(0,0,0,0.5),0_0_20px_rgba(140,196,151,0.25)] ring-1 ring-white/20 transition-all duration-300 group-hover:border-white group-hover:scale-102 cursor-pointer"
+              title={`View ${profile.displayName}'s profile picture`}
+            >
               {profile.avatarUrl ? (
                 <Image
                   src={profile.avatarUrl}
@@ -154,7 +163,7 @@ export function ProfileBanner({
               <button
                 type="button"
                 disabled={isAvatarLoading}
-                onClick={handleAvatarClick}
+                onClick={handleEditAvatarClick}
                 title="Edit Profile Photo"
                 className="absolute bottom-1 right-1 p-2.5 rounded-full bg-[#003F2A] border-2 border-[#8CC497] text-[#8CC497] hover:bg-[#8CC497] hover:text-[#003F2A] shadow-xl hover:scale-110 active:scale-95 transition-all cursor-pointer z-10 disabled:opacity-50 disabled:cursor-not-allowed"
               >

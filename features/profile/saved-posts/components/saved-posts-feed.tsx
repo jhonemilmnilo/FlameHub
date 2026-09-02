@@ -13,7 +13,6 @@ import {
   Link2,
   Flag,
   Loader2,
-  Repeat2,
 } from "lucide-react";
 import { SendHorizontalIcon } from "@animateicons/react/lucide";
 import { CommentDrawerModal } from "@/features/feed/components/comment-drawer-modal";
@@ -274,19 +273,17 @@ export function SavedPostsFeed({ currentSessionUser }: SavedPostsFeedProps) {
     }
   };
 
-  // Hide Post Handler
+  // Hide Post Handler (Hides from main discovery feed)
   const handleHidePost = async (post: PostFeedItem) => {
     setActiveMenuPostId(null);
     setActiveDiscussionPost(null);
 
-    setPosts((prev) => prev.filter((p) => p.id !== post.id));
-    toast.success("Post hidden from your feed");
+    toast.success("Post hidden from main feed. (Kept in Saved)");
 
     try {
       await hidePostAction(post.id);
       queryClient.invalidateQueries({ queryKey: ["post"] });
     } catch {
-      setPosts((prev) => [post, ...prev]);
       toast.error("Network error while hiding post.");
     }
   };

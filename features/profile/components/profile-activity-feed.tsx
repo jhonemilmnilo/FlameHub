@@ -7,7 +7,6 @@ import {
   Heart,
   MessageSquareMore,
   MoreHorizontal,
-  Send,
   Bookmark,
   Pencil,
   Trash2,

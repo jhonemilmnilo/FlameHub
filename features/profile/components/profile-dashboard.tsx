@@ -9,6 +9,7 @@ import { ProfileActivityFeed } from "./profile-activity-feed";
 import { ProfileEditModal } from "./profile-edit-modal";
 import { ProfileBioModal } from "./profile-bio-modal";
 import { ProfileAvatarModal } from "./profile-avatar-modal";
+import { ProfileAvatarViewerModal } from "./profile-avatar-viewer-modal";
 import { AppSidebar } from "@/components/layout/app-sidebar";
 import type { UserProfileData, FollowerItem } from "../actions/profile.action";
 import type { PostFeedItem } from "@/features/feed/actions/post.action";
@@ -36,6 +37,7 @@ export function ProfileDashboard({
   const [isEditingBio, setIsEditingBio] = useState(false);
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [isEditingAvatar, setIsEditingAvatar] = useState(false);
+  const [isViewingAvatar, setIsViewingAvatar] = useState(false);
   const [isUpdatingAvatar, setIsUpdatingAvatar] = useState(false);
 
   return (
@@ -76,6 +78,7 @@ export function ProfileDashboard({
               isAvatarLoading={isUpdatingAvatar}
               onEditBio={() => setIsEditingProfile(true)}
               onEditAvatar={() => setIsEditingAvatar(true)}
+              onOpenAvatarViewer={() => setIsViewingAvatar(true)}
             />
           </div>
           <div className="lg:col-span-4 flex">
@@ -110,6 +113,18 @@ export function ProfileDashboard({
           </div>
         </div>
       </main>
+
+      {/* ========================================================================= */}
+      {/* 👁️ PROFILE AVATAR PHOTO VIEWER MODAL (Read-Only) */}
+      {/* ========================================================================= */}
+      <ProfileAvatarViewerModal
+        isOpen={isViewingAvatar}
+        onClose={() => setIsViewingAvatar(false)}
+        avatarUrl={profile.avatarUrl}
+        displayName={profile.displayName}
+        department={profile.department}
+        nickname={profile.nickname}
+      />
 
       {/* ========================================================================= */}
       {/* ✏️ PROFILE EDIT MODAL */}
