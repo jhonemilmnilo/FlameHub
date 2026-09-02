@@ -1834,10 +1834,9 @@ export function HomeFeedDashboard({
         onToggleSavePost={(p) => {
           handleToggleSave(p);
         }}
-        onHidePost={(postId) => {
+        onHidePost={(p) => {
           setActiveDiscussionPost(null);
-          setPosts((prev) => prev.filter((p) => p.id !== postId));
-          toast.success("Post hidden from your feed");
+          handleHidePost(p);
         }}
       />
 

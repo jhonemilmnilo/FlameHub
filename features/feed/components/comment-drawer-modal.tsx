@@ -12,7 +12,9 @@ import {
   Trash2,
   Link2,
   Bookmark,
+  Eye,
   EyeOff,
+  Flag,
   Loader2,
 } from "lucide-react";
 import { SendHorizontalIcon, type SendHorizontalIconHandle } from "@animateicons/react/lucide";
@@ -34,7 +36,9 @@ interface CommentDrawerModalProps {
   onEditPost?: (post: PostFeedItem) => void;
   onDeletePost?: (post: PostFeedItem) => void;
   onToggleSavePost?: (post: PostFeedItem) => void;
-  onHidePost?: (postId: string) => void;
+  onHidePost?: (post: PostFeedItem) => void;
+  onUnhidePost?: (post: PostFeedItem) => void;
+  onReportPost?: (post: PostFeedItem) => void;
 }
 
 function formatRelativeTime(dateString: string): string {
@@ -66,6 +70,8 @@ export function CommentDrawerModal({
   onDeletePost,
   onToggleSavePost,
   onHidePost,
+  onUnhidePost,
+  onReportPost,
 }: CommentDrawerModalProps) {
   const [comments, setComments] = useState<CommentFeedItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -209,7 +215,7 @@ export function CommentDrawerModal({
         {/* ========================================================================= */}
         {/* 📰 STICKY TOP POST RECAP & HEADER (Fixed & Compact) */}
         {/* ========================================================================= */}
-        <div className="px-5 pt-4 pb-2.5 shrink-0 border-b border-[#007a52]/70 bg-[#006241] space-y-2.5 relative overflow-hidden">
+        <div className="px-5 pt-4 pb-2.5 shrink-0 border-b border-[#007a52]/70 bg-[#006241] space-y-2.5 relative">
           {/* 🔖 Classic Hanging Bookmark Ribbon (Color: #8CC497 - Exact Same as Feed Card) */}
           {post.isSaved && (
             <div
@@ -273,13 +279,22 @@ export function CommentDrawerModal({
                       </h3>
                       <p className="text-xs text-[#8CC497] font-medium tracking-wide flex items-center gap-1.5">
                         <span>{post.department}</span>
-                        {post.isSaved && post.savedAt && (
+                        {post.hiddenAt ? (
                           <>
                             <span className="text-[#8CC497]/40">•</span>
                             <span className="text-[#8CC497]/80 font-normal">
-                              Saved {formatRelativeTime(post.savedAt)}
+                              Hidden {formatRelativeTime(post.hiddenAt)}
                             </span>
                           </>
+                        ) : (
+                          post.isSaved && post.savedAt && (
+                            <>
+                              <span className="text-[#8CC497]/40">•</span>
+                              <span className="text-[#8CC497]/80 font-normal">
+                                Saved {formatRelativeTime(post.savedAt)}
+                              </span>
+                            </>
+                          )
                         )}
                         <span className="text-[#8CC497]/40">•</span>
                         <span className="text-[#8CC497]/70">
@@ -328,13 +343,22 @@ export function CommentDrawerModal({
                       </h3>
                       <p className="text-xs text-[#8CC497] font-medium tracking-wide flex items-center gap-1.5">
                         <span>{post.isAnonymous && !post.isAuthor ? "Flame" : post.department}</span>
-                        {post.isSaved && post.savedAt && (
+                        {post.hiddenAt ? (
                           <>
                             <span className="text-[#8CC497]/40">•</span>
                             <span className="text-[#8CC497]/80 font-normal">
-                              Saved {formatRelativeTime(post.savedAt)}
+                              Hidden {formatRelativeTime(post.hiddenAt)}
                             </span>
                           </>
+                        ) : (
+                          post.isSaved && post.savedAt && (
+                            <>
+                              <span className="text-[#8CC497]/40">•</span>
+                              <span className="text-[#8CC497]/80 font-normal">
+                                Saved {formatRelativeTime(post.savedAt)}
+                              </span>
+                            </>
+                          )
                         )}
                         <span className="text-[#8CC497]/40">•</span>
                         <span className="text-[#8CC497]/70">
@@ -412,7 +436,7 @@ export function CommentDrawerModal({
                       onClick={() => {
                         setIsMenuOpen(false);
                         if (typeof window !== "undefined" && navigator.clipboard) {
-                          navigator.clipboard.writeText(window.location.href);
+                          navigator.clipboard.writeText(`${window.location.origin}/?post=${post.id}`);
                           toast.success("Post link copied to clipboard!");
                         }
                       }}
@@ -422,30 +446,65 @@ export function CommentDrawerModal({
                       <Link2 className="w-4 h-4 text-[#8CC497]" />
                       <span>Copy link</span>
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsMenuOpen(false);
-                        onToggleSavePost?.(post);
-                      }}
-                      style={{ borderRadius: "10px" }}
-                      className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-emerald-100 hover:text-white hover:bg-[#004e34] rounded-[10px] transition-colors text-left cursor-pointer"
-                    >
-                      <Bookmark className={`w-4 h-4 ${post.isSaved ? "fill-[#8CC497] text-[#8CC497]" : "text-[#8CC497]"}`} />
-                      <span>{post.isSaved ? "Unsave post" : "Save post"}</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsMenuOpen(false);
-                        onHidePost?.(post.id);
-                      }}
-                      style={{ borderRadius: "10px" }}
-                      className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-amber-300/90 hover:text-amber-200 hover:bg-amber-500/10 rounded-[10px] transition-colors text-left cursor-pointer"
-                    >
-                      <EyeOff className="w-4 h-4 text-amber-400" />
-                      <span>Hide post</span>
-                    </button>
+
+                    {!post.isAuthor && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsMenuOpen(false);
+                            onToggleSavePost?.(post);
+                          }}
+                          style={{ borderRadius: "10px" }}
+                          className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-emerald-100 hover:text-white hover:bg-[#004e34] rounded-[10px] transition-colors text-left cursor-pointer"
+                        >
+                          <Bookmark className={`w-4 h-4 ${post.isSaved ? "fill-[#8CC497] text-[#8CC497]" : "text-[#8CC497]"}`} />
+                          <span>{post.isSaved ? "Unsave post" : "Save post"}</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsMenuOpen(false);
+                            if (post.hiddenAt) {
+                              onUnhidePost?.(post);
+                            } else {
+                              onHidePost?.(post);
+                            }
+                          }}
+                          style={{ borderRadius: "10px" }}
+                          className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-amber-300/90 hover:text-amber-200 hover:bg-amber-500/10 rounded-[10px] transition-colors text-left cursor-pointer"
+                        >
+                          {post.hiddenAt ? (
+                            <>
+                              <Eye className="w-4 h-4 text-[#8CC497]" />
+                              <span>Unhide post</span>
+                            </>
+                          ) : (
+                            <>
+                              <EyeOff className="w-4 h-4 text-amber-400" />
+                              <span>Hide post</span>
+                            </>
+                          )}
+                        </button>
+
+                        <div className="h-px bg-[#005a3c]/60 my-1" />
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsMenuOpen(false);
+                            onReportPost?.(post);
+                            toast.success("Report submitted to the moderation team.");
+                          }}
+                          style={{ borderRadius: "10px" }}
+                          className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-rose-300 hover:text-rose-100 hover:bg-rose-950/40 rounded-[10px] transition-colors text-left cursor-pointer"
+                        >
+                          <Flag className="w-4 h-4 text-rose-400" />
+                          <span>Report post</span>
+                        </button>
+                      </>
+                    )}
                   </div>
                 )}
               </div>

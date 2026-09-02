@@ -41,6 +41,7 @@ import { hidePostAction } from "@/features/feed/actions/post.hide.action";
 import { createCommentAction } from "@/features/feed/actions/comment.action";
 import { motion, AnimatePresence } from "framer-motion";
 import { SavedPostsFeed } from "../saved-posts/components/saved-posts-feed";
+import { HiddenPostsFeed } from "../hidden-posts/components/hidden-posts-feed";
 import { useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/query/query-keys";
 import { toast } from "sonner";
@@ -821,23 +822,10 @@ export function ProfileActivityFeed({
       )}
 
       {/* ========================================================================= */}
-      {/* 👁️ TAB 3: HIDDEN POSTS FEED PLACEHOLDER */}
+      {/* 👁️ TAB 3: HIDDEN POSTS FEED */}
       {/* ========================================================================= */}
       {isSelf && activeTab === "hidden" && (
-        <div
-          style={{ borderRadius: "10px" }}
-          className="py-14 px-6 text-center space-y-3 bg-[#003F2A]/60 border border-[#005a3c] rounded-[10px] shadow-lg flex flex-col items-center justify-center"
-        >
-          <div className="w-12 h-12 rounded-full bg-[#002f1f] border-2 border-[#8CC497]/40 flex items-center justify-center text-[#8CC497]">
-            <EyeOff className="w-6 h-6" />
-          </div>
-          <div className="space-y-1 max-w-sm">
-            <h3 className="text-base font-bold text-white font-heading">Hidden Posts</h3>
-            <p className="text-xs text-[#8CC497]/80">
-              Posts you hide from your feed will appear here so you can unhide them at any time.
-            </p>
-          </div>
-        </div>
+        <HiddenPostsFeed currentSessionUser={currentSessionUser} />
       )}
 
       {/* ========================================================================= */}
@@ -1518,10 +1506,9 @@ export function ProfileActivityFeed({
         onToggleSavePost={(p) => {
           handleToggleSave(p);
         }}
-        onHidePost={(postId) => {
+        onHidePost={(p) => {
           setActiveDiscussionPost(null);
-          setPosts((prev) => prev.filter((p) => p.id !== postId));
-          toast.success("Post hidden from your feed");
+          handleHidePost(p);
         }}
       />
 

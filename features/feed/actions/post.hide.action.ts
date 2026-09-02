@@ -123,3 +123,56 @@ export async function hidePostAction(
     };
   }
 }
+
+/**
+ * 🔒 Unhide a Previously Hidden Post
+ * Business Rules & Security Directives:
+ * 1. Authenticated session required.
+ * 2. Delete HiddenPost entry matching composite [userId, postId].
+ * 3. Restores post visibility on main feed and profile.
+ */
+export async function unhidePostAction(
+  postId: string
+): Promise<ActionResult<{ isHidden: boolean }>> {
+  try {
+    const supabase = await createClient();
+    const {
+      data: { user: authUser },
+    } = await supabase.auth.getUser();
+
+    if (!authUser) {
+      return {
+        success: false,
+        error: "You must be logged in to unhide posts.",
+        code: "UNAUTHORIZED",
+      };
+    }
+
+    if (!postId || typeof postId !== "string") {
+      return {
+        success: false,
+        error: "Invalid post ID.",
+        code: "VALIDATION_ERROR",
+      };
+    }
+
+    // Delete HiddenPost entry if exists
+    await prisma.hiddenPost.deleteMany({
+      where: {
+        userId: authUser.id,
+        postId: postId,
+      },
+    });
+
+    return {
+      success: true,
+      data: { isHidden: false },
+    };
+  } catch {
+    return {
+      success: false,
+      error: "Unable to unhide post. Please try again.",
+      code: "INTERNAL_ERROR",
+    };
+  }
+}
